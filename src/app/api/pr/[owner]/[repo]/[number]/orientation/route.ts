@@ -1,4 +1,4 @@
-import { llmConfigFromEnv } from "@/lib/llm/orientation";
+import { llmConfigFromEnv } from "@/lib/llm/client";
 import { orientationFor } from "@/lib/review/orientation-service";
 import { preparedFromRequest, type PrRouteContext } from "@/lib/review/route-context";
 import { sessionStore } from "@/lib/review/services";

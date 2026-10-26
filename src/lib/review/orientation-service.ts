@@ -1,4 +1,5 @@
-import { orient, type LlmConfig, type Orientation } from "@/lib/llm/orientation";
+import type { LlmConfig } from "@/lib/llm/client";
+import { orient, type Orientation } from "@/lib/llm/orientation";
 import { prKey } from "@/lib/pr-ref";
 import type { SessionStore } from "@/lib/session/store";
 import type { ReviewData } from "./prepare";

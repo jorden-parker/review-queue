@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Hotspot, Step } from "@/lib/types";
 import { addedHunk, fileDiff, lines } from "@/test/diff-builders";
-import { buildPrompt, llmConfigFromEnv, orient, type OrientationInput } from "./orientation";
+import { buildPrompt, orient, type OrientationInput } from "./orientation";
 
 const STEP: Step = {
   id: "core:src/a.ts:0",
@@ -134,16 +134,5 @@ describe("buildPrompt", () => {
     expect(prompt.match(/<\/pr_description>/g)).toHaveLength(1);
     expect(prompt.match(/<\/pr_diff>/g)).toHaveLength(1);
     expect(prompt).not.toContain("x".repeat(301));
-  });
-});
-
-describe("llmConfigFromEnv", () => {
-  it("defaults to local Ollama and can be switched off", () => {
-    expect(llmConfigFromEnv({})).toMatchObject({
-      baseURL: "http://localhost:11434",
-      model: "qwen3.8-27b-cc",
-      enabled: true,
-    });
-    expect(llmConfigFromEnv({ REVIEW_QUEUE_LLM: "off" }).enabled).toBe(false);
   });
 });
