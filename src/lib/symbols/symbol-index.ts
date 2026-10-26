@@ -31,6 +31,17 @@ function parseGrepLine(line: string): Reference | null {
   return { path: match[1], line: Number(match[2]), text: match[3] };
 }
 
+function readStart(file: string, maxBytes: number): string {
+  const descriptor = fs.openSync(file, "r");
+  try {
+    const buffer = Buffer.alloc(maxBytes);
+    const bytesRead = fs.readSync(descriptor, buffer, 0, maxBytes, 0);
+    return buffer.subarray(0, bytesRead).toString("utf8");
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
 export class SymbolIndex {
   private readonly byName = new Map<string, SymbolDefinition[]>();
   private readonly byFile = new Map<string, SymbolDefinition[]>();
@@ -89,7 +100,7 @@ export class SymbolIndex {
   readFile(file: string): string {
     const absolute = fs.realpathSync(path.resolve(this.root, file));
     if (this.relativePath(absolute) === null) throw new Error(`Path outside checkout: ${file}`);
-    return fs.readFileSync(absolute, "utf8");
+    return readStart(absolute, MAX_FILE_BYTES);
   }
 
   readLines(file: string, startLine: number, endLine: number): string[] {
