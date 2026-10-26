@@ -8,6 +8,7 @@ export type ShortcutAction =
   | "peek-references"
   | "back"
   | "note"
+  | "ask-model"
   | "park"
   | "toggle-all"
   | "pause"
@@ -22,6 +23,7 @@ const SINGLE_KEYS: Record<string, ShortcutAction> = {
   x: "done-and-next",
   b: "back",
   c: "note",
+  i: "ask-model",
   P: "park",
   a: "toggle-all",
   ".": "pause",

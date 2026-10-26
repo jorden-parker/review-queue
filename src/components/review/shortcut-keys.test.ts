@@ -6,6 +6,7 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(null, "j")).toBe("next-hunk");
     expect(resolveShortcut(null, "P")).toBe("park");
     expect(resolveShortcut(null, "?")).toBe("help");
+    expect(resolveShortcut(null, "i")).toBe("ask-model");
     expect(resolveShortcut(null, "Escape")).toBe("close");
   });
 

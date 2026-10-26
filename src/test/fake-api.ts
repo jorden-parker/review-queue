@@ -5,6 +5,19 @@ import type { ReviewPayload } from "@/lib/review/prepare";
 
 type Call = { url: string; method: string; body: unknown };
 
+export const ASSIST_REPLY = ["It declares ", "the Options type."];
+
+function streamedText(chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+      controller.close();
+    },
+  });
+  return new Response(body, { headers: { "content-type": "text/plain; charset=utf-8" } });
+}
+
 export function installFakeApi(
   payload: ReviewPayload,
   orientation: unknown = { status: "disabled" },
@@ -62,6 +75,7 @@ export function installFakeApi(
         },
       ],
     ],
+    [/\/assist$/, () => streamedText(ASSIST_REPLY)],
     [/\/session$/, (body) => applySessionAction(store, key, SessionActionSchema.parse(body))],
     [/\/submit$/, () => store.getSession(key)],
     [/\/api\/pr\/acme\/app\/7$/, () => payload],

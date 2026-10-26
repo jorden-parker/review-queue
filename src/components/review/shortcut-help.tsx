@@ -11,6 +11,7 @@ const SHORTCUTS: [string[], string][] = [
   [["g", "r"], "References to the hovered name"],
   [["b"], "Back from a jump"],
   [["c"], "Note on the current chunk"],
+  [["i"], "Explain the selected lines"],
   [["P"], "Park a thought for later"],
   [["a"], "Show the whole PR or just this step"],
   [["."], "Pause and leave yourself a note"],

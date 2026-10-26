@@ -45,7 +45,11 @@ loads the review. `definitions`, `references` and `orientation` take `?sha=` and
 use `preparedFromRequest` (`lib/review/route-context.ts`), which returns 409 if
 that SHA is no longer in memory. `session` applies zod-validated
 `SessionAction`s (`lib/review/session-actions.ts`). `submit` posts the review
-through `gh`.
+through `gh`. `assist` (POST `?sha=`, `lib/review/assist-service.ts`) streams
+plain text from the model about a range of diff lines. The client sends hunk and
+line indexes, never code. The server reads the lines from its own diff, and it
+ends a failed stream with the `ASSIST_ERROR_MARKER` from
+`lib/assist-protocol.ts`.
 
 **Singletons** (`lib/review/services.ts`). The SQLite `SessionStore`
 (`lib/session/store.ts`) is stored on `globalThis` so it survives HMR. It
