@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { AssistAction } from "@/lib/assist-protocol";
 import type { PreparedFile } from "@/lib/review/prepare";
-import type { Note, NoteKind, Step, StepFile } from "@/lib/types";
+import type { Note, NoteKind, ReferenceCount, Step, StepFile, SymbolPosition } from "@/lib/types";
 import { CodeLine, type LineHandlers } from "./code-line";
 import { FileAskButton } from "./file-ask-button";
 import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
 import { isSameLine, lineElementId, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
+import { ReferenceLens } from "./reference-lens";
 
 export type StepViewContext = {
   files: Map<string, PreparedFile>;
@@ -25,12 +26,19 @@ export type StepViewContext = {
   composer: LineTarget | null;
   landed: LineTarget | null;
   activeHunkId: string | null;
+  referenceCounts: ReadonlyMap<string, ReferenceCount[]>;
   onAskFile: ((path: string, action: AssistAction) => void) | null;
   handlers: LineHandlers & {
     onSaveNote: (target: LineTarget, kind: NoteKind, body: string) => void;
     onCancelNote: () => void;
+    onShowReferences: (position: SymbolPosition) => void;
   };
 };
+
+function lensesOf(context: StepViewContext, path: string): Map<number, ReferenceCount> {
+  const counts = context.referenceCounts.get(path) ?? [];
+  return new Map(counts.map((count) => [count.line, count]));
+}
 
 function FileHeader({
   file,
@@ -76,6 +84,9 @@ function HunkBlock({
   const highlighted = file.highlighted[hunkIndex] ?? [];
   const id = hunkElementId(file.path, hunkIndex);
   const active = context.activeHunkId === id;
+  const lenses = lensesOf(context, file.path);
+  const showReferences = ({ name, line, character }: ReferenceCount) =>
+    context.handlers.onShowReferences({ name, path: file.path, line, character, side: "new" });
   return (
     <div
       id={id}
@@ -92,8 +103,12 @@ function HunkBlock({
         const target = lineNumber !== null ? { path: file.path, line: lineNumber } : null;
         const composing = target && isSameLine(context.composer, target.path, target.line);
         const landed = target && isSameLine(context.landed, target.path, target.line);
+        const lens = lineNumber !== null ? lenses.get(lineNumber) : undefined;
         return (
           <div key={lineIndex}>
+            {lens && (
+              <ReferenceLens reference={lens} lineText={line.text} onShow={showReferences} />
+            )}
             <CodeLine
               path={file.path}
               hunkIndex={hunkIndex}

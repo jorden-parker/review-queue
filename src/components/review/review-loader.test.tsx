@@ -393,6 +393,36 @@ describe("ReviewLoader", () => {
     );
   });
 
+  it("shows how often a changed declaration is referenced and lists the references", async () => {
+    const { api, user } = await renderReview(
+      reviewPayload(emptySession({ currentStepId: "core:src/client.ts:0" })),
+    );
+    await user.click(await screen.findByRole("button", { name: "2 references to load" }));
+    expect(await screen.findByText("load(options: Options) {")).toBeTruthy();
+    expect(api.calls.map((call) => call.url)).toContainEqual(
+      expect.stringContaining("/references?sha=5555"),
+    );
+    expect(api.calls.map((call) => call.url)).toContainEqual(
+      expect.stringContaining("name=load&path=src%2Fclient.ts&line=10&character=16&side=new"),
+    );
+  });
+
+  it("outlines the step's files and goes to a symbol or peeks one outside the diff", async () => {
+    const { user } = await renderReview(
+      reviewPayload(emptySession({ currentStepId: "core:src/client.ts:0" })),
+    );
+    await user.keyboard("go");
+    const outline = await screen.findByRole("region", { name: "Outline" });
+    await user.click(await within(outline).findByRole("button", { name: "Collapse load" }));
+    expect(within(outline).queryByRole("button", { name: /attempts/ })).toBeNull();
+    await user.click(within(outline).getByRole("button", { name: "Expand load" }));
+    await user.click(within(outline).getByRole("button", { name: /^load/ }));
+    const landed = document.querySelector("[aria-current=location]");
+    expect(landed?.getAttribute("id")).toBe("line-src/client.ts-10");
+    await user.click(within(outline).getByRole("button", { name: /^retry/ }));
+    expect(await screen.findByRole("region", { name: "Context" })).toBeTruthy();
+  });
+
   it("adds a line note with the keyboard and parks a thought", async () => {
     const { api, user } = await renderReview();
     await user.keyboard("c");

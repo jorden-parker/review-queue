@@ -81,27 +81,29 @@ function DefinitionCode({
   onIdentifier,
 }: Pick<PanelBodyProps, "onIdentifier"> & { definition: DefinitionWithCode }) {
   return (
-    <pre className="py-2 font-mono text-code">
-      {definition.tokens.map((row, index) => (
-        <div key={index} className="flex px-3 transition-colors duration-150 hover:bg-muted/60">
-          <span className="w-8 shrink-0 pr-3 text-right text-muted-foreground/70 select-none">
-            {definition.line + index}
-          </span>
-          <code className="min-w-0 wrap-break-word whitespace-pre-wrap">
-            <CodeTokens
-              tokens={row}
-              onIdentifier={(target) =>
-                onIdentifier({
-                  ...target,
-                  path: definition.path,
-                  line: definition.line + index,
-                  side: "new",
-                })
-              }
-            />
-          </code>
-        </div>
-      ))}
+    <pre className="overflow-x-auto py-2 font-mono text-code">
+      <div className="w-max min-w-full">
+        {definition.tokens.map((row, index) => (
+          <div key={index} className="flex px-3 transition-colors duration-150 hover:bg-muted/60">
+            <span className="w-8 shrink-0 pr-3 text-right text-muted-foreground/70 select-none">
+              {definition.line + index}
+            </span>
+            <code className="whitespace-pre">
+              <CodeTokens
+                tokens={row}
+                onIdentifier={(target) =>
+                  onIdentifier({
+                    ...target,
+                    path: definition.path,
+                    line: definition.line + index,
+                    side: "new",
+                  })
+                }
+              />
+            </code>
+          </div>
+        ))}
+      </div>
     </pre>
   );
 }

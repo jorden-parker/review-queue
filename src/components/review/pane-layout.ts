@@ -1,4 +1,5 @@
-export type PaneId = "step" | "path" | "hotspots" | "notes" | "chat" | "chats" | "context";
+export type PaneId =
+  "step" | "path" | "hotspots" | "notes" | "chat" | "chats" | "context" | "outline";
 export type PaneLayout = PaneId[];
 
 export function closePane(layout: PaneLayout, id: PaneId): PaneLayout {

@@ -7,6 +7,7 @@ import {
   Coffee,
   Flame,
   Layers,
+  ListTree,
   type LucideIcon,
   MapPin,
   MessagesSquare,
@@ -33,9 +34,9 @@ import {
   targetPath,
 } from "@/lib/assist-protocol";
 import { prKey } from "@/lib/pr-ref";
-import type { ReviewPayload } from "@/lib/review/prepare";
+import type { PreparedFile, ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
-import type { PullRequestRef } from "@/lib/types";
+import type { PullRequestRef, Step } from "@/lib/types";
 import { AssistPanel } from "./assist-panel";
 import { FinishReview } from "./finish-review";
 import { FocusTimer } from "./focus-timer";
@@ -54,6 +55,8 @@ import { StartOverDialog } from "./start-over-dialog";
 import { orderedSteps, stepReasons } from "./step-order";
 import { SavedChatsPanel } from "./saved-chats-panel";
 import { SelectionToolbar } from "./selection-toolbar";
+import { useReferenceCounts } from "./use-file-symbols";
+import { WorkspaceOutline } from "./workspace-outline";
 import { StepSummary } from "./step-summary";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
@@ -77,6 +80,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
   { id: "chat", label: "Chat", icon: Sparkles },
   { id: "chats", label: "Chats", icon: MessagesSquare },
   { id: "context", label: "Context", icon: Shapes },
+  { id: "outline", label: "Outline", icon: ListTree },
 ];
 
 function TopBar({
@@ -166,6 +170,7 @@ function paneEntries({ session, workspace }: PaneProps): PaneEntry[] {
     chat: null,
     chats: session.assistThreads.length,
     context: contextCount(session.contextSymbols, workspace.currentStep?.id ?? null),
+    outline: null,
   };
   return PANES.filter((pane) => workspace.aiEnabled || pane.id !== "chat").map((pane) => ({
     ...pane,
@@ -280,6 +285,19 @@ function paneContent(id: PaneId, props: PaneProps): PaneContent {
             onTogglePin={(symbol) => workspace.setSymbolPinned(symbol, !symbol.pinned)}
             onBack={workspace.back}
             onClearTrail={workspace.clearJumps}
+          />
+        ),
+      };
+    case "outline":
+      return {
+        body: (
+          <WorkspaceOutline
+            pullRequest={workspace.pullRequest}
+            headSha={review.headSha}
+            step={workspace.currentStep ?? null}
+            files={workspace.files}
+            onGoTo={workspace.goTo}
+            onPeek={workspace.peekName}
           />
         ),
       };
@@ -474,6 +492,11 @@ function NoSteps({
   return <EmptyState emoji="🧭">{ORDERING_MESSAGE}</EmptyState>;
 }
 
+function navigablePaths(steps: Step[], files: ReadonlyMap<string, PreparedFile>): string[] {
+  const paths = steps.flatMap((step) => step.files.map((stepFile) => stepFile.path));
+  return [...new Set(paths)].filter((path) => files.get(path)?.navigable);
+}
+
 export function ReviewWorkspace({
   pullRequest,
   review: payload,
@@ -487,6 +510,11 @@ export function ReviewWorkspace({
   }, [payload, orientation]);
   const workspace = useWorkspace(pullRequest, review, session, orientation, controls);
   const fresh = session.doneSteps.length === 0 && workspace.currentIndex <= 0;
+  const referenceCounts = useReferenceCounts(
+    pullRequest,
+    review.headSha,
+    navigablePaths(workspace.visibleSteps, workspace.files),
+  );
   const context: StepViewContext = useMemo(
     () => ({
       files: workspace.files,
@@ -496,6 +524,7 @@ export function ReviewWorkspace({
       composer: workspace.composer,
       landed: workspace.landed,
       activeHunkId: workspace.activeHunkId,
+      referenceCounts,
       onAskFile: workspace.aiEnabled
         ? (path, action) => workspace.assist.open({ kind: "file", path }, action)
         : null,
@@ -510,9 +539,10 @@ export function ReviewWorkspace({
           : null,
         onSaveNote: (target, kind, body) => workspace.saveNote(target, kind, body),
         onCancelNote: () => workspace.setComposer(null),
+        onShowReferences: workspace.peek.showReferences,
       },
     }),
-    [workspace, session.notes, session.checkedHotspots],
+    [workspace, session.notes, session.checkedHotspots, referenceCounts],
   );
 
   return (
