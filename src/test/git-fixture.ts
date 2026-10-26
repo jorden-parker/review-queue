@@ -2,11 +2,16 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { withoutRepositoryVariables } from "@/lib/git-env";
 
 export type FixtureRepo = { root: string; origin: string; cacheRoot: string };
 
 function git(cwd: string, ...args: string[]): string {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    env: withoutRepositoryVariables(process.env),
+  }).trim();
 }
 
 function writeFiles(dir: string, files: Record<string, string>): void {
