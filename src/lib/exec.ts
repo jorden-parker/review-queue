@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, execFile, spawn } from "node:child_process";
 import { withoutRepositoryVariables } from "./git-env";
 
 export type RunOptions = { cwd?: string; input?: string };
@@ -28,3 +28,17 @@ export const runCommand: Runner = (command, args, options = {}) =>
     );
     if (options.input !== undefined) child.stdin?.end(options.input);
   });
+
+export type SpawnOptions = { cwd: string; env?: Record<string, string> };
+
+export function spawnProcess(
+  command: string,
+  args: string[],
+  options: SpawnOptions,
+): ChildProcessWithoutNullStreams {
+  return spawn(command, args, {
+    cwd: options.cwd,
+    env: { ...withoutRepositoryVariables(process.env), ...options.env },
+    stdio: "pipe",
+  });
+}

@@ -5,13 +5,13 @@ import { cn } from "cn";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import type { Token } from "@/lib/highlight";
-import type { DiffLine, Hotspot, Note } from "@/lib/types";
-import { CodeTokens } from "./code-tokens";
+import type { DiffLine, Hotspot, Note, SymbolPosition } from "@/lib/types";
+import { CodeTokens, type IdentifierTarget } from "./code-tokens";
 import { NoteKindBadge } from "./note-kind-badge";
 
 export type LineHandlers = {
-  onIdentifier: (name: string, path: string, line: number) => void;
-  onHoverIdentifier: (name: string | null) => void;
+  onIdentifier: (position: SymbolPosition) => void;
+  onHoverIdentifier: (position: SymbolPosition | null) => void;
   onAddNote: (path: string, line: number) => void;
   onDeleteNote: (id: number) => void;
 };
@@ -22,7 +22,7 @@ type CodeLineProps = {
   lineIndex: number;
   line: DiffLine;
   tokens: Token[];
-  linkable: Set<string>;
+  linked: boolean;
   hotspots: Hotspot[];
   notes: Note[];
   elementId: string | undefined;
@@ -69,7 +69,7 @@ export function CodeLine({
   lineIndex,
   line,
   tokens,
-  linkable,
+  linked,
   hotspots,
   notes,
   elementId,
@@ -77,6 +77,12 @@ export function CodeLine({
 }: CodeLineProps) {
   const lineNumber = line.newLine;
   const canNote = lineNumber !== null;
+  const positionOf = (target: IdentifierTarget): SymbolPosition => ({
+    ...target,
+    path,
+    line: lineNumber ?? line.oldLine ?? 1,
+    side: lineNumber === null ? "old" : "new",
+  });
   return (
     <>
       <div
@@ -112,11 +118,10 @@ export function CodeLine({
         <code className="flex-1 pr-4 break-words whitespace-pre-wrap">
           <CodeTokens
             tokens={tokens}
-            linkable={linkable}
-            onIdentifier={(name) =>
-              handlers.onIdentifier(name, path, lineNumber ?? line.oldLine ?? 1)
+            onIdentifier={
+              linked ? (target) => handlers.onIdentifier(positionOf(target)) : undefined
             }
-            onHover={handlers.onHoverIdentifier}
+            onHover={(target) => handlers.onHoverIdentifier(target && positionOf(target))}
           />
         </code>
         {hotspots.length > 0 && (

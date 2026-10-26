@@ -17,6 +17,7 @@ export function emptySession(overrides: Partial<Session> = {}): Session {
     notes: [],
     jumps: [],
     assistThreads: [],
+    contextSymbols: [],
     ...overrides,
   };
 }
@@ -45,7 +46,7 @@ function file(path: string, hunks: Hunk[]): PreparedFile {
     additions,
     deletions: 0,
     hunks,
-    navigable: true,
+    navigable: path.endsWith(".ts"),
     highlighted: hunks.map((item) =>
       item.lines.map((line) => [{ text: line.text, light: "#000", dark: "#fff" }]),
     ),
@@ -117,7 +118,6 @@ export function reviewPayload(session: Session = emptySession()): ReviewPayload 
         why: "Remove it.",
       },
     ],
-    linkableNames: ["Options", "load"],
     estimateMinutes: 2,
     session,
     reopenedStepIds: [],

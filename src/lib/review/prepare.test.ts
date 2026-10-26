@@ -35,8 +35,10 @@ function pullRequest(headSha: string, baseSha: string): PullRequest {
 describe("loadReview", () => {
   let fixture: FixtureRepo;
   let deps: ReviewDeps;
+  let warmed: string[];
 
   beforeEach(() => {
+    warmed = [];
     fixture = createFixtureRepo(
       {
         "src/client.ts":
@@ -55,19 +57,24 @@ describe("loadReview", () => {
       fetchPullRequest: async () => pullRequest(headOf(fixture, REF.number), mainOf(fixture)),
       store: new SessionStore(":memory:"),
       checkoutOptions: { cacheRoot: fixture.cacheRoot, remoteUrl: fixture.origin },
+      languageClients: () => async (file) => {
+        warmed.push(file);
+        return null;
+      },
     };
   });
 
   afterEach(() => removeFixtureRepo(fixture));
 
-  it("builds a reading path, hotspots and linkable names from a real checkout", async () => {
+  it("builds a reading path and hotspots and warms language servers for changed code", async () => {
     const review = await loadReview(REF, deps);
     expect(review.steps[0].role).toBe("types");
     expect(review.startStepId).toBe(review.steps[0].id);
     expect(review.hotspots.map((hotspot) => hotspot.rule)).toEqual(
       expect.arrayContaining(["signature-change", "debug-output"]),
     );
-    expect(review.linkableNames).toEqual(expect.arrayContaining(["fetchUser", "retry"]));
+    expect(warmed).toEqual(expect.arrayContaining(["src/client.ts", "src/retry.ts"]));
+    expect(warmed).not.toContain("scripts/run.sh");
     expect(review.files[0].highlighted[0].length).toBe(review.files[0].hunks[0].lines.length);
     expect(review.session.lastHeadSha).toBe(review.headSha);
   });

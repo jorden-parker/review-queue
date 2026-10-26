@@ -18,6 +18,7 @@ const REF = { owner: "acme", repo: "app", number: 1 };
 describe("SymbolIndex", () => {
   let fixture: FixtureRepo;
   let index: SymbolIndex;
+  let root: string;
 
   beforeEach(async () => {
     fixture = createFixtureRepo(
@@ -37,6 +38,7 @@ describe("SymbolIndex", () => {
         remoteUrl: fixture.origin,
       },
     );
+    root = checkout.worktreePath;
     index = await SymbolIndex.build(checkout.worktreePath, checkout.run);
   });
 
@@ -78,6 +80,14 @@ describe("SymbolIndex", () => {
   it("reads a whole file and refuses paths outside the checkout", () => {
     expect(index.readFile("src/store.ts")).toContain("export function load(id: string) {");
     expect(() => index.readFile("../../etc/passwd")).toThrow();
+  });
+
+  it("maps absolute paths back into the checkout and rejects outside ones", () => {
+    expect(index.relativePath(path.join(fs.realpathSync(root), "src/store.ts"))).toBe(
+      "src/store.ts",
+    );
+    expect(index.relativePath("/usr/lib/node/lib.d.ts")).toBeNull();
+    expect(index.readFile("src/store.ts")).toContain("export function load");
   });
 });
 

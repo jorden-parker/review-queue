@@ -2,9 +2,26 @@ import { z } from "zod";
 import { ASSIST_ACTIONS, MAX_HISTORY_TURNS } from "@/lib/assist-protocol";
 import type { Session, SessionStore } from "@/lib/session/store";
 import { AssistTargetSchema } from "./assist-request";
+import { SYMBOL_KINDS } from "@/lib/types";
 
 const CommitShaSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 const NoteKindSchema = z.enum(["blocker", "question", "nit", "praise", "parked"]);
+const SymbolSchema = z.object({
+  name: z.string().min(1),
+  kind: z.enum(SYMBOL_KINDS),
+  path: z.string(),
+  line: z.number().int(),
+  scope: z.enum(["file", "repo", "external"]),
+  signature: z.string().max(500),
+  stepId: z.string().nullable(),
+  origin: z.object({
+    name: z.string().min(1),
+    path: z.string(),
+    line: z.number().int().positive(),
+    character: z.number().int().nonnegative(),
+    side: z.enum(["old", "new"]),
+  }),
+});
 
 const AssistThreadSchema = z.object({
   id: z.uuid(),
@@ -39,6 +56,8 @@ export const SessionActionSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("jump-pop") }),
   z.object({ type: z.literal("jump-clear") }),
+  z.object({ type: z.literal("symbol-seen"), symbol: SymbolSchema }),
+  z.object({ type: z.literal("symbol-pin"), symbol: SymbolSchema, pinned: z.boolean() }),
   z.object({ type: z.literal("start-over"), keepNotes: z.boolean() }),
   z.object({ type: z.literal("assist-save"), thread: AssistThreadSchema }),
   z.object({ type: z.literal("assist-delete"), id: z.uuid() }),
@@ -68,6 +87,8 @@ const HANDLERS: Handlers = {
     store.popJump(key);
   },
   "jump-clear": (store, key) => store.clearJumps(key),
+  "symbol-seen": (store, key, action) => store.recordSymbolSeen(key, action.symbol),
+  "symbol-pin": (store, key, action) => store.setSymbolPinned(key, action.symbol, action.pinned),
   "start-over": (store, key, action) => store.startOver(key, action.keepNotes),
   "assist-save": (store, key, action) => store.saveAssistThread(key, action.thread),
   "assist-delete": (store, key, action) => store.deleteAssistThread(key, action.id),

@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { DefinitionWithCode } from "@/lib/review/peek-code";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
-import type { PullRequestRef } from "@/lib/types";
+import { isPinned, peekedSymbol } from "./context-symbols";
+import { useContextSymbols } from "./use-context-symbols";
+import type { PullRequestRef, SymbolPosition } from "@/lib/types";
 import { displayHotspots } from "./display-hotspots";
 import { firstNoteLine } from "./hunk-index";
 import { nextOpenStep, type LineTarget } from "./locate";
@@ -21,7 +24,7 @@ import { useShortcuts } from "./use-shortcuts";
 import { useStepNavigation } from "./use-step-navigation";
 
 type Dialog = "resume" | "pause" | "finish" | "help" | "start-over" | null;
-export type SidebarTab = "path" | "hotspots" | "notes" | "chats";
+export type SidebarTab = "path" | "hotspots" | "notes" | "context" | "chats";
 
 const STALE_SESSION_MS = 30 * 60 * 1000;
 
@@ -49,6 +52,7 @@ type ShortcutDeps = {
   navigation: ReturnType<typeof useStepNavigation>;
   peek: ReturnType<typeof usePeek>;
   jumps: ReturnType<typeof useJumps>;
+  pins: ReturnType<typeof usePeekPin>;
   assist: Assist;
   selection: LineSelection | null;
 };
@@ -59,11 +63,11 @@ function shortcutHandlers({
   navigation,
   peek,
   jumps,
+  pins,
   assist,
   selection,
 }: ShortcutDeps): Record<ShortcutAction, () => void> {
-  const name = ui.getHovered();
-  const hoveredFrom = navigation.currentStep?.files[0]?.path ?? "";
+  const hovered = ui.getHovered();
   const closePanels = () => {
     ui.setComposer(null);
     peek.close();
@@ -75,8 +79,10 @@ function shortcutHandlers({
     "next-step": () => navigation.moveStep(1),
     "previous-step": () => navigation.moveStep(-1),
     "done-and-next": navigation.doneAndNext,
-    "peek-definition": () => name && jumps.peekName(name, hoveredFrom, 1),
-    "peek-references": () => name && peek.showReferences(name, hoveredFrom),
+    "peek-definition": () => hovered && jumps.peekName(hovered),
+    "peek-references": () => hovered && peek.showReferences(hovered),
+    "pin-symbol": pins.togglePeekPin,
+    "open-context": () => ui.setTab("context"),
     back: jumps.back,
     note: () => ui.setComposer(firstNoteLine(review.files, navigation.activeHunkId)),
     "ask-model": () => explainSelection(assist, selection),
@@ -88,16 +94,54 @@ function shortcutHandlers({
   };
 }
 
+function usePeekPin(
+  peek: ReturnType<typeof usePeek>,
+  session: Session,
+  context: ReturnType<typeof useContextSymbols>,
+  stepId: string | null,
+) {
+  const symbol = peekedSymbol(peek.peek, stepId);
+  const peekPinned = symbol !== null && isPinned(session.contextSymbols, symbol);
+  const togglePeekPin = () => {
+    if (symbol) context.setPinned(symbol, !peekPinned);
+  };
+  return { peekPinned, togglePeekPin };
+}
+
+function useRememberedPeek(
+  ref: PullRequestRef,
+  headSha: string,
+  session: Session,
+  act: ReturnType<typeof useReview>["act"],
+  currentStep: { id: string } | null | undefined,
+) {
+  const stepId = currentStep?.id ?? null;
+  const context = useContextSymbols(act, stepId);
+  const { recordSeen } = context;
+  const peek = usePeek(
+    ref,
+    headSha,
+    useCallback(
+      (position: SymbolPosition, definitions: DefinitionWithCode[]) => {
+        if (definitions[0]) recordSeen(definitions[0], position);
+      },
+      [recordSeen],
+    ),
+  );
+  const pins = usePeekPin(peek, session, context, stepId);
+  return { peek, context, pins };
+}
+
 function useWorkspaceUi(review: ReviewPayload) {
   const [dialog, setDialog] = useState<Dialog>(() => (shouldGreet(review) ? "resume" : null));
   const [tab, setTab] = useState<SidebarTab>("path");
   const [composer, setComposer] = useState<LineTarget | null>(null);
   const [breakDue, setBreakDue] = useState(false);
   const [posted, setPosted] = useState(false);
-  const hovered = useRef<string | null>(null);
+  const hovered = useRef<SymbolPosition | null>(null);
   const parkingInput = useRef<HTMLInputElement>(null);
-  const setHovered = useCallback((name: string | null) => {
-    hovered.current = name;
+  const setHovered = useCallback((position: SymbolPosition | null) => {
+    hovered.current = position;
   }, []);
   const getHovered = useCallback(() => hovered.current, []);
   const focusParking = useCallback(() => {
@@ -143,9 +187,15 @@ export function useWorkspace(
 ) {
   const ui = useWorkspaceUi(review);
   const navigation = useStepNavigation(review, session, controls.act);
-  const peek = usePeek(ref, review.headSha);
   const savedChats = useSavedChats(controls.act);
   const assist = useAssist(ref, review.headSha, savedChats.save);
+  const { peek, context, pins } = useRememberedPeek(
+    ref,
+    review.headSha,
+    session,
+    controls.act,
+    navigation.currentStep,
+  );
   const selection = useLineSelection();
   const jumps = useJumps(session, controls.act, navigation.goTo, peek);
   const edits = useSessionEdits(ref, review.headSha, session, controls.act, controls.setSession);
@@ -158,7 +208,6 @@ export function useWorkspace(
     () => new Map(review.files.map((file) => [file.path, file])),
     [review.files],
   );
-  const linkable = useMemo(() => new Set(review.linkableNames), [review.linkableNames]);
   const nextStep = nextOpenStep(review.steps, session.doneSteps, null);
   const { setDialog, setComposer } = ui;
 
@@ -172,7 +221,7 @@ export function useWorkspace(
   }, [edits, navigation, nextStep, review.reopenedStepIds, setDialog]);
 
   const onShortcut = (action: ShortcutAction) =>
-    shortcutHandlers({ review, ui, navigation, peek, jumps, assist, selection })[action]();
+    shortcutHandlers({ review, ui, navigation, peek, jumps, pins, assist, selection })[action]();
 
   useShortcuts(onShortcut, acceptsShortcuts(ui.dialog));
 
@@ -182,6 +231,8 @@ export function useWorkspace(
     aiEnabled: orientation.status !== "disabled",
     ...jumps,
     ...edits,
+    ...pins,
+    setSymbolPinned: context.setPinned,
     peek,
     assist,
     deleteSavedChat: savedChats.remove,
@@ -189,7 +240,6 @@ export function useWorkspace(
     hotspots,
     startStepId,
     files,
-    linkable,
     nextStep,
     resume,
     saveNote: (

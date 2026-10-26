@@ -9,7 +9,7 @@ import type { SessionAction } from "@/lib/review/session-actions";
 import type { SummaryDraftResult } from "@/lib/review/summary-draft-service";
 import type { Session } from "@/lib/session/store";
 import type { DefinitionWithCode, ReferenceWithCode } from "@/lib/review/peek-code";
-import type { PullRequestRef } from "@/lib/types";
+import type { PullRequestRef, SymbolPosition } from "@/lib/types";
 
 export type SubmitInput = {
   event: ReviewEvent;
@@ -50,13 +50,17 @@ export function fetchStepExplanation(
   );
 }
 
+function positionQuery(sha: string, position: SymbolPosition): string {
+  const { name, path, line, character, side } = position;
+  return query({ sha, name, path, line: String(line), character: String(character), side });
+}
+
 export function fetchDefinitions(
   ref: PullRequestRef,
   sha: string,
-  name: string,
-  from: string,
+  position: SymbolPosition,
 ): Promise<DefinitionWithCode[]> {
-  return fetch(apiPath(ref, `/definitions${query({ sha, name, from })}`)).then(
+  return fetch(apiPath(ref, `/definitions${positionQuery(sha, position)}`)).then(
     json<DefinitionWithCode[]>,
   );
 }
@@ -64,9 +68,11 @@ export function fetchDefinitions(
 export function fetchReferences(
   ref: PullRequestRef,
   sha: string,
-  name: string,
+  position: SymbolPosition,
 ): Promise<ReferenceWithCode[]> {
-  return fetch(apiPath(ref, `/references${query({ sha, name })}`)).then(json<ReferenceWithCode[]>);
+  return fetch(apiPath(ref, `/references${positionQuery(sha, position)}`)).then(
+    json<ReferenceWithCode[]>,
+  );
 }
 
 function post<T>(url: string, body: unknown): Promise<T> {

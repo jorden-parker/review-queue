@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowRight, Telescope, X } from "lucide-react";
+import { ArrowRight, Pin, PinOff, Telescope, X } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
+import { Markdown } from "@/components/common/markdown-text";
 import { PathLabel } from "@/components/common/path-label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DefinitionWithCode } from "@/lib/review/peek-code";
+import type { SymbolPosition } from "@/lib/types";
 import { CodeTokens } from "./code-tokens";
 import type { LineTarget } from "./locate";
 import { groupReferencesByFile, type ReferenceGroup } from "./reference-groups";
@@ -18,15 +20,16 @@ import type { PeekState } from "./use-peek";
 
 type PeekPanelProps = {
   peek: PeekState;
-  linkable: Set<string>;
   inPullRequest: (path: string) => boolean;
-  onIdentifier: (name: string, path: string, line: number) => void;
+  onIdentifier: (position: SymbolPosition) => void;
   onGoTo: (target: LineTarget) => void;
   onTab: (tab: PeekState["tab"]) => void;
+  pinned: boolean;
+  onTogglePin: () => void;
   onClose: () => void;
 };
 
-type PanelBodyProps = Omit<PeekPanelProps, "onTab" | "onClose">;
+type PanelBodyProps = Omit<PeekPanelProps, "onTab" | "onClose" | "pinned" | "onTogglePin">;
 
 function LoadingRows() {
   return (
@@ -38,47 +41,78 @@ function LoadingRows() {
   );
 }
 
-function DefinitionCard({
+const SCOPE_LABELS: Record<DefinitionWithCode["scope"], string | null> = {
+  file: "this file",
+  repo: null,
+  external: "library",
+};
+
+function DefinitionHeader({
   definition,
-  linkable,
   inPullRequest,
-  onIdentifier,
   onGoTo,
 }: PanelBodyProps & { definition: DefinitionWithCode }) {
+  const scopeLabel = SCOPE_LABELS[definition.scope];
+  const inThisPullRequest = definition.scope !== "external" && inPullRequest(definition.path);
+  return (
+    <div className="flex items-center gap-2 border-b bg-muted/50 px-3 py-2">
+      <PathLabel path={definition.path} line={definition.line} className="flex-1" />
+      {scopeLabel && <Badge variant="outline">{scopeLabel}</Badge>}
+      <Badge variant="secondary">{definition.kind}</Badge>
+      {inThisPullRequest && (
+        <Button
+          variant="ghost"
+          size="xs"
+          className="text-primary"
+          onClick={() => onGoTo({ path: definition.path, line: definition.line })}
+        >
+          In this PR <ArrowRight />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function DefinitionCode({
+  definition,
+  onIdentifier,
+}: Pick<PanelBodyProps, "onIdentifier"> & { definition: DefinitionWithCode }) {
+  return (
+    <pre className="scrollbar-hidden overflow-x-auto py-2 font-mono text-code">
+      {definition.tokens.map((row, index) => (
+        <div key={index} className="flex px-3 transition-colors duration-150 hover:bg-muted/60">
+          <span className="w-8 shrink-0 pr-3 text-right text-muted-foreground/70 select-none">
+            {definition.line + index}
+          </span>
+          <code className="whitespace-pre">
+            <CodeTokens
+              tokens={row}
+              onIdentifier={(target) =>
+                onIdentifier({
+                  ...target,
+                  path: definition.path,
+                  line: definition.line + index,
+                  side: "new",
+                })
+              }
+            />
+          </code>
+        </div>
+      ))}
+    </pre>
+  );
+}
+
+function DefinitionCard(props: PanelBodyProps & { definition: DefinitionWithCode }) {
+  const { definition } = props;
   return (
     <Card className="gap-0 py-0">
-      <div className="flex items-center gap-2 border-b bg-muted/50 px-3 py-2">
-        <PathLabel path={definition.path} line={definition.line} className="flex-1" />
-        <Badge variant="secondary">{definition.kind}</Badge>
-        {inPullRequest(definition.path) && (
-          <Button
-            variant="ghost"
-            size="xs"
-            className="text-primary"
-            onClick={() => onGoTo({ path: definition.path, line: definition.line })}
-          >
-            In this PR <ArrowRight />
-          </Button>
-        )}
-      </div>
-      <pre className="scrollbar-hidden overflow-x-auto py-2 font-mono text-code">
-        {definition.tokens.map((row, index) => (
-          <div key={index} className="flex px-3 transition-colors duration-150 hover:bg-muted/60">
-            <span className="w-8 shrink-0 pr-3 text-right text-muted-foreground/70 select-none">
-              {definition.line + index}
-            </span>
-            <code className="whitespace-pre">
-              <CodeTokens
-                tokens={row}
-                linkable={linkable}
-                onIdentifier={(name) =>
-                  onIdentifier(name, definition.path, definition.line + index)
-                }
-              />
-            </code>
-          </div>
-        ))}
-      </pre>
+      <DefinitionHeader {...props} />
+      {definition.scope === "external" ? (
+        <Markdown text={definition.hover ?? definition.signature} className="px-3 py-2 text-sm" />
+      ) : (
+        <DefinitionCode definition={definition} onIdentifier={props.onIdentifier} />
+      )}
     </Card>
   );
 }
@@ -160,16 +194,36 @@ function TabLabel({ label, count, shortcut }: { label: string; count?: number; s
   );
 }
 
-export function PeekPanel({ onTab, onClose, ...body }: PeekPanelProps) {
+function PinButton({ pinned, onTogglePin }: Pick<PeekPanelProps, "pinned" | "onTogglePin">) {
+  return (
+    <HintButton
+      variant="ghost"
+      size="icon-sm"
+      hint={pinned ? "Unpin from Context" : "Pin to Context"}
+      shortcut="m"
+      aria-label={pinned ? "Unpin" : "Pin"}
+      aria-pressed={pinned}
+      onClick={onTogglePin}
+      className={pinned ? "text-primary" : undefined}
+    >
+      {pinned ? <PinOff /> : <Pin />}
+    </HintButton>
+  );
+}
+
+export function PeekPanel({ onTab, onClose, pinned, onTogglePin, ...body }: PeekPanelProps) {
   const { peek } = body;
   return (
     <aside
-      aria-label={peek.name}
+      aria-label={peek.position.name}
       className="absolute inset-y-0 right-0 z-20 flex w-peek max-w-full animate-peek-enter flex-col gap-3 border-l bg-background p-4 shadow-2xl"
     >
       <div className="flex items-center gap-2">
         <Telescope size={16} className="text-primary" />
-        <h2 className="min-w-0 flex-1 truncate font-mono text-sm font-semibold">{peek.name}</h2>
+        <h2 className="min-w-0 flex-1 truncate font-mono text-sm font-semibold">
+          {peek.position.name}
+        </h2>
+        {peek.definitions?.length ? <PinButton pinned={pinned} onTogglePin={onTogglePin} /> : null}
         <HintButton
           variant="ghost"
           size="icon-sm"

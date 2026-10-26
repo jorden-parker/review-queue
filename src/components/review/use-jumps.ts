@@ -2,10 +2,11 @@
 
 import { useCallback, useRef } from "react";
 import type { Jump, Session } from "@/lib/session/store";
+import type { SymbolPosition } from "@/lib/types";
 import type { LineTarget } from "./locate";
 import type { Act } from "./use-step-navigation";
 
-type Peek = { showDefinitions: (name: string, from: string) => void };
+type Peek = { showDefinitions: (position: SymbolPosition) => void };
 
 export function useJumps(
   session: Session,
@@ -16,9 +17,9 @@ export function useJumps(
   const origin = useRef<Jump | null>(null);
 
   const peekName = useCallback(
-    (name: string, path: string, line: number) => {
-      origin.current = { name, path, line };
-      peek.showDefinitions(name, path);
+    (position: SymbolPosition) => {
+      origin.current = { name: position.name, path: position.path, line: position.line };
+      peek.showDefinitions(position);
     },
     [peek],
   );

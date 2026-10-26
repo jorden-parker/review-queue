@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runCommand } from "./exec";
+import { runCommand, spawnProcess } from "./exec";
 
 describe("runCommand", () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -22,5 +22,21 @@ describe("runCommand", () => {
     await expect(runCommand("git", ["no-such-command"])).rejects.toThrow(
       /git no-such-command failed/,
     );
+  });
+});
+
+describe("spawnProcess", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("drops hook repository variables and applies the given environment", async () => {
+    vi.stubEnv("GIT_DIR", "/elsewhere.git");
+    const child = spawnProcess("sh", ["-c", 'printf "%s|%s" "${GIT_DIR:-none}" "$EXTRA"'], {
+      cwd: os.tmpdir(),
+      env: { EXTRA: "set" },
+    });
+    let output = "";
+    child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()));
+    await new Promise((resolve) => child.on("close", resolve));
+    expect(output).toBe("none|set");
   });
 });

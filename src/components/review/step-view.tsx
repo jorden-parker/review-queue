@@ -16,11 +16,8 @@ import { hunkElementId } from "./hunk-index";
 import { lineElementId, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
 
-const NO_LINKS = new Set<string>();
-
 export type StepViewContext = {
   files: Map<string, PreparedFile>;
-  linkable: Set<string>;
   hotspots: Hotspot[];
   notes: Note[];
   composer: LineTarget | null;
@@ -100,7 +97,7 @@ function HunkBlock({
               lineIndex={lineIndex}
               line={line}
               tokens={highlighted[lineIndex] ?? [{ text: line.text }]}
-              linkable={file.navigable ? context.linkable : NO_LINKS}
+              linked={file.navigable}
               hotspots={context.hotspots.filter(
                 (hotspot) =>
                   hotspot.path === file.path && lineNumber !== null && hotspot.line === lineNumber,

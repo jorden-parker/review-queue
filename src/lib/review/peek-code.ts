@@ -1,17 +1,36 @@
 import { highlightLines, type Token } from "@/lib/highlight";
 import type { Reference, SymbolIndex } from "@/lib/symbols/symbol-index";
-import type { SymbolDefinition } from "@/lib/types";
+import type { DefinitionScope, SymbolDefinition } from "@/lib/types";
 
-export type PeekIndex = Pick<SymbolIndex, "definitionsOf" | "readLines" | "referencesTo">;
-export type DefinitionWithCode = SymbolDefinition & { lines: string[]; tokens: Token[][] };
+export type PeekIndex = Pick<
+  SymbolIndex,
+  "definitionsOf" | "readLines" | "referencesTo" | "relativePath"
+>;
+
+export type DefinitionWithCode = SymbolDefinition & {
+  lines: string[];
+  tokens: Token[][];
+  source: "lsp" | "index";
+  scope: DefinitionScope;
+  signature: string;
+  hover: string | null;
+};
+
 export type ReferenceWithCode = Reference & { tokens: Token[] };
+
+type Located = Omit<DefinitionWithCode, "lines" | "tokens" | "signature">;
 
 const SNIPPET_LINES = 40;
 
-async function withCode(index: PeekIndex, definition: SymbolDefinition) {
-  const last = Math.min(definition.endLine, definition.line + SNIPPET_LINES - 1);
-  const lines = index.readLines(definition.path, definition.line, last);
-  return { ...definition, lines, tokens: await highlightLines(definition.path, lines) };
+export async function withCode(index: PeekIndex, located: Located): Promise<DefinitionWithCode> {
+  const last = Math.min(located.endLine, located.line + SNIPPET_LINES - 1);
+  const lines = index.readLines(located.path, located.line, last);
+  const tokens = await highlightLines(located.path, lines);
+  return { ...located, lines, tokens, signature: lines[0]?.trim() ?? "" };
+}
+
+export function scopeOf(path: string, fromFile: string): DefinitionScope {
+  return path === fromFile ? "file" : "repo";
 }
 
 export function definitionsWithCode(
@@ -19,14 +38,19 @@ export function definitionsWithCode(
   name: string,
   fromFile: string,
 ): Promise<DefinitionWithCode[]> {
-  return Promise.all(index.definitionsOf(name, fromFile).map((found) => withCode(index, found)));
+  return Promise.all(
+    index.definitionsOf(name, fromFile).map((found) =>
+      withCode(index, {
+        ...found,
+        source: "index",
+        scope: scopeOf(found.path, fromFile),
+        hover: null,
+      }),
+    ),
+  );
 }
 
-export async function referencesWithCode(
-  index: PeekIndex,
-  name: string,
-): Promise<ReferenceWithCode[]> {
-  const references = await index.referencesTo(name);
+export function highlightReferences(references: Reference[]): Promise<ReferenceWithCode[]> {
   return Promise.all(
     references.map(async (reference) => {
       const text = reference.text.trim();
@@ -34,4 +58,11 @@ export async function referencesWithCode(
       return { ...reference, text, tokens };
     }),
   );
+}
+
+export async function referencesWithCode(
+  index: PeekIndex,
+  name: string,
+): Promise<ReferenceWithCode[]> {
+  return highlightReferences(await index.referencesTo(name));
 }

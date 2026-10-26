@@ -3,9 +3,22 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { AssistThread, SavedAssistThread } from "@/lib/assist-protocol";
 import { dataDirectory } from "@/lib/data-directory";
-import type { Note, NoteKind } from "@/lib/types";
+import type { DefinitionScope, Note, NoteKind, SymbolKind, SymbolPosition } from "@/lib/types";
 
 export type Jump = { name: string; path: string; line: number };
+
+export type SeenSymbol = {
+  name: string;
+  kind: SymbolKind;
+  path: string;
+  line: number;
+  scope: DefinitionScope;
+  signature: string;
+  stepId: string | null;
+  origin: SymbolPosition;
+};
+
+export type ContextSymbol = SeenSymbol & { pinned: boolean; seenAt: string };
 
 export type PauseState = { note: string; at: string };
 
@@ -19,6 +32,7 @@ export type Session = {
   notes: Note[];
   jumps: Jump[];
   assistThreads: SavedAssistThread[];
+  contextSymbols: ContextSymbol[];
 };
 
 export type NewNote = { path: string | null; line: number | null; kind: NoteKind; body: string };
@@ -88,13 +102,29 @@ CREATE TABLE IF NOT EXISTS assist_threads (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (pr_key, id)
 );
+CREATE TABLE IF NOT EXISTS context_symbols (
+  pr_key TEXT NOT NULL,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  path TEXT NOT NULL,
+  line INTEGER NOT NULL,
+  scope TEXT NOT NULL,
+  signature TEXT NOT NULL,
+  step_id TEXT,
+  origin TEXT NOT NULL,
+  pinned INTEGER NOT NULL DEFAULT 0,
+  seen_at TEXT NOT NULL,
+  PRIMARY KEY (pr_key, path, line, name)
+);
 CREATE TABLE IF NOT EXISTS cache (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
 `;
 
-const PROGRESS_TABLES = ["sessions", "done_steps", "checked_hotspots", "jumps"];
+const PROGRESS_TABLES = ["sessions", "done_steps", "checked_hotspots", "jumps", "context_symbols"];
+const MAX_UNPINNED_SYMBOLS = 50;
+
 type AssistThreadRow = {
   id: string;
   head_sha: string;
@@ -116,6 +146,33 @@ ON CONFLICT (pr_key, id) DO UPDATE SET
   turns = excluded.turns,
   updated_at = excluded.updated_at`;
 
+type ContextSymbolRow = Omit<SeenSymbol, "stepId" | "origin"> & {
+  step_id: string | null;
+  origin: string;
+  pinned: number;
+  seen_at: string;
+};
+
+const UPSERT_SYMBOL = `
+INSERT INTO context_symbols
+  (pr_key, name, kind, path, line, scope, signature, step_id, origin, pinned, seen_at)
+VALUES
+  (:key, :name, :kind, :path, :line, :scope, :signature, :stepId, :origin, COALESCE(:pinned, 0), :seenAt)
+ON CONFLICT (pr_key, path, line, name) DO UPDATE SET
+  kind = excluded.kind,
+  scope = excluded.scope,
+  signature = excluded.signature,
+  step_id = excluded.step_id,
+  origin = excluded.origin,
+  pinned = COALESCE(:pinned, context_symbols.pinned),
+  seen_at = excluded.seen_at`;
+
+const PRUNE_SYMBOLS = `
+DELETE FROM context_symbols WHERE pr_key = :key AND pinned = 0 AND rowid NOT IN (
+  SELECT rowid FROM context_symbols WHERE pr_key = :key AND pinned = 0
+  ORDER BY seen_at DESC LIMIT :limit
+)`;
+
 export function defaultDatabasePath(): string {
   return path.join(dataDirectory(), "review-queue.db");
 }
@@ -125,6 +182,21 @@ function openDatabase(file: string): DatabaseSync {
   const db = new DatabaseSync(file);
   db.exec(SCHEMA);
   return db;
+}
+
+function toContextSymbol(row: ContextSymbolRow): ContextSymbol {
+  return {
+    name: row.name,
+    kind: row.kind,
+    path: row.path,
+    line: row.line,
+    scope: row.scope,
+    signature: row.signature,
+    stepId: row.step_id,
+    origin: JSON.parse(row.origin) as SymbolPosition,
+    pinned: row.pinned === 1,
+    seenAt: row.seen_at,
+  };
 }
 
 function toNote(row: NoteRow): Note {
@@ -167,6 +239,7 @@ export class SessionStore {
       notes: this.notes(key),
       jumps: this.jumps(key),
       assistThreads: this.assistThreads(key),
+      contextSymbols: this.contextSymbols(key),
     };
   }
 
@@ -258,6 +331,17 @@ export class SessionStore {
     this.db.prepare("DELETE FROM assist_threads WHERE pr_key = ? AND id = ?").run(key, id);
   }
 
+  recordSymbolSeen(key: string, symbol: SeenSymbol): void {
+    this.touch(key);
+    this.upsertSymbol(key, symbol, null);
+    this.db.prepare(PRUNE_SYMBOLS).run({ key, limit: MAX_UNPINNED_SYMBOLS });
+  }
+
+  setSymbolPinned(key: string, symbol: SeenSymbol, pinned: boolean): void {
+    this.touch(key);
+    this.upsertSymbol(key, symbol, pinned ? 1 : 0);
+  }
+
   startOver(key: string, keepNotes: boolean): void {
     const tables = keepNotes ? PROGRESS_TABLES : [...PROGRESS_TABLES, "notes", "assist_threads"];
     for (const table of tables) {
@@ -336,6 +420,23 @@ export class SessionStore {
       turns: JSON.parse(row.turns),
       updatedAt: row.updated_at,
     }));
+  }
+
+  private upsertSymbol(key: string, symbol: SeenSymbol, pinned: number | null): void {
+    this.db.prepare(UPSERT_SYMBOL).run({
+      key,
+      ...symbol,
+      origin: JSON.stringify(symbol.origin),
+      pinned,
+      seenAt: this.now(),
+    });
+  }
+
+  private contextSymbols(key: string): ContextSymbol[] {
+    const rows = this.db
+      .prepare("SELECT * FROM context_symbols WHERE pr_key = ? ORDER BY seen_at DESC, rowid DESC")
+      .all(key) as ContextSymbolRow[];
+    return rows.map(toContextSymbol);
   }
 
   private jumps(key: string): Jump[] {

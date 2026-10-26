@@ -19,7 +19,6 @@ const DATA: ReviewData = {
   steps: [STEP],
   startStepId: null,
   hotspots: [],
-  linkableNames: [],
   estimateMinutes: 1,
 };
 const CONFIG = { baseURL: "http://llm.test", model: "m", enabled: true, timeoutMs: 1000 };

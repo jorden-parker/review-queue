@@ -249,6 +249,26 @@ describe("ReviewLoader", () => {
     expect(screen.queryByText("src/types.ts:1 · type")).toBeNull();
   });
 
+  it("remembers peeked names in the Context tab and pins them", async () => {
+    const { api, user } = await renderReview(
+      reviewPayload(emptySession({ currentStepId: "core:src/client.ts:0" })),
+    );
+    await user.click(screen.getAllByRole("button", { name: "Options" })[0]);
+    const peek = await screen.findByRole("complementary", { name: "Options" });
+    await user.click(await within(peek).findByRole("button", { name: "Pin" }));
+    expect(within(peek).getByRole("button", { name: "Unpin" })).toBeTruthy();
+    await user.keyboard("{Escape}gc");
+    expect(await screen.findByRole("button", { name: "Open Options" })).toBeTruthy();
+    expect(screen.getByText("type Options = { retries: number }")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Context \(1\)/ })).toBeTruthy();
+    expect(api.actions()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "symbol-seen" }),
+        expect.objectContaining({ type: "symbol-pin", pinned: true }),
+      ]),
+    );
+  });
+
   it("adds a line note with the keyboard and parks a thought", async () => {
     const { api, user } = await renderReview();
     await user.keyboard("c");

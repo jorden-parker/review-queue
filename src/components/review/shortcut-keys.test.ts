@@ -8,12 +8,14 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(null, "?")).toBe("help");
     expect(resolveShortcut(null, "i")).toBe("ask-model");
     expect(resolveShortcut(null, "Escape")).toBe("close");
+    expect(resolveShortcut(null, "m")).toBe("pin-symbol");
   });
 
   it("waits for the second key of a chord", () => {
     expect(resolveShortcut(null, "g")).toBe("pending");
     expect(resolveShortcut("g", "d")).toBe("peek-definition");
     expect(resolveShortcut("g", "r")).toBe("peek-references");
+    expect(resolveShortcut("g", "c")).toBe("open-context");
   });
 
   it("drops unknown chords and keys", () => {

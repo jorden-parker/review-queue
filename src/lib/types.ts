@@ -60,8 +60,23 @@ export type Hotspot = {
   why: string;
 };
 
-export type SymbolKind =
-  "function" | "method" | "class" | "interface" | "type" | "enum" | "variable" | "constant";
+export const SYMBOL_KINDS = [
+  "function",
+  "method",
+  "class",
+  "interface",
+  "type",
+  "enum",
+  "variable",
+  "constant",
+  "parameter",
+  "property",
+  "module",
+] as const;
+
+export type SymbolKind = (typeof SYMBOL_KINDS)[number];
+
+export type DefinitionScope = "file" | "repo" | "external";
 
 export type SymbolDefinition = {
   name: string;
@@ -69,6 +84,16 @@ export type SymbolDefinition = {
   path: string;
   line: number;
   endLine: number;
+};
+
+export type DiffSide = "old" | "new";
+
+export type SymbolPosition = {
+  name: string;
+  path: string;
+  line: number;
+  character: number;
+  side: DiffSide;
 };
 
 export type NoteKind = "blocker" | "question" | "nit" | "praise" | "parked";

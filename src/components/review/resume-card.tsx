@@ -33,6 +33,7 @@ export function ResumeCard({
   const current = steps.find((step) => step.id === session.currentStepId);
   const position = current ? steps.indexOf(current) + 1 : null;
   const lastNote = session.notes.at(-1);
+  const pinned = session.contextSymbols.filter((symbol) => symbol.pinned);
   return (
     <AppDialog
       title={
@@ -75,6 +76,12 @@ export function ResumeCard({
           <div>
             <dt className="text-muted-foreground">You were following</dt>
             <dd className="font-mono">{session.jumps.map((jump) => jump.name).join(" → ")}</dd>
+          </div>
+        )}
+        {pinned.length > 0 && (
+          <div>
+            <dt className="text-muted-foreground">You pinned</dt>
+            <dd className="font-mono">{pinned.map((symbol) => symbol.name).join(" · ")}</dd>
           </div>
         )}
         {reopenedCount > 0 && (

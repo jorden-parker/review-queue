@@ -14,6 +14,7 @@ const EMPTY: Session = {
   notes: [],
   jumps: [],
   assistThreads: [],
+  contextSymbols: [],
 };
 
 function review(session: Partial<Session>, reopenedStepIds: string[] = []): ReviewPayload {
