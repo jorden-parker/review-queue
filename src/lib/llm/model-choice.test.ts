@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { claudeOllamaSizesPath, llmConfig } from "./model-choice";
+import { autoModel, claudeOllamaSizesPath, llmConfig, ollamaModels } from "./model-choice";
 
 const SIZES = {
   "27b": { model: "qwen3.8-27b-cc" },
@@ -64,5 +64,44 @@ describe("llmConfig", () => {
     const fallback = (await llmConfig({ PATH: "/nowhere" }, unreachable)).model;
     expect((await llmConfig({ PATH: binDir }, ollamaWith(["llama3:latest"]))).model).toBe(fallback);
     expect((await llmConfig({ PATH: binDir }, unreachable)).model).toBe(fallback);
+  });
+
+  it("prefers saved settings to the environment", async () => {
+    const { binDir } = claudeCustomCheckout();
+    const env = { PATH: binDir, REVIEW_QUEUE_LLM_MODEL: "from-env" };
+    const saved = { enabled: true, model: "saved", thinking: false, timeoutMs: 1234 };
+    expect(await llmConfig(env, ollamaWith(["qwen3.6-35b-cc"]), saved)).toMatchObject({
+      model: "saved",
+      thinking: false,
+      timeoutMs: 1234,
+    });
+  });
+
+  it("picks a model automatically when the saved model is auto", async () => {
+    const { binDir } = claudeCustomCheckout();
+    const env = { PATH: binDir, REVIEW_QUEUE_LLM_MODEL: "from-env" };
+    const saved = { enabled: true, model: null, thinking: true, timeoutMs: 1234 };
+    const config = await llmConfig(env, ollamaWith(["qwen3.6-35b-cc"]), saved);
+    expect(config.model).toBe("qwen3.6-35b-cc");
+  });
+});
+
+describe("autoModel", () => {
+  it("is the first claude-ollama model among the installed ones", async () => {
+    const { binDir } = claudeCustomCheckout();
+    const env = { PATH: binDir };
+    expect(await autoModel(env, ["qwen3.6-35b-coding-cc", "qwen3.6-35b-cc"])).toBe(
+      "qwen3.6-35b-cc",
+    );
+    expect(await autoModel(env, ["llama3"])).toBeNull();
+  });
+});
+
+describe("ollamaModels", () => {
+  it("lists installed models without the :latest tag", async () => {
+    expect(await ollamaModels("http://llm.test", ollamaWith(["a:latest", "b:4b"]))).toEqual([
+      "a",
+      "b:4b",
+    ]);
   });
 });

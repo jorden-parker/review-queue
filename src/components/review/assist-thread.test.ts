@@ -33,6 +33,11 @@ describe("openThread", () => {
     });
   });
 
+  it("starts a flag check right away", () => {
+    const thread = openThread(LINES, "check");
+    expect(thread.turns).toEqual([{ role: "reviewer", text: "Check the flag on these lines" }]);
+  });
+
   it("gives each thread its own id and the commit it was asked on", () => {
     const first = openThread(LINES, "explain");
     expect(first.headSha).toBe(HEAD);

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { addedHunk, fileDiff } from "@/test/diff-builders";
 import { reviewPayload } from "@/test/review-fixture";
-import type { FileDiff } from "@/lib/types";
+import { checksFor } from "@/lib/hotspots/checks";
+import type { FileDiff, Hotspot } from "@/lib/types";
 import {
   type AssistRequest,
   AssistRequestSchema,
@@ -37,6 +38,18 @@ const LINES = {
   kind: "lines" as const,
   range: { path: "src/a.ts", from: { hunk: 0, line: 1 }, to: { hunk: 1, line: 0 } },
 };
+
+const FLAG: Hotspot = {
+  id: "debug-output:src/a.ts:2",
+  rule: "debug-output",
+  severity: "low",
+  path: "src/a.ts",
+  line: 2,
+  title: "Debug output left in",
+  why: "Remove it.",
+};
+
+const OTHER_FILE_FLAG: Hotspot = { ...FLAG, id: "debug-output:src/b.ts:2", path: "src/b.ts" };
 
 const REQUEST: AssistRequest = { action: "explain", target: LINES, question: null, history: [] };
 
@@ -99,6 +112,30 @@ describe("assistInputFrom", () => {
     if (!result.ok) throw new Error(result.error);
     expect(result.input.fileText).toBeNull();
     expect(result.input.context).toHaveLength(1);
+  });
+
+  it("sends the flags on the selected lines with a check", () => {
+    const flagged = { ...SOURCE, data: { ...SOURCE.data, hotspots: [FLAG, OTHER_FILE_FLAG] } };
+    const result = assistInputFrom(flagged, { ...withRange([0, 1], [0, 1]), action: "check" });
+    if (!result.ok) throw new Error(result.error);
+    expect(result.input.flags).toEqual([
+      { title: FLAG.title, why: FLAG.why, checks: checksFor(FLAG.rule) },
+    ]);
+  });
+
+  it("rejects a check on lines that have no flags", () => {
+    const flagged = { ...SOURCE, data: { ...SOURCE.data, hotspots: [FLAG] } };
+    expect(assistInputFrom(flagged, { ...withRange([0, 0], [0, 0]), action: "check" })).toEqual({
+      ok: false,
+      error: "Those lines have no flags",
+    });
+  });
+
+  it("sends no flags with other actions", () => {
+    const flagged = { ...SOURCE, data: { ...SOURCE.data, hotspots: [FLAG] } };
+    const result = assistInputFrom(flagged, REQUEST);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.input.flags).toEqual([]);
   });
 
   it("rejects a binary file", () => {

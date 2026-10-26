@@ -17,7 +17,7 @@ type HotspotListProps = {
   onToggleChecked: (id: string) => void;
 };
 
-const SEVERITY_STYLES: Record<Severity, string> = {
+export const SEVERITY_STYLES: Record<Severity, string> = {
   high: "bg-severity-high",
   medium: "bg-severity-medium",
   low: "bg-severity-low",

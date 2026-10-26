@@ -9,17 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { AssistAction } from "@/lib/assist-protocol";
 import type { PreparedFile } from "@/lib/review/prepare";
-import type {
-  Hotspot,
-  Note,
-  NoteKind,
-  ReferenceCount,
-  Step,
-  StepFile,
-  SymbolPosition,
-} from "@/lib/types";
+import type { Note, NoteKind, ReferenceCount, Step, StepFile, SymbolPosition } from "@/lib/types";
 import { CodeLine, type LineHandlers } from "./code-line";
 import { FileAskButton } from "./file-ask-button";
+import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
 import { isSameLine, lineElementId, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
@@ -27,7 +20,8 @@ import { ReferenceLens } from "./reference-lens";
 
 export type StepViewContext = {
   files: Map<string, PreparedFile>;
-  hotspots: Hotspot[];
+  hotspots: DisplayHotspot[];
+  checkedHotspots: string[];
   notes: Note[];
   composer: LineTarget | null;
   landed: LineTarget | null;
@@ -126,6 +120,7 @@ function HunkBlock({
                 (hotspot) =>
                   hotspot.path === file.path && lineNumber !== null && hotspot.line === lineNumber,
               )}
+              checkedHotspots={context.checkedHotspots}
               notes={context.notes.filter(
                 (note) =>
                   note.path === file.path && note.line === lineNumber && lineNumber !== null,
