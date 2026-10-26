@@ -118,6 +118,7 @@
   --text-code--line-height: 1.6;
   --container-panel: 24rem;
   --container-panel-strip: 4.5rem;
+  --container-panel-strip-compact: 3rem;
   --ease-calm: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-calm: 180ms;
@@ -179,6 +180,14 @@
 
 @utility grid-cols-workspace {
   grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@utility max-w-panel-overlay {
+  max-width: calc(100vw - var(--container-panel-strip-compact));
+}
+
+@utility tab-2 {
+  tab-size: 2;
 }
 
 @utility grid-cols-keys {

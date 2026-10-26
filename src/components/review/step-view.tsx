@@ -40,8 +40,8 @@ function FileHeader({
   onAskFile: StepViewContext["onAskFile"];
 }) {
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-card px-4 py-2.5 font-sans">
-      <span className="flex min-w-0 items-center gap-2">
+    <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b bg-card px-3 py-2.5 font-sans sm:px-4">
+      <span className="flex min-w-0 items-center gap-2 max-sm:basis-full">
         <FileCode2 size={14} className="shrink-0 text-muted-foreground" />
         {file.status === "renamed" && file.oldPath && (
           <>
@@ -84,7 +84,7 @@ function HunkBlock({
         active ? "border-primary" : "border-transparent",
       )}
     >
-      <div className="bg-muted px-4 py-1 text-muted-foreground">
+      <div className="bg-muted px-3 py-1 text-muted-foreground wrap-anywhere sm:px-4">
         @@ {hunk.oldStart} → {hunk.newStart} {hunk.header}
       </div>
       {hunk.lines.map((line, lineIndex) => {

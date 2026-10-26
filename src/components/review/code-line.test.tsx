@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { DiffLine } from "@/lib/types";
 import { CodeLine } from "./code-line";
+import type { DisplayHotspot } from "./hotspot-list";
 import type { LineTarget } from "./locate";
 
 const LINE: DiffLine = {
@@ -11,7 +12,17 @@ const LINE: DiffLine = {
   newLine: 7,
 };
 
-function renderLine(landed: LineTarget | null) {
+const FLAG: DisplayHotspot = {
+  id: "debug-output:src/app.ts:7",
+  rule: "debug-output",
+  severity: "low",
+  path: "src/app.ts",
+  line: 7,
+  title: "Debug output left in",
+  why: "Likely meant to be removed before merging.",
+};
+
+function renderLine(landed: LineTarget | null, hotspots: DisplayHotspot[] = []) {
   return render(
     <CodeLine
       path="src/app.ts"
@@ -20,7 +31,7 @@ function renderLine(landed: LineTarget | null) {
       line={LINE}
       tokens={[{ text: LINE.text }]}
       linked
-      hotspots={[]}
+      hotspots={hotspots}
       checkedHotspots={[]}
       notes={[]}
       elementId="line-src/app.ts-7"
@@ -54,5 +65,12 @@ describe("CodeLine", () => {
     const { container } = renderLine(null);
     expect(container.querySelector("[aria-current]")).toBeNull();
     expect(container.querySelector("mark")).toBeNull();
+  });
+
+  it("puts the line's flags on their own row under the code", () => {
+    const { container } = renderLine(null, [FLAG]);
+    const flags = screen.getByRole("button", { name: /1 flag/ });
+    expect(container.querySelector("[data-line]")?.contains(flags)).toBe(false);
+    expect(flags.textContent).toBe(FLAG.title);
   });
 });

@@ -38,11 +38,18 @@ async function openFlag() {
 }
 
 describe("HotspotFlag", () => {
-  it("leads with the most severe flag and counts the rest", () => {
+  it("shows every flag in full, most severe first", () => {
     renderFlag();
     const trigger = screen.getByRole("button", { name: /2 flags/ });
-    expect(trigger.textContent).toContain("Possible hard-coded secret");
-    expect(trigger.textContent).toContain("+1");
+    expect(trigger.textContent).toBe(`${SECRET.title}${DEBUG.title}`);
+  });
+
+  it("marks only the checked flags as done", () => {
+    renderFlag({ checked: [DEBUG.id] });
+    const chips = screen
+      .getByRole("button", { name: /2 flags/ })
+      .querySelectorAll("[data-checked]");
+    expect([...chips].map((chip) => chip.getAttribute("data-checked"))).toEqual(["false", "true"]);
   });
 
   it("opens the reasons and what to check for every flag", async () => {

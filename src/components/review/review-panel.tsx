@@ -83,7 +83,7 @@ function PaneButton({
           </span>
         ) : null}
       </span>
-      <span>{pane.label}</span>
+      <span className="max-sm:sr-only">{pane.label}</span>
     </HintButton>
   );
 }
@@ -158,14 +158,14 @@ export function ReviewPanel({
   return (
     <aside
       aria-label="Review panel"
-      className="flex min-h-0 border-l"
+      className="relative flex min-h-0 border-l"
       onDragOver={onDragOver}
       onDragLeave={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropIndex(null);
       }}
       onDrop={onDrop}
     >
-      <div className="flex w-panel-strip shrink-0 flex-col items-center gap-2 overflow-y-auto border-r bg-muted py-2">
+      <div className="flex w-panel-strip shrink-0 flex-col max-sm:w-panel-strip-compact items-center gap-2 overflow-y-auto border-r bg-muted py-2">
         <PanelToggle open={panes.length > 0} onToggle={controls.togglePanel} />
         <div className="flex w-full flex-col gap-1">
           {entries.map((entry) => (
@@ -181,7 +181,7 @@ export function ReviewPanel({
         </div>
       </div>
       {(panes.length > 0 || dropIndex !== null) && (
-        <div className="flex min-h-0 w-panel flex-col bg-card">
+        <div className="flex min-h-0 w-panel max-w-panel-overlay flex-col bg-card max-lg:absolute max-lg:inset-y-0 max-lg:right-full max-lg:z-30 max-lg:border-l max-lg:shadow-lg">
           {panes.map((id, index) => {
             const entry = entryOf(id);
             if (!entry) return null;
