@@ -8,13 +8,17 @@ import {
   Flame,
   Layers,
   type LucideIcon,
+  MapPin,
   MessagesSquare,
+  PanelRightClose,
+  PanelRightOpen,
   RotateCcw,
   Route,
   Send,
   Shapes,
   StickyNote,
 } from "lucide-react";
+import { cn } from "cn";
 import Link from "next/link";
 import { type ReactNode, useMemo } from "react";
 import { EmptyState } from "@/components/common/empty-state";
@@ -53,7 +57,7 @@ import { StartOverDialog } from "./start-over-dialog";
 import { orderedSteps, stepReasons } from "./step-order";
 import { SavedChatsPanel } from "./saved-chats-panel";
 import { SelectionToolbar } from "./selection-toolbar";
-import { StepRail } from "./step-rail";
+import { StepSummary } from "./step-summary";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
 import { useWorkspace, type SidebarTab, type Workspace } from "./use-workspace";
@@ -67,6 +71,7 @@ type WorkspaceProps = {
 };
 
 const TABS: { id: SidebarTab; label: string; icon: LucideIcon }[] = [
+  { id: "step", label: "Step", icon: MapPin },
   { id: "path", label: "Path", icon: Route },
   { id: "hotspots", label: "Hotspots", icon: Flame },
   { id: "notes", label: "Notes", icon: StickyNote },
@@ -141,13 +146,22 @@ function TopBar({
   );
 }
 
-function SidebarTabTrigger({ tab, count }: { tab: (typeof TABS)[number]; count: number | null }) {
+function SidebarTabTrigger({
+  tab,
+  count,
+  onPick,
+}: {
+  tab: (typeof TABS)[number];
+  count: number | null;
+  onPick: (tab: SidebarTab) => void;
+}) {
   const Icon = tab.icon;
   return (
     <TabsTrigger
       value={tab.id}
       aria-label={count ? `${tab.label} (${count})` : tab.label}
-      className="h-auto flex-col gap-1 px-1 py-2.5 text-xs group-data-horizontal/tabs:after:bottom-0"
+      onClick={() => onPick(tab.id)}
+      className="h-auto w-full flex-none flex-col gap-1 px-1 py-2.5 text-xs group-data-horizontal/tabs:after:inset-x-auto group-data-horizontal/tabs:after:inset-y-1 group-data-horizontal/tabs:after:left-0 group-data-horizontal/tabs:after:h-auto group-data-horizontal/tabs:after:w-0.5"
     >
       <span className="relative">
         <Icon />
@@ -164,27 +178,50 @@ function SidebarTabTrigger({ tab, count }: { tab: (typeof TABS)[number]; count: 
 
 function SidebarPanel({ value, children }: { value: SidebarTab; children: ReactNode }) {
   return (
-    <TabsContent value={value} className="min-h-0 animate-step-enter overflow-y-auto p-3">
+    <TabsContent
+      value={value}
+      className="flex min-h-0 animate-step-enter flex-col overflow-y-auto p-3"
+    >
       {children}
     </TabsContent>
   );
 }
 
-function Sidebar({
+function PanelToggle({ workspace }: { workspace: Workspace }) {
+  const label = workspace.panelOpen ? "Hide panel" : "Show panel";
+  const Icon = workspace.panelOpen ? PanelRightClose : PanelRightOpen;
+  return (
+    <HintButton
+      variant="ghost"
+      size="icon"
+      hint={label}
+      shortcut="\"
+      aria-label={label}
+      onClick={workspace.togglePanel}
+    >
+      <Icon />
+    </HintButton>
+  );
+}
+
+function ReviewPanel({
   review,
   session,
   workspace,
   orientation,
+  fresh,
 }: {
   review: ReviewPayload;
   session: Session;
   workspace: Workspace;
   orientation: OrientationState;
+  fresh: boolean;
 }) {
   const openHotspots = workspace.hotspots.filter(
     (hotspot) => !session.checkedHotspots.includes(hotspot.id),
   ).length;
   const counts: Record<SidebarTab, number | null> = {
+    step: null,
     path: null,
     hotspots: openHotspots,
     notes: session.notes.length,
@@ -192,21 +229,76 @@ function Sidebar({
     context: contextCount(session.contextSymbols, workspace.currentStep?.id ?? null),
   };
   return (
-    <Tabs
-      value={workspace.tab}
-      onValueChange={(tab) => workspace.setTab(tab as SidebarTab)}
-      className="hidden min-h-0 gap-0 border-r bg-card xl:flex"
-    >
-      <div className="border-b px-2">
-        <TabsList
-          variant="line"
-          className="grid w-full grid-cols-5 p-0 group-data-horizontal/tabs:h-auto"
-        >
-          {TABS.map((tab) => (
-            <SidebarTabTrigger key={tab.id} tab={tab} count={counts[tab.id]} />
-          ))}
-        </TabsList>
-      </div>
+    <aside aria-label="Review panel" className="flex min-h-0 border-l">
+      <Tabs
+        value={workspace.tab}
+        onValueChange={(tab) => workspace.setTab(tab as SidebarTab)}
+        className="min-h-0 gap-0 data-horizontal:flex-row"
+      >
+        <div className="flex w-panel-strip shrink-0 flex-col items-center gap-2 overflow-y-auto border-r bg-muted py-2">
+          <PanelToggle workspace={workspace} />
+          <TabsList
+            variant="line"
+            className="w-full flex-col gap-1 p-0 group-data-horizontal/tabs:h-auto"
+          >
+            {TABS.map((tab) => (
+              <SidebarTabTrigger
+                key={tab.id}
+                tab={tab}
+                count={counts[tab.id]}
+                onPick={workspace.setTab}
+              />
+            ))}
+          </TabsList>
+        </div>
+        {workspace.panelOpen && (
+          <div className="flex min-h-0 w-panel flex-col bg-card">
+            <div
+              className={cn(
+                "flex min-h-0 flex-col",
+                workspace.assist.thread ? "shrink-0 basis-1/2" : "flex-1",
+              )}
+            >
+              <PanelTabs
+                review={review}
+                session={session}
+                workspace={workspace}
+                orientation={orientation}
+                fresh={fresh}
+              />
+            </div>
+            <WorkspaceAssist workspace={workspace} />
+          </div>
+        )}
+      </Tabs>
+    </aside>
+  );
+}
+
+function PanelTabs({
+  review,
+  session,
+  workspace,
+  orientation,
+  fresh,
+}: {
+  review: ReviewPayload;
+  session: Session;
+  workspace: Workspace;
+  orientation: OrientationState;
+  fresh: boolean;
+}) {
+  return (
+    <>
+      <SidebarPanel value="step">
+        <StepSummary
+          review={review}
+          session={session}
+          workspace={workspace}
+          orientation={orientation}
+          fresh={fresh}
+        />
+      </SidebarPanel>
       <SidebarPanel value="path">
         <ReadingPath
           steps={review.steps}
@@ -253,17 +345,21 @@ function Sidebar({
         />
       </SidebarPanel>
       <SidebarPanel value="context">
-        <ContextList
-          symbols={session.contextSymbols}
-          stepId={workspace.currentStep?.id ?? null}
-          jumps={session.jumps}
-          onOpen={(symbol) => workspace.peekName(symbol.origin)}
-          onTogglePin={(symbol) => workspace.setSymbolPinned(symbol, !symbol.pinned)}
-          onBack={workspace.back}
-          onClearTrail={workspace.clearJumps}
-        />
+        {workspace.peek.peek ? (
+          <WorkspacePeek workspace={workspace} />
+        ) : (
+          <ContextList
+            symbols={session.contextSymbols}
+            stepId={workspace.currentStep?.id ?? null}
+            jumps={session.jumps}
+            onOpen={(symbol) => workspace.peekName(symbol.origin)}
+            onTogglePin={(symbol) => workspace.setSymbolPinned(symbol, !symbol.pinned)}
+            onBack={workspace.back}
+            onClearTrail={workspace.clearJumps}
+          />
+        )}
       </SidebarPanel>
-    </Tabs>
+    </>
   );
 }
 
@@ -493,15 +589,9 @@ export function ReviewWorkspace({
   return (
     <div className="grid h-screen grid-rows-shell">
       <TopBar review={review} session={session} workspace={workspace} />
-      <div className="grid min-h-0 grid-cols-workspace xl:grid-cols-workspace-wide">
-        <Sidebar
-          review={review}
-          session={session}
-          workspace={workspace}
-          orientation={orientation}
-        />
-        <div className="relative flex min-h-0 min-w-0 flex-col">
-          <div className="shrink-0 border-b bg-background px-6 py-2">
+      <div className="grid min-h-0 grid-cols-workspace">
+        <div className="flex min-h-0 min-w-0 flex-col">
+          <div className="shrink-0 border-b bg-background px-8 py-2">
             <div className="mx-auto flex max-w-5xl flex-col gap-2">
               <StepBar review={review} workspace={workspace} />
               {controls.actionError && (
@@ -512,7 +602,7 @@ export function ReviewWorkspace({
               <BreakBanner workspace={workspace} />
             </div>
           </div>
-          <main className="min-h-0 flex-1 overflow-y-auto px-6 pb-5">
+          <main className="min-h-0 flex-1 overflow-y-auto px-8 pb-5">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-4 pt-5">
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}
@@ -532,15 +622,13 @@ export function ReviewWorkspace({
               <NoSteps review={payload} orientation={orientation} />
             </div>
           </main>
-          <WorkspacePeek workspace={workspace} />
         </div>
-        <StepRail
+        <ReviewPanel
           review={review}
           session={session}
           workspace={workspace}
           orientation={orientation}
           fresh={fresh}
-          assist={<WorkspaceAssist workspace={workspace} />}
         />
       </div>
       <WorkspaceSelectionToolbar workspace={workspace} />

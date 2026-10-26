@@ -78,13 +78,13 @@ function DefinitionCode({
   onIdentifier,
 }: Pick<PanelBodyProps, "onIdentifier"> & { definition: DefinitionWithCode }) {
   return (
-    <pre className="overflow-x-auto py-2 font-mono text-code">
+    <pre className="py-2 font-mono text-code">
       {definition.tokens.map((row, index) => (
         <div key={index} className="flex px-3 transition-colors duration-150 hover:bg-muted/60">
           <span className="w-8 shrink-0 pr-3 text-right text-muted-foreground/70 select-none">
             {definition.line + index}
           </span>
-          <code className="whitespace-pre">
+          <code className="min-w-0 wrap-break-word whitespace-pre-wrap">
             <CodeTokens
               tokens={row}
               onIdentifier={(target) =>
@@ -214,9 +214,9 @@ function PinButton({ pinned, onTogglePin }: Pick<PeekPanelProps, "pinned" | "onT
 export function PeekPanel({ onTab, onClose, pinned, onTogglePin, ...body }: PeekPanelProps) {
   const { peek } = body;
   return (
-    <aside
+    <section
       aria-label={peek.position.name}
-      className="absolute inset-y-0 right-0 z-20 flex w-peek max-w-full animate-peek-enter flex-col gap-3 border-l bg-background p-4 shadow-2xl"
+      className="flex min-h-0 flex-1 animate-step-enter flex-col gap-3"
     >
       <div className="flex items-center gap-2">
         <Telescope size={16} className="text-primary" />
@@ -258,6 +258,6 @@ export function PeekPanel({ onTab, onClose, pinned, onTogglePin, ...body }: Peek
           <References {...body} />
         </TabsContent>
       </Tabs>
-    </aside>
+    </section>
   );
 }
