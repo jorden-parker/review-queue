@@ -11,6 +11,7 @@ const STEP: Step = {
   changedLines: 2,
   files: [],
 };
+const LATER_STEP: Step = { ...STEP, id: "test:src/a.test.ts:0", title: "a.test.ts", role: "test" };
 const HOTSPOT: Hotspot = {
   id: "todo:src/a.ts:1",
   rule: "todo",
@@ -33,7 +34,7 @@ const GOOD = {
   summary: "Adds a cache.",
   intent: "Loads are slow.",
   risk: "medium",
-  startStepId: "core:src/a.ts:0",
+  stepOrder: ["core:src/a.ts:0"],
   startReason: "It is the core.",
   hotspotNotes: [
     { id: "todo:src/a.ts:1", note: "Track it." },
@@ -86,9 +87,24 @@ describe("orient", () => {
     expect(bodies).toHaveLength(2);
   });
 
-  it("falls back to the first step when the model invents one", async () => {
-    const { fetchImpl } = scriptedFetch([JSON.stringify({ ...GOOD, startStepId: "nope" })]);
-    expect((await orient(INPUT, CONFIG, fetchImpl)).startStepId).toBe(STEP.id);
+  it("keeps the model's step order", async () => {
+    const input = { ...INPUT, steps: [STEP, LATER_STEP] };
+    const order = [LATER_STEP.id, STEP.id];
+    const { fetchImpl } = scriptedFetch([JSON.stringify({ ...GOOD, stepOrder: order })]);
+    expect((await orient(input, CONFIG, fetchImpl)).stepOrder).toEqual(order);
+  });
+
+  it("drops invented and repeated steps from the order", async () => {
+    const input = { ...INPUT, steps: [STEP, LATER_STEP] };
+    const order = ["nope", LATER_STEP.id, LATER_STEP.id, STEP.id];
+    const { fetchImpl } = scriptedFetch([JSON.stringify({ ...GOOD, stepOrder: order })]);
+    expect((await orient(input, CONFIG, fetchImpl)).stepOrder).toEqual([LATER_STEP.id, STEP.id]);
+  });
+
+  it("appends steps the model left out in their original order", async () => {
+    const input = { ...INPUT, steps: [STEP, LATER_STEP] };
+    const { fetchImpl } = scriptedFetch([JSON.stringify({ ...GOOD, stepOrder: [] })]);
+    expect((await orient(input, CONFIG, fetchImpl)).stepOrder).toEqual([STEP.id, LATER_STEP.id]);
   });
 
   it("names the model when the server does not have it", async () => {

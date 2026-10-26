@@ -37,6 +37,7 @@ import { ResumeCard } from "./resume-card";
 import { ShortcutHelp } from "./shortcut-help";
 import { StartOverDialog } from "./start-over-dialog";
 import { StepExplanation } from "./step-explanation";
+import { orderedSteps } from "./step-order";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
 import { useWorkspace, type SidebarTab } from "./use-workspace";
@@ -371,11 +372,15 @@ function WorkspacePeek({ workspace }: { workspace: Workspace }) {
 
 export function ReviewWorkspace({
   pullRequest,
-  review,
+  review: payload,
   session,
   orientation,
   controls,
 }: WorkspaceProps) {
+  const review = useMemo(() => {
+    const steps = orderedSteps(payload.steps, orientation);
+    return { ...payload, steps, startStepId: steps[0]?.id ?? null };
+  }, [payload, orientation]);
   const workspace = useWorkspace(pullRequest, review, session, orientation, controls);
   const fresh = session.doneSteps.length === 0 && workspace.currentIndex <= 0;
   const context: StepViewContext = useMemo(

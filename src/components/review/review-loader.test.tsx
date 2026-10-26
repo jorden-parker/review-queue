@@ -52,7 +52,7 @@ describe("ReviewLoader", () => {
         summary: "Adds retries to loading.",
         intent: "Loads fail on flaky networks.",
         risk: "medium",
-        startStepId: "types:src/types.ts:0",
+        stepOrder: [],
         startReason: "Everything uses Options.",
         hotspotNotes: [{ id: "debug-output:src/client.ts:11", note: "Drop the log." }],
         extraHotspots: [
@@ -65,7 +65,7 @@ describe("ReviewLoader", () => {
     expect(screen.getByText(/unverified/i)).toBeTruthy();
   });
 
-  it("starts at the step the local model suggests", async () => {
+  it("follows the reading order the local model suggests", async () => {
     const { user } = await renderReview(reviewPayload(), {
       status: "ready",
       orientation: {
@@ -73,14 +73,14 @@ describe("ReviewLoader", () => {
         summary: "Adds retries to loading.",
         intent: "Loads fail on flaky networks.",
         risk: "medium",
-        startStepId: "core:src/client.ts:0",
+        stepOrder: ["core:src/client.ts:0", "types:src/types.ts:0", "generated:pnpm-lock.yaml:0"],
         startReason: "The retry loop lives here.",
         hotspotNotes: [],
         extraHotspots: [],
       },
     });
-    await user.click(await screen.findByRole("button", { name: /Start at step 2/ }));
-    expect(await screen.findByText("Step 2 of 3 · core · 2 lines")).toBeTruthy();
+    await user.click(await screen.findByRole("button", { name: /Start at step 1/ }));
+    expect(await screen.findByText("Step 1 of 3 · core · 2 lines")).toBeTruthy();
   });
 
   it("explains when the local model is unavailable", async () => {
