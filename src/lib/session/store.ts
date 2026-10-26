@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import type { AssistThread, SavedAssistThread } from "@/lib/assist-protocol";
 import { dataDirectory } from "@/lib/data-directory";
 import type { Note, NoteKind } from "@/lib/types";
 
@@ -17,6 +18,7 @@ export type Session = {
   checkedHotspots: string[];
   notes: Note[];
   jumps: Jump[];
+  assistThreads: SavedAssistThread[];
 };
 
 export type NewNote = { path: string | null; line: number | null; kind: NoteKind; body: string };
@@ -75,6 +77,17 @@ CREATE TABLE IF NOT EXISTS jumps (
   path TEXT NOT NULL,
   line INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS assist_threads (
+  pr_key TEXT NOT NULL,
+  id TEXT NOT NULL,
+  head_sha TEXT NOT NULL,
+  target TEXT NOT NULL,
+  action TEXT NOT NULL,
+  question TEXT,
+  turns TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (pr_key, id)
+);
 CREATE TABLE IF NOT EXISTS cache (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -82,6 +95,26 @@ CREATE TABLE IF NOT EXISTS cache (
 `;
 
 const PROGRESS_TABLES = ["sessions", "done_steps", "checked_hotspots", "jumps"];
+type AssistThreadRow = {
+  id: string;
+  head_sha: string;
+  target: string;
+  action: AssistThread["action"];
+  question: string | null;
+  turns: string;
+  updated_at: string;
+};
+
+const UPSERT_ASSIST_THREAD = `
+INSERT INTO assist_threads (pr_key, id, head_sha, target, action, question, turns, updated_at)
+VALUES (:key, :id, :headSha, :target, :action, :question, :turns, :updatedAt)
+ON CONFLICT (pr_key, id) DO UPDATE SET
+  head_sha = excluded.head_sha,
+  target = excluded.target,
+  action = excluded.action,
+  question = excluded.question,
+  turns = excluded.turns,
+  updated_at = excluded.updated_at`;
 
 export function defaultDatabasePath(): string {
   return path.join(dataDirectory(), "review-queue.db");
@@ -133,6 +166,7 @@ export class SessionStore {
       ),
       notes: this.notes(key),
       jumps: this.jumps(key),
+      assistThreads: this.assistThreads(key),
     };
   }
 
@@ -207,8 +241,25 @@ export class SessionStore {
     this.db.prepare("DELETE FROM jumps WHERE pr_key = ?").run(key);
   }
 
+  saveAssistThread(key: string, thread: AssistThread): void {
+    this.db.prepare(UPSERT_ASSIST_THREAD).run({
+      key,
+      id: thread.id,
+      headSha: thread.headSha,
+      target: JSON.stringify(thread.target),
+      action: thread.action,
+      question: thread.question,
+      turns: JSON.stringify(thread.turns),
+      updatedAt: this.now(),
+    });
+  }
+
+  deleteAssistThread(key: string, id: string): void {
+    this.db.prepare("DELETE FROM assist_threads WHERE pr_key = ? AND id = ?").run(key, id);
+  }
+
   startOver(key: string, keepNotes: boolean): void {
-    const tables = keepNotes ? PROGRESS_TABLES : [...PROGRESS_TABLES, "notes"];
+    const tables = keepNotes ? PROGRESS_TABLES : [...PROGRESS_TABLES, "notes", "assist_threads"];
     for (const table of tables) {
       this.db.prepare(`DELETE FROM ${table} WHERE pr_key = ?`).run(key);
     }
@@ -270,6 +321,21 @@ export class SessionStore {
       .prepare("SELECT * FROM notes WHERE pr_key = ? ORDER BY id")
       .all(key) as NoteRow[];
     return rows.map(toNote);
+  }
+
+  private assistThreads(key: string): SavedAssistThread[] {
+    const rows = this.db
+      .prepare("SELECT * FROM assist_threads WHERE pr_key = ? ORDER BY updated_at DESC, rowid DESC")
+      .all(key) as AssistThreadRow[];
+    return rows.map((row) => ({
+      id: row.id,
+      headSha: row.head_sha,
+      target: JSON.parse(row.target),
+      action: row.action,
+      question: row.question,
+      turns: JSON.parse(row.turns),
+      updatedAt: row.updated_at,
+    }));
   }
 
   private jumps(key: string): Jump[] {

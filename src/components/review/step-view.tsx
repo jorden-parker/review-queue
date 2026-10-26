@@ -7,9 +7,11 @@ import { PathLabel } from "@/components/common/path-label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import type { AssistAction } from "@/lib/assist-protocol";
 import type { PreparedFile } from "@/lib/review/prepare";
 import type { Hotspot, Note, NoteKind, Step, StepFile } from "@/lib/types";
 import { CodeLine, type LineHandlers } from "./code-line";
+import { FileAskButton } from "./file-ask-button";
 import { hunkElementId } from "./hunk-index";
 import { lineElementId, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
@@ -23,13 +25,20 @@ export type StepViewContext = {
   notes: Note[];
   composer: LineTarget | null;
   activeHunkId: string | null;
+  onAskFile: ((path: string, action: AssistAction) => void) | null;
   handlers: LineHandlers & {
     onSaveNote: (target: LineTarget, kind: NoteKind, body: string) => void;
     onCancelNote: () => void;
   };
 };
 
-function FileHeader({ file }: { file: PreparedFile }) {
+function FileHeader({
+  file,
+  onAskFile,
+}: {
+  file: PreparedFile;
+  onAskFile: StepViewContext["onAskFile"];
+}) {
   return (
     <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-card px-4 py-2.5 font-sans">
       <span className="flex min-w-0 items-center gap-2">
@@ -43,6 +52,9 @@ function FileHeader({ file }: { file: PreparedFile }) {
         <PathLabel path={file.path} className="text-sm" />
       </span>
       <span className="flex shrink-0 items-center gap-2 font-mono text-xs">
+        {onAskFile && !file.binary && (
+          <FileAskButton onAsk={(action) => onAskFile(file.path, action)} />
+        )}
         <span className="text-add-foreground">+{file.additions}</span>
         <span className="text-del-foreground">−{file.deletions}</span>
         <Badge variant="outline">{file.status}</Badge>
@@ -128,7 +140,7 @@ function FileBlock({
   const empty = file.binary || stepFile.hunkIndexes.length === 0;
   return (
     <Card className="gap-0 overflow-clip py-0">
-      <FileHeader file={file} />
+      <FileHeader file={file} onAskFile={context.onAskFile} />
       {!expanded ? (
         <Button
           variant="ghost"

@@ -12,6 +12,15 @@ const INPUT: AssistInput = {
   selected: CONTEXT[0].lines.slice(1, 3),
   action: "explain",
   question: null,
+  scope: "lines",
+  fileText: null,
+};
+
+const FILE_INPUT: AssistInput = {
+  ...INPUT,
+  scope: "file",
+  selected: [],
+  fileText: "const a = 1;\nconst b = 2;\nconst c = 3;\nexport { a, b, c };",
 };
 
 describe("buildAssistPrompt", () => {
@@ -56,7 +65,33 @@ describe("buildAssistPrompt", () => {
   });
 });
 
+describe("buildAssistPrompt for a whole file", () => {
+  it("shows the file at the PR head and every change to it", () => {
+    const prompt = buildAssistPrompt(FILE_INPUT);
+    expect(prompt).toMatch(/<pr_file>\n[\s\S]*export \{ a, b, c \};\n<\/pr_file>/);
+    expect(prompt).toMatch(/<pr_diff>[\s\S]*const a = 1;[\s\S]*<\/pr_diff>/);
+    expect(prompt).not.toContain("pr_selection");
+  });
+
+  it("says when the file is gone at the PR head", () => {
+    const prompt = buildAssistPrompt({ ...FILE_INPUT, fileText: null });
+    expect(prompt).not.toContain("<pr_file>");
+    expect(prompt).toContain("deleted");
+  });
+
+  it("clips a huge file", () => {
+    const prompt = buildAssistPrompt({ ...FILE_INPUT, fileText: "x".repeat(100_000) });
+    expect(prompt.length).toBeLessThan(40_000);
+    expect(prompt).toContain("[file truncated]");
+  });
+});
+
 describe("assistRequest", () => {
+  it("tells the model when the selection is a whole file", () => {
+    expect(assistRequest(FILE_INPUT, []).system).toContain("whole file");
+    expect(assistRequest(INPUT, []).system).not.toContain("whole file");
+  });
+
   it("asks for markdown with code names in backticks for every action", () => {
     for (const action of ["explain", "simplify", "comment", "ask"] as const) {
       expect(assistRequest({ ...INPUT, action }, []).system).toContain(CODE_NAME_RULE);

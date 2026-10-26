@@ -80,12 +80,17 @@ export class SymbolIndex {
       .slice(0, MAX_REFERENCES);
   }
 
-  readLines(file: string, startLine: number, endLine: number): string[] {
+  readFile(file: string): string {
     const absolute = fs.realpathSync(path.resolve(this.root, file));
     if (!absolute.startsWith(fs.realpathSync(this.root) + path.sep))
       throw new Error(`Path outside checkout: ${file}`);
-    const lines = fs.readFileSync(absolute, "utf8").split("\n");
-    return lines.slice(startLine - 1, endLine);
+    return fs.readFileSync(absolute, "utf8");
+  }
+
+  readLines(file: string, startLine: number, endLine: number): string[] {
+    return this.readFile(file)
+      .split("\n")
+      .slice(startLine - 1, endLine);
   }
 
   private async addFile(file: string): Promise<void> {

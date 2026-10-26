@@ -1,34 +1,47 @@
-import { type AssistAction, type LineRange, MAX_HISTORY_TURNS } from "@/lib/assist-protocol";
+import {
+  type AssistAction,
+  type AssistTarget,
+  type AssistThread,
+  type AssistTurn,
+  MAX_HISTORY_TURNS,
+} from "@/lib/assist-protocol";
 import type { Message } from "@/lib/llm/client";
 import type { AssistRequest } from "@/lib/review/assist-request";
 
-export type AssistTurn = { role: "reviewer" | "model"; text: string };
+function subject(target: AssistTarget): string {
+  return target.kind === "file" ? "this file" : "these lines";
+}
 
-export type AssistThread = {
-  range: LineRange;
-  action: AssistAction;
-  question: string | null;
-  turns: AssistTurn[];
-};
+export function actionLabel(action: AssistAction, target: AssistTarget): string {
+  const labels: Record<AssistAction, string> = {
+    explain: `Explain ${subject(target)}`,
+    simplify: `Simplify ${subject(target)}`,
+    comment: "Draft a review comment",
+    ask: `Ask about ${subject(target)}`,
+  };
+  return labels[action];
+}
 
-export const ACTION_LABELS: Record<AssistAction, string> = {
-  explain: "Explain these lines",
-  simplify: "Simplify these lines",
-  comment: "Draft a review comment",
-  ask: "Ask about these lines",
-};
+export function questionPrompt(action: AssistAction, target: AssistTarget): string | null {
+  const prompts: Record<AssistAction, string | null> = {
+    explain: null,
+    simplify: null,
+    comment: `What worries you about ${subject(target)}?`,
+    ask: "What do you want to know?",
+  };
+  return prompts[action];
+}
 
-export const QUESTION_PROMPTS: Record<AssistAction, string | null> = {
-  explain: null,
-  simplify: null,
-  comment: "What worries you about these lines?",
-  ask: "What do you want to know?",
-};
-
-export function openThread(range: LineRange, action: AssistAction): AssistThread {
+export function openThread(
+  target: AssistTarget,
+  action: AssistAction,
+  headSha: string,
+): AssistThread {
   const turns: AssistTurn[] =
-    QUESTION_PROMPTS[action] === null ? [{ role: "reviewer", text: ACTION_LABELS[action] }] : [];
-  return { range, action, question: null, turns };
+    questionPrompt(action, target) === null
+      ? [{ role: "reviewer", text: actionLabel(action, target) }]
+      : [];
+  return { id: crypto.randomUUID(), headSha, target, action, question: null, turns };
 }
 
 export function awaitsQuestion(thread: AssistThread): boolean {
@@ -49,6 +62,11 @@ export function withModelText(thread: AssistThread, text: string): AssistThread 
   return { ...thread, turns: [...earlier, { role: "model", text }] };
 }
 
+export function hasModelReply(thread: AssistThread): boolean {
+  const last = thread.turns.at(-1);
+  return last?.role === "model" && last.text.trim() !== "";
+}
+
 export function canFollowUp(thread: AssistThread): boolean {
   return thread.turns.at(-1)?.role === "model" && thread.turns.length <= MAX_HISTORY_TURNS;
 }
@@ -60,9 +78,7 @@ function asMessage(turn: AssistTurn): Message {
 export function threadRequest(thread: AssistThread): AssistRequest {
   return {
     action: thread.action,
-    path: thread.range.path,
-    from: thread.range.from,
-    to: thread.range.to,
+    target: thread.target,
     question: thread.question,
     history: thread.turns.slice(1).map(asMessage),
   };

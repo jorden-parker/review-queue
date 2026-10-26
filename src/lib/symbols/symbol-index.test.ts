@@ -74,6 +74,11 @@ describe("SymbolIndex", () => {
     ]);
     expect(() => index.readLines("../../etc/passwd", 1, 1)).toThrow();
   });
+
+  it("reads a whole file and refuses paths outside the checkout", () => {
+    expect(index.readFile("src/store.ts")).toContain("export function load(id: string) {");
+    expect(() => index.readFile("../../etc/passwd")).toThrow();
+  });
 });
 
 describe("SymbolIndex with hostile checkouts", () => {
@@ -105,6 +110,7 @@ describe("SymbolIndex with hostile checkouts", () => {
   it("refuses to read a snippet through a symlink that leaves the checkout", async () => {
     const index = await SymbolIndex.build(root, runnerListing("ok.ts\n"));
     expect(() => index.readLines("link.ts", 1, 1)).toThrow();
+    expect(() => index.readFile("link.ts")).toThrow();
   });
 
   it("parses grep lines whose text ends in a carriage return", async () => {
