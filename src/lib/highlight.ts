@@ -105,6 +105,8 @@ function toTokens(token: ThemedToken): Token[] {
   });
 }
 
+const MAX_HIGHLIGHTED_LINE_LENGTH = 2_000;
+
 export async function highlightLines(file: string, lines: string[]): Promise<Token[][]> {
   const lang = languageOf(file);
   if (!lang) return plainLines(lines);
@@ -113,6 +115,8 @@ export async function highlightLines(file: string, lines: string[]): Promise<Tok
     lang,
     themes: THEMES,
     includeExplanation: "scopeName",
+    tokenizeTimeLimit: 0,
+    tokenizeMaxLineLength: MAX_HIGHLIGHTED_LINE_LENGTH,
   });
   return tokens.map((row) => row.flatMap(toTokens));
 }
