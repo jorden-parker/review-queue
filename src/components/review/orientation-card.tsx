@@ -5,7 +5,7 @@ import { useState } from "react";
 import { InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { PrDescription } from "@/components/common/pr-description";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { OrientationState } from "./use-review";
 
@@ -111,15 +111,8 @@ export function OrientationCard({ review, orientation, fresh }: OrientationCardP
           </CardDescription>
           <DetailsToggle expanded={expanded} onToggle={() => setExpanded(!expanded)} />
         </div>
-        <CardTitle
-          className={expanded ? "text-xl font-semibold tracking-tight" : "truncate font-semibold"}
-        >
-          <InlineMarkdown text={review.pr.title} />
-        </CardTitle>
       </CardHeader>
-      <CardContent
-        className={`flex flex-col ${expanded ? "max-h-pinned gap-4 overflow-y-auto" : "gap-2"}`}
-      >
+      <CardContent className={`flex flex-col ${expanded ? "gap-4" : "gap-2"}`}>
         {expanded && review.pr.bodyHtml.trim() && <PrDescription html={review.pr.bodyHtml} />}
         <ReviewStats review={review} />
         {expanded ? (

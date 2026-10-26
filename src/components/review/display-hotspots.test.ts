@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Hotspot } from "@/lib/types";
-import { displayHotspots } from "./display-hotspots";
+import type { Hotspot, Step } from "@/lib/types";
+import { displayHotspots, hotspotsInStep } from "./display-hotspots";
 
 const HOTSPOT: Hotspot = {
   id: "h1",
@@ -32,5 +32,20 @@ describe("displayHotspots", () => {
     });
     expect(result[0].note).toBe("Track it");
     expect(result[1]).toMatchObject({ suggested: true, path: "a.ts", line: 9, title: "Odd loop" });
+  });
+});
+
+describe("hotspotsInStep", () => {
+  it("keeps only hotspots in the step's files", () => {
+    const step: Step = {
+      id: "s1",
+      title: "Core",
+      role: "core",
+      reason: "",
+      changedLines: 3,
+      files: [{ path: "a.ts", hunkIndexes: [0] }],
+    };
+    const elsewhere = { ...HOTSPOT, id: "h2", path: "b.ts" };
+    expect(hotspotsInStep([HOTSPOT, elsewhere], step)).toEqual([HOTSPOT]);
   });
 });

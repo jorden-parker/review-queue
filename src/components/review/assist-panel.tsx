@@ -127,9 +127,9 @@ export function AssistPanel({
   const draftReady =
     thread.action === "comment" && !assist.streaming && last?.role === "model" && last.text.trim();
   return (
-    <aside
+    <section
       aria-label="Ask the model"
-      className="flex min-h-0 flex-col border-l bg-card font-sans text-sm"
+      className="flex min-h-0 flex-1 flex-col border-t bg-card font-sans text-sm"
       onKeyDown={(event) => event.stopPropagation()}
     >
       <header className="flex items-center gap-2 border-b px-3 py-2.5">
@@ -189,6 +189,6 @@ export function AssistPanel({
           />
         )}
       </footer>
-    </aside>
+    </section>
   );
 }

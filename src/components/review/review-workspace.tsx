@@ -1,23 +1,13 @@
 "use client";
 
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  CircleHelp,
-  Coffee,
-  Layers,
-  RotateCcw,
-  Send,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleHelp, Coffee, Layers, RotateCcw, Send } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -37,7 +27,6 @@ import { FocusTimer } from "./focus-timer";
 import { HotspotList } from "./hotspot-list";
 import { JumpTrail } from "./jump-trail";
 import { NotesPanel } from "./notes-panel";
-import { OrientationCard } from "./orientation-card";
 import { PauseDialog } from "./pause-dialog";
 import { PeekPanel } from "./peek-panel";
 import { PostedToast } from "./posted-toast";
@@ -45,15 +34,13 @@ import { ORDERING_MESSAGE, ReadingPath } from "./reading-path";
 import { ResumeCard } from "./resume-card";
 import { ShortcutHelp } from "./shortcut-help";
 import { StartOverDialog } from "./start-over-dialog";
-import { StepExplanation } from "./step-explanation";
 import { orderedSteps, stepReasons } from "./step-order";
 import { SavedChatsPanel } from "./saved-chats-panel";
 import { SelectionToolbar } from "./selection-toolbar";
+import { StepRail } from "./step-rail";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
-import { useWorkspace, type SidebarTab } from "./use-workspace";
-
-type Workspace = ReturnType<typeof useWorkspace>;
+import { useWorkspace, type SidebarTab, type Workspace } from "./use-workspace";
 
 type WorkspaceProps = {
   pullRequest: PullRequestRef;
@@ -161,7 +148,7 @@ function Sidebar({
     <Tabs
       value={workspace.tab}
       onValueChange={(tab) => workspace.setTab(tab as SidebarTab)}
-      className="min-h-0 gap-0 border-r bg-card"
+      className="hidden min-h-0 gap-0 border-r bg-card xl:flex"
     >
       <div className="border-b p-2">
         <TabsList className="w-full">
@@ -234,63 +221,43 @@ function Sidebar({
   );
 }
 
-function StepHeader({
-  review,
-  session,
-  workspace,
-}: {
-  review: ReviewPayload;
-  session: Session;
-  workspace: Workspace;
-}) {
+function StepBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
   const step = workspace.currentStep;
-  if (!step || workspace.showAll) return null;
-  const done = session.doneSteps.includes(step.id);
-  return (
-    <Card>
-      <CardHeader>
-        <CardDescription className="font-mono text-xs">
-          Step {workspace.currentIndex + 1} of {review.steps.length} · {step.role} ·{" "}
-          {step.changedLines} lines
-        </CardDescription>
-        <CardTitle className="text-lg font-semibold tracking-tight">{step.title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <p className="text-sm text-muted-foreground">{step.reason}</p>
-        {workspace.aiEnabled && (
-          <StepExplanation
-            key={step.id}
-            pullRequest={review.pr.ref}
-            headSha={review.headSha}
-            stepId={step.id}
-          />
-        )}
-        {done && (
-          <Badge className="animate-pop bg-add text-add-foreground">
-            <Check /> Done
-          </Badge>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function StepFooter({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
-  if (workspace.showAll || !workspace.currentStep) return null;
+  if (!step) return null;
   const isLast = workspace.currentIndex >= review.steps.length - 1;
   return (
-    <div className="flex items-center justify-between py-6">
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="min-w-0 flex-1 truncate text-sm">
+        <span className="font-mono text-xs text-muted-foreground">
+          {workspace.currentIndex + 1}/{review.steps.length}
+        </span>{" "}
+        <span className="font-medium">{workspace.showAll ? "Whole PR" : step.title}</span>
+      </span>
       <Button
         variant="ghost"
-        onClick={() => workspace.moveStep(-1)}
-        disabled={workspace.currentIndex <= 0}
+        size="sm"
+        onClick={() => workspace.setShowAll(!workspace.showAll)}
+        className="text-muted-foreground"
       >
-        <ArrowLeft /> Previous (p)
+        <Layers />
+        {workspace.showAll ? "Back to one step at a time" : "Show whole PR"} (a)
       </Button>
-      <Button size="lg" onClick={workspace.doneAndNext} className="px-4">
-        {isLast ? "Done with this step" : "Done, next step"} <ArrowRight />
-        <Kbd className="bg-primary-foreground/20 text-primary-foreground">x</Kbd>
-      </Button>
+      {!workspace.showAll && (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => workspace.moveStep(-1)}
+            disabled={workspace.currentIndex <= 0}
+          >
+            <ArrowLeft /> Previous (p)
+          </Button>
+          <Button size="sm" onClick={workspace.doneAndNext}>
+            {isLast ? "Done with this step" : "Done, next step"} <ArrowRight />
+            <Kbd className="bg-primary-foreground/20 text-primary-foreground">x</Kbd>
+          </Button>
+        </>
+      )}
     </div>
   );
 }
@@ -364,23 +331,6 @@ function Dialogs({
     default:
       return null;
   }
-}
-
-function ShowAllToggle({ workspace }: { workspace: Workspace }) {
-  if (!workspace.currentStep) return null;
-  return (
-    <div className="flex items-center justify-end">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => workspace.setShowAll(!workspace.showAll)}
-        className="text-muted-foreground"
-      >
-        <Layers />
-        {workspace.showAll ? "Back to one step at a time" : "Show whole PR"} (a)
-      </Button>
-    </div>
-  );
 }
 
 function WorkspacePeek({ workspace }: { workspace: Workspace }) {
@@ -497,13 +447,7 @@ export function ReviewWorkspace({
   return (
     <div className="grid h-screen grid-rows-shell">
       <TopBar review={review} session={session} workspace={workspace} />
-      <div
-        className={
-          workspace.assist.thread
-            ? "grid min-h-0 grid-cols-workspace-assist"
-            : "grid min-h-0 grid-cols-workspace"
-        }
-      >
+      <div className="grid min-h-0 grid-cols-workspace xl:grid-cols-workspace-wide">
         <Sidebar
           review={review}
           session={session}
@@ -511,30 +455,23 @@ export function ReviewWorkspace({
           orientation={orientation}
         />
         <div className="relative flex min-h-0 min-w-0 flex-col">
-          <div className="shrink-0 border-b bg-background px-6 py-3">
-            <div className="mx-auto max-w-5xl">
-              <OrientationCard
-                key={fresh ? "fresh" : "started"}
-                review={payload}
-                orientation={orientation}
-                fresh={fresh}
-              />
-            </div>
-          </div>
-          <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-6 pb-5">
-            <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-4 pt-5">
+          <div className="shrink-0 border-b bg-background px-6 py-2">
+            <div className="mx-auto flex max-w-5xl flex-col gap-2">
+              <StepBar review={review} workspace={workspace} />
               {controls.actionError && (
                 <p className="rounded-lg bg-del px-3 py-2 text-sm text-del-foreground">
                   Couldn&apos;t save: {controls.actionError}
                 </p>
               )}
               <BreakBanner workspace={workspace} />
-              <ShowAllToggle workspace={workspace} />
+            </div>
+          </div>
+          <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-6 pb-5">
+            <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-4 pt-5">
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}
                 className="flex animate-step-enter flex-col gap-4"
               >
-                <StepHeader review={review} session={session} workspace={workspace} />
                 {workspace.visibleSteps.map((step) => (
                   <div key={step.id} className="flex flex-col gap-2">
                     {workspace.showAll && (
@@ -547,12 +484,18 @@ export function ReviewWorkspace({
                 ))}
               </div>
               <NoSteps review={payload} orientation={orientation} />
-              <StepFooter review={review} workspace={workspace} />
             </div>
           </main>
           <WorkspacePeek workspace={workspace} />
         </div>
-        <WorkspaceAssist workspace={workspace} />
+        <StepRail
+          review={review}
+          session={session}
+          workspace={workspace}
+          orientation={orientation}
+          fresh={fresh}
+          assist={<WorkspaceAssist workspace={workspace} />}
+        />
       </div>
       <WorkspaceSelectionToolbar workspace={workspace} />
       <Dialogs review={review} session={session} workspace={workspace} />

@@ -216,3 +216,5 @@ export function useWorkspace(
     },
   };
 }
+
+export type Workspace = ReturnType<typeof useWorkspace>;
