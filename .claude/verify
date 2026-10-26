@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-pnpm test
-pnpm exec tsc --noEmit
-pnpm lint
-npx fallow --format json > /dev/null
+bun run test
+bun run typecheck
+bun run lint
+bunx fallow --format json > /dev/null

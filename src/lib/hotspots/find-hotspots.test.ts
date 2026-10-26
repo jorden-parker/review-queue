@@ -80,6 +80,7 @@ describe("findHotspots", () => {
     );
     expect(rulesFor([codeFile(['"zod": "4"'], "package.json")])).toEqual(["dependencies"]);
     expect(rulesFor([codeFile(["a"], "pnpm-lock.yaml")])).toEqual(["lockfile-drift"]);
+    expect(rulesFor([codeFile(["a"], "bun.lock")])).toEqual(["lockfile-drift"]);
     expect(rulesFor([codeFile(["a"], "pnpm-lock.yaml"), codeFile(["b"], "package.json")])).toEqual([
       "dependencies",
     ]);
