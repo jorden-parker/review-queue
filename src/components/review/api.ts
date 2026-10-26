@@ -1,5 +1,6 @@
 import type { ReviewEvent } from "@/lib/github/gh";
 import { prPath } from "@/lib/pr-ref";
+import type { ExplanationResult } from "@/lib/review/explanation-service";
 import type { OrientationResult } from "@/lib/review/orientation-service";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { SessionAction } from "@/lib/review/session-actions";
@@ -34,6 +35,16 @@ export function fetchReview(ref: PullRequestRef): Promise<ReviewPayload> {
 
 export function fetchOrientation(ref: PullRequestRef, sha: string): Promise<OrientationResult> {
   return fetch(apiPath(ref, `/orientation${query({ sha })}`)).then(json<OrientationResult>);
+}
+
+export function fetchStepExplanation(
+  ref: PullRequestRef,
+  sha: string,
+  stepId: string,
+): Promise<ExplanationResult> {
+  return fetch(apiPath(ref, `/explanation${query({ sha, step: stepId })}`)).then(
+    json<ExplanationResult>,
+  );
 }
 
 export function fetchDefinitions(
