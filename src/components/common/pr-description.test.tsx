@@ -27,6 +27,22 @@ describe("PrDescription", () => {
     expect(container.querySelector("script")).toBeNull();
   });
 
+  it("hides HTML comments", () => {
+    render(<PrDescription body={"Intro\n\n<!-- hidden note -->"} />);
+    expect(screen.queryByText(/hidden note/)).toBeNull();
+  });
+
+  it("renders HTML image tags", () => {
+    const src = "https://github.com/user-attachments/assets/x";
+    render(<PrDescription body={`<img src="${src}" alt="shot" width="300">`} />);
+    expect(screen.getByRole("img", { name: "shot" }).getAttribute("src")).toBe(src);
+  });
+
+  it("renders markdown images", () => {
+    render(<PrDescription body="![diagram](https://example.com/d.png)" />);
+    expect(screen.getByRole("img", { name: "diagram" })).toBeTruthy();
+  });
+
   it("offers to expand a long description and collapse it again", () => {
     overflowBy(50);
     render(<PrDescription body={BODY} />);
