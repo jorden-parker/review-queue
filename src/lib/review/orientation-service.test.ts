@@ -19,7 +19,7 @@ const REPLY = {
   summary: "S",
   intent: "I",
   risk: "low",
-  startStepId: "",
+  stepOrder: [],
   startReason: "R",
   hotspotNotes: [],
   extraHotspots: [],

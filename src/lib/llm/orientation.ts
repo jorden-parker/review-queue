@@ -31,7 +31,7 @@ const OrientationSchema = z.object({
   summary: z.string(),
   intent: z.string(),
   risk: z.enum(["low", "medium", "high"]),
-  startStepId: z.string(),
+  stepOrder: z.array(z.string()),
   startReason: z.string(),
   hotspotNotes: z.array(z.object({ id: z.string(), note: z.string() })).default([]),
   extraHotspots: z.array(SuggestedHotspot).default([]),
@@ -46,8 +46,8 @@ Reply with ONLY a JSON object, no prose and no code fences, matching:
 {"summary": "2-3 plain sentences on what the PR does",
  "intent": "one sentence: the problem it solves",
  "risk": "low" | "medium" | "high",
- "startStepId": "id of the step to read first, chosen from the steps list",
- "startReason": "one sentence on why to start there",
+ "stepOrder": ["every step id from the steps list, in the order the reviewer should read them"],
+ "startReason": "one sentence on why to start with the first step in stepOrder",
  "hotspotNotes": [{"id": "hotspot id from the list", "note": "one sentence: what specifically to check"}],
  "extraHotspots": [{"path": "file in the diff", "line": 12, "title": "short", "why": "one sentence"}]}
 Only add extraHotspots for things that look genuinely odd or risky and are not already listed. At most 5.
@@ -80,15 +80,18 @@ export function buildPrompt(input: OrientationInput): string {
   return `${header}\n${fenced("pr_diff", clipped)}`;
 }
 
+function completeStepOrder(order: string[], steps: Step[]): string[] {
+  const known = new Set(steps.map((step) => step.id));
+  const chosen = new Set(order.filter((id) => known.has(id)));
+  return [...chosen, ...steps.map((step) => step.id).filter((id) => !chosen.has(id))];
+}
+
 function keepKnown(orientation: z.infer<typeof OrientationSchema>, input: OrientationInput) {
-  const stepIds = new Set(input.steps.map((step) => step.id));
   const hotspotIds = new Set(input.hotspots.map((hotspot) => hotspot.id));
   const paths = new Set(input.diffs.map((diff) => diff.path));
   return {
     ...orientation,
-    startStepId: stepIds.has(orientation.startStepId)
-      ? orientation.startStepId
-      : (input.steps[0]?.id ?? ""),
+    stepOrder: completeStepOrder(orientation.stepOrder, input.steps),
     hotspotNotes: orientation.hotspotNotes.filter((note) => hotspotIds.has(note.id)),
     extraHotspots: orientation.extraHotspots
       .filter((hotspot) => paths.has(hotspot.path))
