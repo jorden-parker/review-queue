@@ -15,6 +15,8 @@ function fakeRunner(output: string) {
 
 const REF = { owner: "acme", repo: "app", number: 7 };
 
+const noCache = { getCached: () => null, setCached: () => {} };
+
 describe("github", () => {
   it("lists PRs requesting my review", async () => {
     const { run, calls } = fakeRunner(
@@ -42,31 +44,34 @@ describe("github", () => {
     });
   });
 
-  it("reads PR metadata", async () => {
-    const { run, calls } = fakeRunner(
-      JSON.stringify({
-        title: "Add cache",
-        body: "Speeds things up",
-        url: "u",
-        author: { login: "sam" },
-        baseRefName: "main",
-        baseRefOid: "base1",
-        headRefName: "cache",
-        headRefOid: "abc",
-        additions: 10,
-        deletions: 2,
-        changedFiles: 3,
-      }),
-    );
-    const pr = await getPullRequest(REF, run);
-    expect(calls[0].args.slice(0, 3)).toEqual(["pr", "view", "7"]);
-    expect(calls[0].args).toContain("acme/app");
-    expect(pr).toMatchObject({
+  it("reads PR metadata from the REST API", async () => {
+    const body = JSON.stringify({
       title: "Add cache",
+      body: null,
+      html_url: "https://github.com/acme/app/pull/7",
+      user: { login: "sam" },
+      base: { ref: "main", sha: "base1" },
+      head: { ref: "cache", sha: "abc" },
+      additions: 10,
+      deletions: 2,
+      changed_files: 3,
+    });
+    const { run, calls } = fakeRunner(`HTTP/2.0 200 OK\r\nEtag: "e1"\r\n\r\n${body}`);
+    const pr = await getPullRequest(REF, noCache, run);
+    expect(calls[0].args).toEqual(["api", "-i", "repos/acme/app/pulls/7"]);
+    expect(pr).toEqual({
+      ref: REF,
+      title: "Add cache",
+      body: "",
+      url: "https://github.com/acme/app/pull/7",
       author: "sam",
-      headSha: "abc",
       baseRef: "main",
       baseSha: "base1",
+      headRef: "cache",
+      headSha: "abc",
+      additions: 10,
+      deletions: 2,
+      changedFiles: 3,
     });
   });
 

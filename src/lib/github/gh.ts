@@ -1,4 +1,5 @@
 import type { Runner } from "@/lib/exec";
+import { conditionalGet, type EtagCache } from "./conditional-get";
 import { githubRun } from "./github-guard";
 import type { PullRequestRef } from "@/lib/types";
 
@@ -46,8 +47,6 @@ type SearchResult = {
 };
 
 const SEARCH_FIELDS = "number,title,url,repository,author,updatedAt,isDraft";
-const VIEW_FIELDS =
-  "title,body,url,author,baseRefName,baseRefOid,headRefName,headRefOid,additions,deletions,changedFiles";
 
 function refFromSearch(result: SearchResult): PullRequestRef {
   const [owner, repo] = result.repository.nameWithOwner.split("/");
@@ -75,31 +74,24 @@ export async function listReviewRequests(run: Runner = githubRun): Promise<Revie
 
 export async function getPullRequest(
   ref: PullRequestRef,
+  cache: EtagCache,
   run: Runner = githubRun,
 ): Promise<PullRequest> {
-  const output = await run("gh", [
-    "pr",
-    "view",
-    String(ref.number),
-    "--repo",
-    `${ref.owner}/${ref.repo}`,
-    "--json",
-    VIEW_FIELDS,
-  ]);
-  const view = JSON.parse(output);
+  const path = `repos/${ref.owner}/${ref.repo}/pulls/${ref.number}`;
+  const pull = JSON.parse(await conditionalGet(path, cache, run));
   return {
     ref,
-    title: view.title,
-    body: view.body ?? "",
-    url: view.url,
-    author: view.author?.login ?? "",
-    baseRef: view.baseRefName,
-    baseSha: view.baseRefOid,
-    headRef: view.headRefName,
-    headSha: view.headRefOid,
-    additions: view.additions,
-    deletions: view.deletions,
-    changedFiles: view.changedFiles,
+    title: pull.title,
+    body: pull.body ?? "",
+    url: pull.html_url,
+    author: pull.user?.login ?? "",
+    baseRef: pull.base.ref,
+    baseSha: pull.base.sha,
+    headRef: pull.head.ref,
+    headSha: pull.head.sha,
+    additions: pull.additions,
+    deletions: pull.deletions,
+    changedFiles: pull.changed_files,
   };
 }
 
