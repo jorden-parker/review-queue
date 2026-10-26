@@ -24,7 +24,7 @@ const BUSY_CALLER_LIMIT = 3;
 const MANIFESTS =
   /(^|\/)(package\.json|go\.mod|Cargo\.toml|pyproject\.toml|requirements[^/]*\.txt|Gemfile)$/;
 const LOCKFILES =
-  /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|go\.sum|Cargo\.lock|poetry\.lock|uv\.lock)$/;
+  /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|go\.sum|Cargo\.lock|poetry\.lock|uv\.lock)$/;
 const MIGRATIONS = /(^|\/)migrations?\/|\.sql$|schema\.prisma$/;
 const TEST_CASE = /\b(it|test|describe)\s*\(|\bfunc Test\w+|\bdef test_\w+/;
 
