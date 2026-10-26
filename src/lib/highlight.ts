@@ -1,8 +1,8 @@
 import path from "node:path";
-import { createHighlighter, type BundledLanguage, type Highlighter } from "shiki";
+import { createHighlighter, type BundledLanguage, type Highlighter, type ThemedToken } from "shiki";
 import type { FileDiff } from "@/lib/types";
 
-export type Token = { text: string; light?: string; dark?: string };
+export type Token = { text: string; light?: string; dark?: string; literal?: boolean };
 
 export type HighlightedHunk = Token[][];
 
@@ -49,17 +49,40 @@ function plainLines(texts: string[]): HighlightedHunk {
   return texts.map((text) => [{ text }]);
 }
 
+const CODE_INSIDE_LITERAL = /^(meta\.template\.expression|meta\.embedded)/;
+const LITERAL = /^(string|comment)/;
+const IDENTIFIER_CHAR = /[A-Za-z_$]/;
+
+function isLiteralScope(scopes: { scopeName: string }[]): boolean {
+  for (const { scopeName } of [...scopes].reverse()) {
+    if (CODE_INSIDE_LITERAL.test(scopeName)) return false;
+    if (LITERAL.test(scopeName)) return true;
+  }
+  return false;
+}
+
+function isLiteral(token: ThemedToken): boolean {
+  const wordParts = (token.explanation ?? []).filter((part) => IDENTIFIER_CHAR.test(part.content));
+  return wordParts.length > 0 && wordParts.every((part) => isLiteralScope(part.scopes));
+}
+
+function toToken(token: ThemedToken): Token {
+  const colours = { light: token.htmlStyle?.color, dark: token.htmlStyle?.["--shiki-dark"] };
+  return isLiteral(token)
+    ? { text: token.content, ...colours, literal: true }
+    : { text: token.content, ...colours };
+}
+
 export async function highlightLines(file: string, lines: string[]): Promise<Token[][]> {
   const lang = languageOf(file);
   if (!lang) return plainLines(lines);
   const shiki = await loadHighlighter();
-  return shiki.codeToTokens(lines.join("\n"), { lang, themes: THEMES }).tokens.map((row) =>
-    row.map((token) => ({
-      text: token.content,
-      light: token.htmlStyle?.color,
-      dark: token.htmlStyle?.["--shiki-dark"],
-    })),
-  );
+  const { tokens } = shiki.codeToTokens(lines.join("\n"), {
+    lang,
+    themes: THEMES,
+    includeExplanation: "scopeName",
+  });
+  return tokens.map((row) => row.map(toToken));
 }
 
 export async function highlightFile(file: FileDiff): Promise<HighlightedHunk[]> {

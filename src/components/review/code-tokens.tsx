@@ -19,6 +19,13 @@ function TokenText({
   onHover,
 }: { token: Token } & IdentifierHandlers) {
   const style = { "--light": token.light, "--dark": token.dark } as CSSProperties;
+  if (token.literal) {
+    return (
+      <span className="code-token" style={style}>
+        {token.text}
+      </span>
+    );
+  }
   const parts = token.text.split(IDENTIFIER_SPLIT);
   return (
     <span className="code-token" style={style}>
