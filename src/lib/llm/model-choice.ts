@@ -1,6 +1,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { type LlmSettings, llmSettingsFromEnv } from "@/lib/settings/llm-settings";
 import { llmConfigFromEnv, type LlmConfig } from "./client";
 
 type Env = Record<string, string | undefined>;
@@ -24,32 +25,37 @@ async function claudeOllamaModels(env: Env): Promise<string[]> {
   return Object.values(sizes).map((size) => size.model);
 }
 
-async function installedModels(baseURL: string, fetchImpl: typeof fetch): Promise<Set<string>> {
+export async function ollamaModels(baseURL: string, fetchImpl: typeof fetch): Promise<string[]> {
   const response = await fetchImpl(`${baseURL}/api/tags`, {
     signal: AbortSignal.timeout(TAGS_TIMEOUT_MS),
   });
   const tags = TagsSchema.parse(await response.json());
-  return new Set(tags.models.map((model) => model.name.replace(/:latest$/, "")));
+  return tags.models.map((model) => model.name.replace(/:latest$/, ""));
 }
 
-async function installedClaudeOllamaModel(
+export async function autoModel(env: Env, installed: string[]): Promise<string | null> {
+  const candidates = await claudeOllamaModels(env);
+  return candidates.find((model) => installed.includes(model)) ?? null;
+}
+
+async function installedAutoModel(
   env: Env,
   baseURL: string,
   fetchImpl: typeof fetch,
 ): Promise<string | null> {
-  const [candidates, installed] = await Promise.all([
-    claudeOllamaModels(env),
-    installedModels(baseURL, fetchImpl),
-  ]);
-  return candidates.find((model) => installed.has(model)) ?? null;
+  return autoModel(env, await ollamaModels(baseURL, fetchImpl));
 }
 
 export async function llmConfig(
   env: Env = process.env,
   fetchImpl: typeof fetch = fetch,
+  saved: LlmSettings | null = null,
 ): Promise<LlmConfig> {
-  const config = llmConfigFromEnv(env);
-  if (env.REVIEW_QUEUE_LLM_MODEL || !config.enabled) return config;
-  const model = await installedClaudeOllamaModel(env, config.baseURL, fetchImpl).catch(() => null);
-  return model ? { ...config, model } : config;
+  const settings = saved ?? llmSettingsFromEnv(env);
+  const { model, ...choices } = settings;
+  const config = { ...llmConfigFromEnv(env), ...choices };
+  if (model) return { ...config, model };
+  if (!config.enabled) return config;
+  const chosen = await installedAutoModel(env, config.baseURL, fetchImpl).catch(() => null);
+  return chosen ? { ...config, model: chosen } : config;
 }

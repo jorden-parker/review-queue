@@ -88,10 +88,20 @@ buttons. `g c` opens it.
 Ollama-compatible endpoint. Results are cached in the store's cache table.
 Configure it with `REVIEW_QUEUE_LLM_URL` (or `OLLAMA_HOST`),
 `REVIEW_QUEUE_LLM_MODEL`, `REVIEW_QUEUE_LLM_TIMEOUT_MS`, and
-`REVIEW_QUEUE_LLM=off`. Without `REVIEW_QUEUE_LLM_MODEL`,
-`lib/llm/model-choice.ts` uses the first model in claude-ollama's
-`ollama/sizes.json` (found by following the `claude-ollama` launcher on `PATH`)
-that Ollama has installed.
+`REVIEW_QUEUE_LLM=off`. Models think before answering, with 2048 extra tokens
+for it; `REVIEW_QUEUE_LLM_THINKING=off` stops that, but only use it with a model
+that does not then write its reasoning into the answer. Without
+`REVIEW_QUEUE_LLM_MODEL`, `lib/llm/model-choice.ts` uses the first model in
+claude-ollama's `ollama/sizes.json` (found by following the `claude-ollama`
+launcher on `PATH`) that Ollama has installed.
+
+**Settings page** (`app/settings/page.tsx`, `lib/settings/`). It edits the model
+on/off, model, thinking and timeout, saved in the store's `settings` table. Once
+saved, these replace the matching environment variables; the URL stays
+environment-only so PR code cannot be sent elsewhere from the UI. LLM routes get
+their config from `currentLlmConfig()` in `lib/review/services.ts`.
+`PUT /api/settings` saves and `DELETE /api/settings/cache` empties the cache
+table (orientations, step explanations and GitHub ETags).
 
 **Security boundary** (`src/proxy.ts`, the Next 16 replacement for middleware).
 It rejects any non-loopback `Host`, then requires the `review-queue-token`

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { askModel, llmConfigFromEnv, streamModel } from "./client";
 
-const CONFIG = { baseURL: "http://llm.test", model: "m", enabled: true, timeoutMs: 1000 };
+const CONFIG = {
+  baseURL: "http://llm.test",
+  model: "m",
+  enabled: true,
+  thinking: true,
+  timeoutMs: 1000,
+};
 
 function recordingFetch() {
   const bodies: unknown[] = [];
@@ -18,13 +24,18 @@ describe("llmConfigFromEnv", () => {
       baseURL: "http://localhost:11434",
       model: "qwen3.8-27b-cc",
       enabled: true,
+      thinking: true,
     });
     expect(llmConfigFromEnv({ REVIEW_QUEUE_LLM: "off" }).enabled).toBe(false);
+  });
+
+  it("lets thinking be switched off", () => {
+    expect(llmConfigFromEnv({ REVIEW_QUEUE_LLM_THINKING: "off" }).thinking).toBe(false);
   });
 });
 
 describe("askModel", () => {
-  it("sends the request's system prompt, token cap and messages", async () => {
+  it("sends the request's system prompt, token cap with room to think, and messages", async () => {
     const { fetchImpl, bodies } = recordingFetch();
     const reply = await askModel(
       { config: CONFIG, fetchImpl },
@@ -34,11 +45,21 @@ describe("askModel", () => {
     expect(bodies[0]).toMatchObject({
       model: "m",
       system: "sys",
-      max_tokens: 42,
+      max_tokens: 42 + 2048,
       messages: [{ role: "user", content: "hi" }],
       temperature: 0,
       stream: false,
     });
+    expect(bodies[0]).not.toHaveProperty("thinking");
+  });
+
+  it("asks the model not to think, without the extra tokens, when thinking is off", async () => {
+    const { fetchImpl, bodies } = recordingFetch();
+    await askModel(
+      { config: { ...CONFIG, thinking: false }, fetchImpl },
+      { system: "sys", maxTokens: 42, messages: [{ role: "user", content: "hi" }] },
+    );
+    expect(bodies[0]).toMatchObject({ max_tokens: 42, thinking: { type: "disabled" } });
   });
 });
 
@@ -84,7 +105,19 @@ describe("streamModel", () => {
     const { fetchImpl, bodies } = streamingFetch([events.slice(0, 70), events.slice(70)]);
     const parts = await collect(streamModel({ config: CONFIG, fetchImpl }, REQUEST));
     expect(parts.join("")).toBe("Hello");
-    expect(bodies[0]).toMatchObject({ stream: true, system: "sys", max_tokens: 10 });
+    expect(bodies[0]).toMatchObject({ stream: true, system: "sys", max_tokens: 10 + 2048 });
+  });
+
+  it("drops the model's thinking and yields only its answer", async () => {
+    const events =
+      sseEvent("content_block_delta", {
+        index: 0,
+        delta: { type: "thinking_delta", thinking: "Draft" },
+      }) +
+      sseEvent("content_block_delta", { index: 1, delta: { type: "text_delta", text: "Answer" } });
+    const { fetchImpl } = streamingFetch([events]);
+    const parts = await collect(streamModel({ config: CONFIG, fetchImpl }, REQUEST));
+    expect(parts.join("")).toBe("Answer");
   });
 
   it("gives up when the model does not start answering in time", async () => {

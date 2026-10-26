@@ -28,7 +28,13 @@ const INPUT: SummaryDraftInput = {
   notes: NOTES,
 };
 
-const CONFIG = { baseURL: "http://llm.test", model: "m", enabled: true, timeoutMs: 1000 };
+const CONFIG = {
+  baseURL: "http://llm.test",
+  model: "m",
+  enabled: true,
+  thinking: true,
+  timeoutMs: 1000,
+};
 
 function reply(text: string): Response {
   return new Response(
