@@ -10,24 +10,21 @@ import {
   type LucideIcon,
   MapPin,
   MessagesSquare,
-  PanelRightClose,
-  PanelRightOpen,
   RotateCcw,
   Route,
   Send,
   Shapes,
+  Sparkles,
   StickyNote,
 } from "lucide-react";
-import { cn } from "cn";
 import Link from "next/link";
-import { type ReactNode, useMemo } from "react";
+import { useMemo } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   type AssistTarget,
   targetCommentLine,
@@ -60,7 +57,9 @@ import { SelectionToolbar } from "./selection-toolbar";
 import { StepSummary } from "./step-summary";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
-import { useWorkspace, type SidebarTab, type Workspace } from "./use-workspace";
+import { useWorkspace, type Workspace } from "./use-workspace";
+import type { PaneId } from "./pane-layout";
+import { type PaneContent, type PaneEntry, ReviewPanel } from "./review-panel";
 
 type WorkspaceProps = {
   pullRequest: PullRequestRef;
@@ -70,11 +69,12 @@ type WorkspaceProps = {
   controls: ReturnType<typeof useReview>;
 };
 
-const TABS: { id: SidebarTab; label: string; icon: LucideIcon }[] = [
+const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
   { id: "step", label: "Step", icon: MapPin },
   { id: "path", label: "Path", icon: Route },
   { id: "hotspots", label: "Hotspots", icon: Flame },
   { id: "notes", label: "Notes", icon: StickyNote },
+  { id: "chat", label: "Chat", icon: Sparkles },
   { id: "chats", label: "Chats", icon: MessagesSquare },
   { id: "context", label: "Context", icon: Shapes },
 ];
@@ -146,206 +146,130 @@ function TopBar({
   );
 }
 
-function SidebarTabTrigger({
-  tab,
-  count,
-  onPick,
-}: {
-  tab: (typeof TABS)[number];
-  count: number | null;
-  onPick: (tab: SidebarTab) => void;
-}) {
-  const Icon = tab.icon;
-  return (
-    <TabsTrigger
-      value={tab.id}
-      aria-label={count ? `${tab.label} (${count})` : tab.label}
-      onClick={() => onPick(tab.id)}
-      className="h-auto w-full flex-none flex-col gap-1 px-1 py-2.5 text-xs group-data-horizontal/tabs:after:inset-x-auto group-data-horizontal/tabs:after:inset-y-1 group-data-horizontal/tabs:after:left-0 group-data-horizontal/tabs:after:h-auto group-data-horizontal/tabs:after:w-0.5"
-    >
-      <span className="relative">
-        <Icon />
-        {count ? (
-          <span className="absolute -top-1.5 left-3 min-w-4 rounded-full bg-primary px-1 text-center text-xs/4 font-semibold text-primary-foreground">
-            {count}
-          </span>
-        ) : null}
-      </span>
-      <span>{tab.label}</span>
-    </TabsTrigger>
-  );
-}
-
-function SidebarPanel({ value, children }: { value: SidebarTab; children: ReactNode }) {
-  return (
-    <TabsContent
-      value={value}
-      className="flex min-h-0 animate-step-enter flex-col overflow-y-auto p-3"
-    >
-      {children}
-    </TabsContent>
-  );
-}
-
-function PanelToggle({ workspace }: { workspace: Workspace }) {
-  const label = workspace.panelOpen ? "Hide panel" : "Show panel";
-  const Icon = workspace.panelOpen ? PanelRightClose : PanelRightOpen;
-  return (
-    <HintButton
-      variant="ghost"
-      size="icon"
-      hint={label}
-      shortcut="\"
-      aria-label={label}
-      onClick={workspace.togglePanel}
-    >
-      <Icon />
-    </HintButton>
-  );
-}
-
-function ReviewPanel({
-  review,
-  session,
-  workspace,
-  orientation,
-  fresh,
-}: {
+type PaneProps = {
   review: ReviewPayload;
   session: Session;
   workspace: Workspace;
   orientation: OrientationState;
   fresh: boolean;
-}) {
+};
+
+function paneEntries({ session, workspace }: PaneProps): PaneEntry[] {
   const openHotspots = workspace.hotspots.filter(
     (hotspot) => !session.checkedHotspots.includes(hotspot.id),
   ).length;
-  const counts: Record<SidebarTab, number | null> = {
+  const counts: Record<PaneId, number | null> = {
     step: null,
     path: null,
     hotspots: openHotspots,
     notes: session.notes.length,
+    chat: null,
     chats: session.assistThreads.length,
     context: contextCount(session.contextSymbols, workspace.currentStep?.id ?? null),
   };
+  return PANES.filter((pane) => workspace.aiEnabled || pane.id !== "chat").map((pane) => ({
+    ...pane,
+    count: counts[pane.id],
+  }));
+}
+
+function WorkspacePanel(props: PaneProps) {
   return (
-    <aside aria-label="Review panel" className="flex min-h-0 border-l">
-      <Tabs
-        value={workspace.tab}
-        onValueChange={(tab) => workspace.setTab(tab as SidebarTab)}
-        className="min-h-0 gap-0 data-horizontal:flex-row"
-      >
-        <div className="flex w-panel-strip shrink-0 flex-col items-center gap-2 overflow-y-auto border-r bg-muted py-2">
-          <PanelToggle workspace={workspace} />
-          <TabsList
-            variant="line"
-            className="w-full flex-col gap-1 p-0 group-data-horizontal/tabs:h-auto"
-          >
-            {TABS.map((tab) => (
-              <SidebarTabTrigger
-                key={tab.id}
-                tab={tab}
-                count={counts[tab.id]}
-                onPick={workspace.setTab}
-              />
-            ))}
-          </TabsList>
-        </div>
-        {workspace.panelOpen && (
-          <div className="flex min-h-0 w-panel flex-col bg-card">
-            <div
-              className={cn(
-                "flex min-h-0 flex-col",
-                workspace.assist.thread ? "shrink-0 basis-1/2" : "flex-1",
-              )}
-            >
-              <PanelTabs
-                review={review}
-                session={session}
-                workspace={workspace}
-                orientation={orientation}
-                fresh={fresh}
-              />
-            </div>
-            <WorkspaceAssist workspace={workspace} />
-          </div>
-        )}
-      </Tabs>
-    </aside>
+    <ReviewPanel
+      entries={paneEntries(props)}
+      controls={props.workspace}
+      renderPane={(id) => paneContent(id, props)}
+    />
   );
 }
 
-function PanelTabs({
-  review,
-  session,
-  workspace,
-  orientation,
-  fresh,
-}: {
-  review: ReviewPayload;
-  session: Session;
-  workspace: Workspace;
-  orientation: OrientationState;
-  fresh: boolean;
-}) {
-  return (
-    <>
-      <SidebarPanel value="step">
-        <StepSummary
-          review={review}
-          session={session}
-          workspace={workspace}
-          orientation={orientation}
-          fresh={fresh}
-        />
-      </SidebarPanel>
-      <SidebarPanel value="path">
-        <ReadingPath
-          steps={review.steps}
-          startStepId={workspace.startStepId}
-          currentStepId={workspace.currentStep?.id ?? null}
-          doneSteps={session.doneSteps}
-          reopenedStepIds={review.reopenedStepIds}
-          reasons={stepReasons(orientation)}
-          ordering={orientation.status === "loading"}
-          fallback={orientation.status === "error"}
-          onSelect={(stepId) => workspace.selectStep(stepId)}
-          onToggleDone={(stepId) =>
-            workspace.setStepDone(stepId, !session.doneSteps.includes(stepId))
-          }
-        />
-      </SidebarPanel>
-      <SidebarPanel value="hotspots">
-        <HotspotList
-          hotspots={workspace.hotspots}
-          checked={session.checkedHotspots}
-          onOpen={(hotspot) => workspace.goTo({ path: hotspot.path, line: hotspot.line ?? 1 })}
-          onToggleChecked={workspace.toggleHotspot}
-        />
-      </SidebarPanel>
-      <SidebarPanel value="notes">
-        <NotesPanel
-          notes={session.notes}
-          parkingRef={workspace.parkingInput}
-          onPark={(body) => workspace.saveNote(null, "parked", body)}
-          onOpen={(note) => note.path && workspace.goTo({ path: note.path, line: note.line ?? 1 })}
-          onDelete={workspace.deleteNote}
-        />
-      </SidebarPanel>
-      <SidebarPanel value="chats">
-        <SavedChatsPanel
-          chats={session.assistThreads}
-          headSha={review.headSha}
-          labelOf={(chat) => labelFor(workspace, chat.target)}
-          onOpen={workspace.assist.reopen}
-          onDelete={(id) => {
-            if (workspace.assist.thread?.id === id) workspace.assist.close();
-            workspace.deleteSavedChat(id);
-          }}
-        />
-      </SidebarPanel>
-      <SidebarPanel value="context">
-        {workspace.peek.peek ? (
+function paneContent(id: PaneId, props: PaneProps): PaneContent {
+  const { review, session, workspace, orientation, fresh } = props;
+  switch (id) {
+    case "step":
+      return {
+        body: (
+          <StepSummary
+            review={review}
+            session={session}
+            workspace={workspace}
+            orientation={orientation}
+            fresh={fresh}
+          />
+        ),
+      };
+    case "path":
+      return {
+        body: (
+          <ReadingPath
+            steps={review.steps}
+            startStepId={workspace.startStepId}
+            currentStepId={workspace.currentStep?.id ?? null}
+            doneSteps={session.doneSteps}
+            reopenedStepIds={review.reopenedStepIds}
+            reasons={stepReasons(orientation)}
+            ordering={orientation.status === "loading"}
+            fallback={orientation.status === "error"}
+            onSelect={(stepId) => workspace.selectStep(stepId)}
+            onToggleDone={(stepId) =>
+              workspace.setStepDone(stepId, !session.doneSteps.includes(stepId))
+            }
+          />
+        ),
+      };
+    case "hotspots":
+      return {
+        body: (
+          <HotspotList
+            hotspots={workspace.hotspots}
+            checked={session.checkedHotspots}
+            onOpen={(hotspot) => workspace.goTo({ path: hotspot.path, line: hotspot.line ?? 1 })}
+            onToggleChecked={workspace.toggleHotspot}
+          />
+        ),
+      };
+    case "notes":
+      return {
+        body: (
+          <NotesPanel
+            notes={session.notes}
+            parkingRef={workspace.parkingInput}
+            onPark={(body) => workspace.saveNote(null, "parked", body)}
+            onOpen={(note) =>
+              note.path && workspace.goTo({ path: note.path, line: note.line ?? 1 })
+            }
+            onDelete={workspace.deleteNote}
+          />
+        ),
+      };
+    case "chat":
+      return workspace.assist.thread
+        ? { body: <WorkspaceAssist workspace={workspace} />, ownHeader: true }
+        : {
+            body: (
+              <EmptyState emoji="💬">
+                No chat open. Select lines and press <Kbd>i</Kbd>, or open a saved chat.
+              </EmptyState>
+            ),
+          };
+    case "chats":
+      return {
+        body: (
+          <SavedChatsPanel
+            chats={session.assistThreads}
+            headSha={review.headSha}
+            labelOf={(chat) => labelFor(workspace, chat.target)}
+            onOpen={workspace.assist.reopen}
+            onDelete={(chatId) => {
+              if (workspace.assist.thread?.id === chatId) workspace.assist.close();
+              workspace.deleteSavedChat(chatId);
+            }}
+          />
+        ),
+      };
+    case "context":
+      return {
+        body: workspace.peek.peek ? (
           <WorkspacePeek workspace={workspace} />
         ) : (
           <ContextList
@@ -357,10 +281,9 @@ function PanelTabs({
             onBack={workspace.back}
             onClearTrail={workspace.clearJumps}
           />
-        )}
-      </SidebarPanel>
-    </>
-  );
+        ),
+      };
+  }
 }
 
 function StepBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
@@ -624,7 +547,7 @@ export function ReviewWorkspace({
             </div>
           </main>
         </div>
-        <ReviewPanel
+        <WorkspacePanel
           review={review}
           session={session}
           workspace={workspace}

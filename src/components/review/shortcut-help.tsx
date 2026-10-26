@@ -17,6 +17,7 @@ const SHORTCUTS: [string[], string][] = [
   [["P"], "Park a thought for later"],
   [["a"], "Show the whole PR or just this step"],
   [["\\"], "Hide or show the side panel"],
+  [["Shift", "click"], "Split a panel icon into its own pane (or drag it)"],
   [["."], "Pause and leave yourself a note"],
   [["Esc"], "Close panels"],
   [["?"], "This help"],
