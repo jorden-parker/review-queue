@@ -1,0 +1,5 @@
+{
+  "health": {
+    "coverage": "coverage/coverage-final.json"
+  }
+}

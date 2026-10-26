@@ -1,0 +1,22 @@
+import { describe, expect, it } from "vitest";
+import { resolveShortcut } from "./shortcut-keys";
+
+describe("resolveShortcut", () => {
+  it("maps single keys", () => {
+    expect(resolveShortcut(null, "j")).toBe("next-hunk");
+    expect(resolveShortcut(null, "P")).toBe("park");
+    expect(resolveShortcut(null, "?")).toBe("help");
+    expect(resolveShortcut(null, "Escape")).toBe("close");
+  });
+
+  it("waits for the second key of a chord", () => {
+    expect(resolveShortcut(null, "g")).toBe("pending");
+    expect(resolveShortcut("g", "d")).toBe("peek-definition");
+    expect(resolveShortcut("g", "r")).toBe("peek-references");
+  });
+
+  it("drops unknown chords and keys", () => {
+    expect(resolveShortcut("g", "z")).toBeNull();
+    expect(resolveShortcut(null, "q")).toBeNull();
+  });
+});
