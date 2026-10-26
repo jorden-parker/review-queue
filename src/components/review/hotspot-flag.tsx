@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { checksFor } from "@/lib/hotspots/checks";
 import { plural } from "@/lib/plural";
 import type { Severity } from "@/lib/types";
-import { type DisplayHotspot, SEVERITY_STYLES } from "./hotspot-list";
+import { type DisplayHotspot, SEVERITY_CHECKBOX } from "./hotspot-list";
 
 export type HotspotFlagProps = {
   hotspots: DisplayHotspot[];
@@ -52,15 +52,14 @@ function FlagDetails({
       <Checkbox
         checked={isChecked}
         onCheckedChange={() => onToggleChecked(hotspot.id)}
-        className="mt-0.5"
+        className={cn("mt-0.5", SEVERITY_CHECKBOX[hotspot.severity])}
         title="Checked"
         aria-label={`Checked: ${hotspot.title}`}
       />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <span className="flex items-center gap-2 font-medium wrap-anywhere">
-          <span className={cn("size-2 shrink-0 rounded-full", SEVERITY_STYLES[hotspot.severity])} />
+        <span className="flex items-start gap-2 font-medium wrap-anywhere">
           <InlineMarkdown text={hotspot.title} />
-          {hotspot.suggested && <Sparkles size={12} className="shrink-0 text-primary" />}
+          {hotspot.suggested && <Sparkles size={12} className="mt-1 shrink-0 text-primary" />}
         </span>
         <p className="text-muted-foreground">
           <InlineMarkdown text={hotspot.note ?? hotspot.why} />
@@ -80,13 +79,32 @@ function FlagDetails({
   );
 }
 
+function FlagChip({ hotspot, isChecked }: { hotspot: DisplayHotspot; isChecked: boolean }) {
+  return (
+    <span
+      data-checked={isChecked}
+      className={cn(
+        "flex min-w-0 items-start gap-1.5 rounded-xl border px-2 py-0.5 font-medium wrap-anywhere transition-colors duration-150",
+        isChecked ? DONE_CHIP : CHIP_STYLES[hotspot.severity],
+      )}
+    >
+      {isChecked ? (
+        <Check size={12} className="mt-0.5 shrink-0" />
+      ) : (
+        <Flag size={12} className="mt-0.5 shrink-0" />
+      )}
+      <InlineMarkdown text={hotspot.title} />
+    </span>
+  );
+}
+
 function FlagTrigger({
   ordered,
-  allChecked,
+  checked,
   className,
   ...props
-}: React.ComponentProps<"button"> & { ordered: DisplayHotspot[]; allChecked: boolean }) {
-  const [lead] = ordered;
+}: React.ComponentProps<"button"> & { ordered: DisplayHotspot[]; checked: string[] }) {
+  const allChecked = ordered.every((hotspot) => checked.includes(hotspot.id));
   const label = `${plural(ordered.length, "flag")} on this line${allChecked ? ", all checked" : ""}`;
   return (
     <button
@@ -94,19 +112,12 @@ function FlagTrigger({
       aria-label={label}
       className={cn(
         className,
-        "flex max-w-64 items-center gap-1.5 rounded-full border px-2 py-0.5 font-sans text-xs font-medium transition-colors duration-150",
-        allChecked ? DONE_CHIP : CHIP_STYLES[lead.severity],
+        "flex max-w-full flex-wrap gap-1.5 rounded-xl text-left font-sans text-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
       )}
     >
-      {allChecked ? (
-        <Check size={12} className="shrink-0" />
-      ) : (
-        <Flag size={12} className="shrink-0" />
-      )}
-      <span className="truncate">
-        <InlineMarkdown text={lead.title} />
-      </span>
-      {ordered.length > 1 && <span className="shrink-0 opacity-75">+{ordered.length - 1}</span>}
+      {ordered.map((hotspot) => (
+        <FlagChip key={hotspot.id} hotspot={hotspot} isChecked={checked.includes(hotspot.id)} />
+      ))}
     </button>
   );
 }
@@ -120,7 +131,6 @@ export function HotspotFlag({
 }: HotspotFlagProps) {
   const [open, setOpen] = useState(false);
   const ordered = bySeverity(hotspots);
-  const allChecked = ordered.every((hotspot) => checked.includes(hotspot.id));
   const run = (action: () => void) => () => {
     setOpen(false);
     action();
@@ -128,9 +138,13 @@ export function HotspotFlag({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <FlagTrigger ordered={ordered} allChecked={allChecked} />
+        <FlagTrigger ordered={ordered} checked={checked} />
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 gap-4 p-4 font-sans">
+      <PopoverContent
+        align="start"
+        collisionPadding={12}
+        className="max-h-(--radix-popover-content-available-height) w-80 max-w-(--radix-popover-content-available-width) gap-4 overflow-y-auto p-4 font-sans"
+      >
         {ordered.map((hotspot) => (
           <FlagDetails
             key={hotspot.id}

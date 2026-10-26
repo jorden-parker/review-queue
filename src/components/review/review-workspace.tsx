@@ -89,7 +89,7 @@ function TopBar({
   workspace: Workspace;
 }) {
   return (
-    <header className="flex flex-wrap items-center gap-3 border-b bg-background/80 px-4 py-2.5 backdrop-blur-md">
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/80 px-3 py-2.5 backdrop-blur-md sm:px-4">
       <HintButton
         variant="ghost"
         size="icon-sm"
@@ -101,7 +101,7 @@ function TopBar({
           <ArrowLeft />
         </Link>
       </HintButton>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-48 flex-1 flex-col">
         <span className="truncate text-sm font-semibold">
           <InlineMarkdown text={review.pr.title} />
         </span>
@@ -127,10 +127,10 @@ function TopBar({
         shortcut="."
         onClick={() => workspace.setDialog("pause")}
       >
-        <Coffee /> Pause
+        <Coffee /> <span className="max-sm:sr-only">Pause</span>
       </HintButton>
       <Button size="sm" onClick={() => workspace.setDialog("finish")}>
-        <Send /> Finish
+        <Send /> <span className="max-sm:sr-only">Finish</span>
       </Button>
       <HintButton
         variant="ghost"
@@ -520,7 +520,7 @@ export function ReviewWorkspace({
       <TopBar review={review} session={session} workspace={workspace} />
       <div className="grid min-h-0 grid-cols-workspace">
         <div className="flex min-h-0 min-w-0 flex-col">
-          <div className="shrink-0 border-b bg-background px-8 py-2">
+          <div className="shrink-0 border-b bg-background px-3 py-2 sm:px-8">
             <div className="mx-auto flex max-w-5xl flex-col gap-2">
               <StepBar review={review} workspace={workspace} />
               {controls.actionError && (
@@ -531,7 +531,7 @@ export function ReviewWorkspace({
               <BreakBanner workspace={workspace} />
             </div>
           </div>
-          <main className="min-h-0 flex-1 overflow-y-auto px-8 pb-5">
+          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-5 sm:px-8">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-4 pt-5">
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}

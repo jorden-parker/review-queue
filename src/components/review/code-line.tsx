@@ -48,9 +48,13 @@ const MARKER_STYLES = {
 };
 const MARKERS = { add: "+", del: "−", context: " " };
 
+const LINE_NUMBER_WIDTH = "w-8 shrink-0 sm:w-12";
+const NOTE_BUTTON_WIDTH = "w-6 shrink-0";
+const MARKER_WIDTH = "w-4 shrink-0";
+
 function LineNotes({ notes, onDelete }: { notes: Note[]; onDelete: (id: number) => void }) {
   return (
-    <div className="flex flex-col gap-2 border-y bg-card px-12 py-2 font-sans text-sm">
+    <div className="flex flex-col gap-2 border-y bg-card px-4 py-2 font-sans text-sm sm:px-12">
       {notes.map((note) => (
         <div key={note.id} className="group/note flex items-start gap-2">
           <NoteKindBadge kind={note.kind} />
@@ -60,7 +64,7 @@ function LineNotes({ notes, onDelete }: { notes: Note[]; onDelete: (id: number) 
             size="icon-xs"
             aria-label="Delete note"
             onClick={() => onDelete(note.id)}
-            className="opacity-0 group-hover/note:opacity-100 focus-visible:opacity-100"
+            className="opacity-0 group-hover/note:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
           >
             <Trash2 />
           </Button>
@@ -82,7 +86,7 @@ function symbolPosition(path: string, line: DiffLine, target: IdentifierTarget):
 
 function LineNumber({ value }: { value: number | null }) {
   return (
-    <span className="w-12 shrink-0 pr-2 text-right text-muted-foreground/70 select-none">
+    <span className={cn(LINE_NUMBER_WIDTH, "pr-2 text-right text-muted-foreground/70 select-none")}>
       {value ?? ""}
     </span>
   );
@@ -93,20 +97,33 @@ function NoteButton({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       title="Add a note on this line (c)"
-      className="text-primary opacity-0 transition-[opacity,transform] duration-150 ease-spring group-hover:opacity-100 hover:scale-125 focus-visible:opacity-100"
+      className="text-primary opacity-0 transition-[opacity,transform] duration-150 ease-spring group-hover:opacity-100 hover:scale-125 focus-visible:opacity-100 pointer-coarse:opacity-100"
     >
       <MessageSquarePlus size={14} />
     </button>
   );
 }
 
-function LineFlags({
+function GutterSpacer() {
+  return (
+    <>
+      <span className={LINE_NUMBER_WIDTH} />
+      <span className={LINE_NUMBER_WIDTH} />
+      <span className={NOTE_BUTTON_WIDTH} />
+      <span className={MARKER_WIDTH} />
+    </>
+  );
+}
+
+function LineFlagRow({
+  kind,
   range,
   hotspots,
   checked,
   onAddNote,
   handlers,
 }: {
+  kind: DiffLine["kind"];
   range: LineRange;
   hotspots: DisplayHotspot[];
   checked: string[];
@@ -115,15 +132,18 @@ function LineFlags({
 }) {
   const { onCheckFlag } = handlers;
   return (
-    <span className="shrink-0 self-start px-2">
-      <HotspotFlag
-        hotspots={hotspots}
-        checked={checked}
-        onToggleChecked={handlers.onToggleHotspot}
-        onAddNote={onAddNote}
-        onCheck={onCheckFlag ? () => onCheckFlag(range) : null}
-      />
-    </span>
+    <div className={cn("flex pt-0.5 pb-1.5", ROW_STYLES[kind])}>
+      <GutterSpacer />
+      <div className="min-w-0 flex-1 pr-4 max-sm:pr-2">
+        <HotspotFlag
+          hotspots={hotspots}
+          checked={checked}
+          onToggleChecked={handlers.onToggleHotspot}
+          onAddNote={onAddNote}
+          onCheck={onCheckFlag ? () => onCheckFlag(range) : null}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -161,13 +181,13 @@ export function CodeLine({
       >
         <LineNumber value={line.oldLine} />
         <LineNumber value={lineNumber} />
-        <span className="flex w-6 shrink-0 justify-center select-none">
+        <span className={cn(NOTE_BUTTON_WIDTH, "flex justify-center select-none")}>
           {addNote && <NoteButton onClick={addNote} />}
         </span>
-        <span className={cn("w-4 shrink-0 select-none", MARKER_STYLES[line.kind])}>
+        <span className={cn(MARKER_WIDTH, "select-none", MARKER_STYLES[line.kind])}>
           {MARKERS[line.kind]}
         </span>
-        <code className="flex-1 pr-4 break-words whitespace-pre-wrap">
+        <code className="flex-1 pr-4 break-words whitespace-pre-wrap max-sm:tab-2 max-sm:pr-2">
           <CodeTokens
             tokens={tokens}
             onIdentifier={
@@ -177,16 +197,17 @@ export function CodeLine({
             emphasis={landed?.name}
           />
         </code>
-        {hotspots.length > 0 && (
-          <LineFlags
-            range={{ path, from: here, to: here }}
-            hotspots={hotspots}
-            checked={checkedHotspots}
-            onAddNote={addNote}
-            handlers={handlers}
-          />
-        )}
       </div>
+      {hotspots.length > 0 && (
+        <LineFlagRow
+          kind={line.kind}
+          range={{ path, from: here, to: here }}
+          hotspots={hotspots}
+          checked={checkedHotspots}
+          onAddNote={addNote}
+          handlers={handlers}
+        />
+      )}
       {notes.length > 0 && <LineNotes notes={notes} onDelete={handlers.onDeleteNote} />}
     </>
   );

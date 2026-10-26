@@ -17,10 +17,10 @@ type HotspotListProps = {
   onToggleChecked: (id: string) => void;
 };
 
-export const SEVERITY_STYLES: Record<Severity, string> = {
-  high: "bg-severity-high",
-  medium: "bg-severity-medium",
-  low: "bg-severity-low",
+export const SEVERITY_CHECKBOX: Record<Severity, string> = {
+  high: "border-severity-high",
+  medium: "border-severity-medium",
+  low: "border-severity-low",
 };
 
 export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: HotspotListProps) {
@@ -49,7 +49,7 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
               <Checkbox
                 checked={isChecked}
                 onCheckedChange={() => onToggleChecked(hotspot.id)}
-                className="mt-0.5"
+                className={cn("mt-0.5", SEVERITY_CHECKBOX[hotspot.severity])}
                 title="Checked"
                 aria-label={`Checked: ${hotspot.title}`}
               />
@@ -57,15 +57,11 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
                 onClick={() => onOpen(hotspot)}
                 className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
               >
-                <span className="flex items-center gap-2 text-sm font-medium wrap-anywhere">
-                  <span
-                    className={cn(
-                      "size-2 shrink-0 rounded-full",
-                      SEVERITY_STYLES[hotspot.severity],
-                    )}
-                  />
+                <span className="flex items-start gap-2 text-sm font-medium wrap-anywhere">
                   <InlineMarkdown text={hotspot.title} />
-                  {hotspot.suggested && <Sparkles size={12} className="text-primary" />}
+                  {hotspot.suggested && (
+                    <Sparkles size={12} className="mt-1 shrink-0 text-primary" />
+                  )}
                 </span>
                 <PathLabel path={hotspot.path} line={hotspot.line} wrap />
                 <span className="text-xs text-muted-foreground">
