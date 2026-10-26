@@ -19,10 +19,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { commentLine, firstLineNumber, rangeLabel } from "@/lib/assist-protocol";
 import { prKey } from "@/lib/pr-ref";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
 import type { PullRequestRef } from "@/lib/types";
+import { AssistPanel } from "./assist-panel";
 import { FinishReview } from "./finish-review";
 import { FocusTimer } from "./focus-timer";
 import { HotspotList } from "./hotspot-list";
@@ -38,6 +40,7 @@ import { ShortcutHelp } from "./shortcut-help";
 import { StartOverDialog } from "./start-over-dialog";
 import { StepExplanation } from "./step-explanation";
 import { orderedSteps } from "./step-order";
+import { SelectionToolbar } from "./selection-toolbar";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
 import { useWorkspace, type SidebarTab } from "./use-workspace";
@@ -370,6 +373,37 @@ function WorkspacePeek({ workspace }: { workspace: Workspace }) {
   );
 }
 
+function WorkspaceAssist({ workspace }: { workspace: Workspace }) {
+  const { thread } = workspace.assist;
+  if (!thread) return null;
+  const { range } = thread;
+  const hunks = workspace.files.get(range.path)?.hunks ?? [];
+  return (
+    <AssistPanel
+      key={`${range.path}:${range.from.hunk}:${range.from.line}:${range.to.hunk}:${range.to.line}:${thread.action}`}
+      assist={workspace.assist}
+      thread={thread}
+      label={rangeLabel(hunks, range)}
+      commentLine={commentLine(hunks, range.from, range.to)}
+      onSaveNote={(line, kind, body) =>
+        workspace.saveNote(line === null ? null : { path: range.path, line }, kind, body)
+      }
+      onShowLines={() => workspace.goTo({ path: range.path, line: firstLineNumber(hunks, range) })}
+    />
+  );
+}
+
+function WorkspaceSelectionToolbar({ workspace }: { workspace: Workspace }) {
+  const { selection } = workspace;
+  if (!workspace.aiEnabled || !selection) return null;
+  return (
+    <SelectionToolbar
+      selection={selection}
+      onAction={(action) => workspace.assist.open(selection.range, action)}
+    />
+  );
+}
+
 export function ReviewWorkspace({
   pullRequest,
   review: payload,
@@ -406,7 +440,13 @@ export function ReviewWorkspace({
   return (
     <div className="grid h-screen grid-rows-shell">
       <TopBar review={review} session={session} workspace={workspace} />
-      <div className="grid min-h-0 grid-cols-workspace">
+      <div
+        className={
+          workspace.assist.thread
+            ? "grid min-h-0 grid-cols-workspace-assist"
+            : "grid min-h-0 grid-cols-workspace"
+        }
+      >
         <Sidebar review={review} session={session} workspace={workspace} />
         <div className="relative flex min-h-0 min-w-0 flex-col">
           <div className="shrink-0 border-b bg-background px-6 py-3">
@@ -454,7 +494,9 @@ export function ReviewWorkspace({
           </main>
           <WorkspacePeek workspace={workspace} />
         </div>
+        <WorkspaceAssist workspace={workspace} />
       </div>
+      <WorkspaceSelectionToolbar workspace={workspace} />
       <Dialogs review={review} session={session} workspace={workspace} />
       {workspace.posted && <PostedToast onDismiss={() => workspace.setPosted(false)} />}
     </div>

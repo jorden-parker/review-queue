@@ -17,6 +17,8 @@ export type LineHandlers = {
 
 type CodeLineProps = {
   path: string;
+  hunkIndex: number;
+  lineIndex: number;
   line: DiffLine;
   tokens: Token[];
   linkable: Set<string>;
@@ -62,6 +64,8 @@ function LineNotes({ notes, onDelete }: { notes: Note[]; onDelete: (id: number) 
 
 export function CodeLine({
   path,
+  hunkIndex,
+  lineIndex,
   line,
   tokens,
   linkable,
@@ -76,6 +80,9 @@ export function CodeLine({
     <>
       <div
         id={elementId}
+        data-path={path}
+        data-hunk={hunkIndex}
+        data-line={lineIndex}
         className={cn(
           "group flex scroll-mt-32 transition-colors duration-150",
           ROW_STYLES[line.kind],

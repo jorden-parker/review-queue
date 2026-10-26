@@ -1,5 +1,7 @@
+import { ASSIST_ERROR_MARKER } from "@/lib/assist-protocol";
 import type { ReviewEvent } from "@/lib/github/gh";
 import { prPath } from "@/lib/pr-ref";
+import type { AssistRequest } from "@/lib/review/assist-request";
 import type { ExplanationResult } from "@/lib/review/explanation-service";
 import type { OrientationResult } from "@/lib/review/orientation-service";
 import type { ReviewPayload } from "@/lib/review/prepare";
@@ -89,4 +91,38 @@ export function requestSummaryDraft(
   input: { event: ReviewEvent; noteIds: number[] },
 ): Promise<SummaryDraftResult> {
   return post<SummaryDraftResult>(apiPath(ref, `/summary-draft${query({ sha })}`), input);
+}
+
+async function readText(
+  body: ReadableStream<Uint8Array>,
+  onText: (text: string) => void,
+): Promise<string> {
+  const decoder = new TextDecoder();
+  const reader = body.getReader();
+  let text = "";
+  for (let read = await reader.read(); !read.done; read = await reader.read()) {
+    text += decoder.decode(read.value, { stream: true });
+    onText(text.split(ASSIST_ERROR_MARKER)[0]);
+  }
+  return text;
+}
+
+export async function streamAssist(
+  ref: PullRequestRef,
+  sha: string,
+  request: AssistRequest,
+  onText: (text: string) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  const response = await fetch(apiPath(ref, `/assist${query({ sha })}`), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  });
+  if (!response.ok) await json(response);
+  if (!response.body) return;
+  const text = await readText(response.body, onText);
+  const [, failure] = text.split(ASSIST_ERROR_MARKER);
+  if (failure !== undefined) throw new Error(failure);
 }

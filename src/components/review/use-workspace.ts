@@ -9,7 +9,9 @@ import { firstNoteLine } from "./hunk-index";
 import { nextOpenStep, type LineTarget } from "./locate";
 import { scrollToElement } from "./scroll-motion";
 import type { ShortcutAction } from "./shortcut-keys";
+import { type Assist, useAssist } from "./use-assist";
 import { useJumps } from "./use-jumps";
+import { type LineSelection, useLineSelection } from "./use-line-selection";
 import { usePeek } from "./use-peek";
 import { useReturnDetection } from "./use-return-detection";
 import type { OrientationState, useReview } from "./use-review";
@@ -29,6 +31,60 @@ export function shouldGreet(review: ReviewPayload, now = Date.now()): boolean {
   const stale =
     session.updatedAt !== null && now - Date.parse(session.updatedAt) > STALE_SESSION_MS;
   return hasProgress && stale;
+}
+
+function explainSelection(assist: Assist, selection: LineSelection | null) {
+  if (selection) assist.open(selection.range, "explain");
+}
+
+function closeTopmost(assist: Assist, closeOthers: () => void) {
+  if (assist.thread) assist.close();
+  else closeOthers();
+}
+
+type ShortcutDeps = {
+  review: ReviewPayload;
+  ui: ReturnType<typeof useWorkspaceUi>;
+  navigation: ReturnType<typeof useStepNavigation>;
+  peek: ReturnType<typeof usePeek>;
+  jumps: ReturnType<typeof useJumps>;
+  assist: Assist;
+  selection: LineSelection | null;
+};
+
+function shortcutHandlers({
+  review,
+  ui,
+  navigation,
+  peek,
+  jumps,
+  assist,
+  selection,
+}: ShortcutDeps): Record<ShortcutAction, () => void> {
+  const name = ui.getHovered();
+  const hoveredFrom = navigation.currentStep?.files[0]?.path ?? "";
+  const closePanels = () => {
+    ui.setComposer(null);
+    peek.close();
+    ui.setDialog(null);
+  };
+  return {
+    "next-hunk": () => navigation.moveHunk(1),
+    "previous-hunk": () => navigation.moveHunk(-1),
+    "next-step": () => navigation.moveStep(1),
+    "previous-step": () => navigation.moveStep(-1),
+    "done-and-next": navigation.doneAndNext,
+    "peek-definition": () => name && jumps.peekName(name, hoveredFrom, 1),
+    "peek-references": () => name && peek.showReferences(name, hoveredFrom),
+    back: jumps.back,
+    note: () => ui.setComposer(firstNoteLine(review.files, navigation.activeHunkId)),
+    "ask-model": () => explainSelection(assist, selection),
+    park: ui.focusParking,
+    "toggle-all": () => navigation.setShowAll((value) => !value),
+    pause: () => ui.setDialog("pause"),
+    close: () => closeTopmost(assist, closePanels),
+    help: () => ui.setDialog("help"),
+  };
 }
 
 function useWorkspaceUi(review: ReviewPayload) {
@@ -75,6 +131,8 @@ export function useWorkspace(
   const ui = useWorkspaceUi(review);
   const navigation = useStepNavigation(review, session, controls.act);
   const peek = usePeek(ref, review.headSha);
+  const assist = useAssist(ref, review.headSha);
+  const selection = useLineSelection();
   const jumps = useJumps(session, controls.act, navigation.goTo, peek);
   const edits = useSessionEdits(ref, review.headSha, session, controls.act, controls.setSession);
   const hotspots = useMemo(
@@ -99,31 +157,8 @@ export function useWorkspace(
     if (target) navigation.selectStep(target);
   }, [edits, navigation, nextStep, review.reopenedStepIds, setDialog]);
 
-  const hoveredFrom = navigation.currentStep?.files[0]?.path ?? "";
-  const onShortcut = (action: ShortcutAction) => {
-    const name = ui.getHovered();
-    const handlers: Record<ShortcutAction, () => void> = {
-      "next-hunk": () => navigation.moveHunk(1),
-      "previous-hunk": () => navigation.moveHunk(-1),
-      "next-step": () => navigation.moveStep(1),
-      "previous-step": () => navigation.moveStep(-1),
-      "done-and-next": navigation.doneAndNext,
-      "peek-definition": () => name && jumps.peekName(name, hoveredFrom, 1),
-      "peek-references": () => name && peek.showReferences(name, hoveredFrom),
-      back: jumps.back,
-      note: () => setComposer(firstNoteLine(review.files, navigation.activeHunkId)),
-      park: ui.focusParking,
-      "toggle-all": () => navigation.setShowAll((value) => !value),
-      pause: () => setDialog("pause"),
-      close: () => {
-        setComposer(null);
-        peek.close();
-        setDialog(null);
-      },
-      help: () => setDialog("help"),
-    };
-    handlers[action]();
-  };
+  const onShortcut = (action: ShortcutAction) =>
+    shortcutHandlers({ review, ui, navigation, peek, jumps, assist, selection })[action]();
 
   useShortcuts(onShortcut, ui.dialog === null || ui.dialog === "help");
 
@@ -134,6 +169,8 @@ export function useWorkspace(
     ...jumps,
     ...edits,
     peek,
+    assist,
+    selection,
     hotspots,
     startStepId,
     files,

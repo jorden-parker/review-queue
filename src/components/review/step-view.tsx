@@ -84,6 +84,8 @@ function HunkBlock({
           <div key={lineIndex}>
             <CodeLine
               path={file.path}
+              hunkIndex={hunkIndex}
+              lineIndex={lineIndex}
               line={line}
               tokens={highlighted[lineIndex] ?? [{ text: line.text }]}
               linkable={file.navigable ? context.linkable : NO_LINKS}

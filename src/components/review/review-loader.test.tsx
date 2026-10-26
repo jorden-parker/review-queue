@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { installFakeApi } from "@/test/fake-api";
+import { ASSIST_REPLY, installFakeApi } from "@/test/fake-api";
 import { emptySession, HEAD_SHA, REF, reviewPayload } from "@/test/review-fixture";
 import { ReviewLoader } from "./review-loader";
 
@@ -23,6 +23,20 @@ async function renderReview(payload = reviewPayload(), orientation?: unknown) {
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+const MODEL_ON = { status: "error", message: "x" };
+
+function selectFirstLine(path: string) {
+  const row = document.querySelector(`[data-path="${path}"][data-hunk="0"][data-line="0"]`);
+  const range = document.createRange();
+  range.selectNodeContents(row as Node);
+  const selection = document.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  act(() => {
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+}
 
 describe("ReviewLoader", () => {
   it("shows a loading message, then the orientation and the first step", async () => {
@@ -332,5 +346,58 @@ describe("ReviewLoader", () => {
     await user.click(screen.getByText("Keyboard"));
     await user.keyboard("{Escape}");
     expect(screen.queryByText("Keyboard")).toBeNull();
+  });
+
+  it("explains selected lines in a side panel and takes a follow-up", async () => {
+    const { api, user } = await renderReview(reviewPayload(), MODEL_ON);
+    selectFirstLine("src/types.ts");
+    const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
+    await user.click(within(toolbar).getByRole("button", { name: /Explain/ }));
+    const panel = await screen.findByRole("complementary", { name: "Ask the model" });
+    expect(await within(panel).findByText(ASSIST_REPLY.join(""))).toBeTruthy();
+    await user.click(within(panel).getByRole("button", { name: "src/types.ts L1" }));
+    await user.type(
+      within(panel).getByLabelText("Ask the model"),
+      "Why a number?{Meta>}{Enter}{/Meta}",
+    );
+    await waitFor(() =>
+      expect(api.calls.filter((call) => call.url.includes("/assist")).at(-1)?.body).toMatchObject({
+        action: "explain",
+        path: "src/types.ts",
+        history: [
+          { role: "assistant", content: ASSIST_REPLY.join("") },
+          { role: "user", content: "Why a number?" },
+        ],
+      }),
+    );
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("complementary", { name: "Ask the model" })).toBeNull();
+  });
+
+  it("drafts a review comment and saves it as a line note", async () => {
+    const { api, user } = await renderReview(reviewPayload(), MODEL_ON);
+    selectFirstLine("src/types.ts");
+    await user.click(await screen.findByRole("button", { name: /Comment/ }));
+    const panel = await screen.findByRole("complementary", { name: "Ask the model" });
+    await user.type(
+      within(panel).getByPlaceholderText(/What worries you/),
+      "retries unbounded{Meta>}{Enter}{/Meta}",
+    );
+    await user.click(await within(panel).findByRole("button", { name: "Blocker" }));
+    await user.click(within(panel).getByRole("button", { name: "Save as note on L1" }));
+    expect(api.actions()).toContainEqual({
+      type: "note-add",
+      path: "src/types.ts",
+      line: 1,
+      kind: "blocker",
+      body: ASSIST_REPLY.join(""),
+    });
+    expect(within(panel).getByRole("button", { name: "Saved to your notes" })).toBeTruthy();
+  });
+
+  it("offers no selection toolbar when the model is off", async () => {
+    await renderReview();
+    selectFirstLine("src/types.ts");
+    expect(screen.queryByRole("toolbar", { name: /selected lines/ })).toBeNull();
   });
 });

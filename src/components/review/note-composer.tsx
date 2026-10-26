@@ -12,6 +12,30 @@ type NoteComposerProps = {
   onCancel: () => void;
 };
 
+export function NoteKindPicker({
+  kind,
+  onChange,
+}: {
+  kind: NoteKind;
+  onChange: (kind: NoteKind) => void;
+}) {
+  return (
+    <div className="flex gap-1">
+      {LINE_NOTE_KINDS.map((option) => (
+        <Button
+          key={option}
+          variant="ghost"
+          size="xs"
+          onClick={() => onChange(option)}
+          className={cn("rounded-full", option === kind && NOTE_KIND_STYLES[option])}
+        >
+          {NOTE_KIND_LABELS[option]}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 export function NoteComposer({ onSave, onCancel }: NoteComposerProps) {
   const [kind, setKind] = useState<NoteKind>("question");
   const [body, setBody] = useState("");
@@ -28,19 +52,7 @@ export function NoteComposer({ onSave, onCancel }: NoteComposerProps) {
 
   return (
     <div className="flex animate-step-enter flex-col gap-2 border-y bg-card p-3 font-sans">
-      <div className="flex gap-1">
-        {LINE_NOTE_KINDS.map((option) => (
-          <Button
-            key={option}
-            variant="ghost"
-            size="xs"
-            onClick={() => setKind(option)}
-            className={cn("rounded-full", option === kind && NOTE_KIND_STYLES[option])}
-          >
-            {NOTE_KIND_LABELS[option]}
-          </Button>
-        ))}
-      </div>
+      <NoteKindPicker kind={kind} onChange={setKind} />
       <Textarea
         autoFocus
         value={body}
