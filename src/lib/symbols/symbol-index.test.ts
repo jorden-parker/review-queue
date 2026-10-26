@@ -123,6 +123,12 @@ describe("SymbolIndex with hostile checkouts", () => {
     expect(() => index.readFile("link.ts")).toThrow();
   });
 
+  it("reads only the start of a huge file", async () => {
+    fs.writeFileSync(path.join(root, "huge.ts"), "x".repeat(5 * 1024 * 1024));
+    const index = await SymbolIndex.build(root, runnerListing("ok.ts\n"));
+    expect(index.readFile("huge.ts").length).toBe(300 * 1024);
+  });
+
   it("parses grep lines whose text ends in a carriage return", async () => {
     const index = await SymbolIndex.build(root, runnerListing("", "src/a.ts:3:fine():1:2\r\n"));
     expect(await index.referencesTo("fine")).toEqual([
