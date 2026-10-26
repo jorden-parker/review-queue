@@ -1,8 +1,22 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, CircleHelp, Coffee, Layers, RotateCcw, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CircleHelp,
+  Coffee,
+  Flame,
+  Layers,
+  type LucideIcon,
+  MessagesSquare,
+  RotateCcw,
+  Route,
+  Send,
+  Shapes,
+  StickyNote,
+} from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
@@ -52,12 +66,12 @@ type WorkspaceProps = {
   controls: ReturnType<typeof useReview>;
 };
 
-const TABS: { id: SidebarTab; label: string }[] = [
-  { id: "path", label: "Path" },
-  { id: "hotspots", label: "Hotspots" },
-  { id: "notes", label: "Notes" },
-  { id: "chats", label: "Chats" },
-  { id: "context", label: "Context" },
+const TABS: { id: SidebarTab; label: string; icon: LucideIcon }[] = [
+  { id: "path", label: "Path", icon: Route },
+  { id: "hotspots", label: "Hotspots", icon: Flame },
+  { id: "notes", label: "Notes", icon: StickyNote },
+  { id: "chats", label: "Chats", icon: MessagesSquare },
+  { id: "context", label: "Context", icon: Shapes },
 ];
 
 function TopBar({
@@ -127,6 +141,38 @@ function TopBar({
   );
 }
 
+function SidebarTabTrigger({ tab, count }: { tab: (typeof TABS)[number]; count: number | null }) {
+  const Icon = tab.icon;
+  return (
+    <TabsTrigger
+      value={tab.id}
+      aria-label={count ? `${tab.label} (${count})` : tab.label}
+      className="h-auto flex-col gap-1 px-1 py-2.5 text-xs group-data-horizontal/tabs:after:bottom-0"
+    >
+      <span className="relative">
+        <Icon />
+        {count ? (
+          <span className="absolute -top-1.5 left-3 min-w-4 rounded-full bg-primary px-1 text-center text-xs/4 font-semibold text-primary-foreground">
+            {count}
+          </span>
+        ) : null}
+      </span>
+      <span>{tab.label}</span>
+    </TabsTrigger>
+  );
+}
+
+function SidebarPanel({ value, children }: { value: SidebarTab; children: ReactNode }) {
+  return (
+    <TabsContent
+      value={value}
+      className="scrollbar-thin min-h-0 animate-step-enter overflow-y-auto p-3"
+    >
+      {children}
+    </TabsContent>
+  );
+}
+
 function Sidebar({
   review,
   session,
@@ -154,20 +200,17 @@ function Sidebar({
       onValueChange={(tab) => workspace.setTab(tab as SidebarTab)}
       className="hidden min-h-0 gap-0 border-r bg-card xl:flex"
     >
-      <div className="border-b p-2">
-        <TabsList className="w-full">
+      <div className="border-b px-2">
+        <TabsList
+          variant="line"
+          className="grid w-full grid-cols-5 p-0 group-data-horizontal/tabs:h-auto"
+        >
           {TABS.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id}>
-              {tab.label}
-              {counts[tab.id] ? ` (${counts[tab.id]})` : ""}
-            </TabsTrigger>
+            <SidebarTabTrigger key={tab.id} tab={tab} count={counts[tab.id]} />
           ))}
         </TabsList>
       </div>
-      <TabsContent
-        value="path"
-        className="scrollbar-hidden min-h-0 animate-step-enter overflow-y-auto p-3"
-      >
+      <SidebarPanel value="path">
         <ReadingPath
           steps={review.steps}
           startStepId={workspace.startStepId}
@@ -182,22 +225,16 @@ function Sidebar({
             workspace.setStepDone(stepId, !session.doneSteps.includes(stepId))
           }
         />
-      </TabsContent>
-      <TabsContent
-        value="hotspots"
-        className="scrollbar-hidden min-h-0 animate-step-enter overflow-y-auto p-3"
-      >
+      </SidebarPanel>
+      <SidebarPanel value="hotspots">
         <HotspotList
           hotspots={workspace.hotspots}
           checked={session.checkedHotspots}
           onOpen={(hotspot) => workspace.goTo({ path: hotspot.path, line: hotspot.line ?? 1 })}
           onToggleChecked={workspace.toggleHotspot}
         />
-      </TabsContent>
-      <TabsContent
-        value="notes"
-        className="scrollbar-hidden min-h-0 animate-step-enter overflow-y-auto p-3"
-      >
+      </SidebarPanel>
+      <SidebarPanel value="notes">
         <NotesPanel
           notes={session.notes}
           parkingRef={workspace.parkingInput}
@@ -205,11 +242,8 @@ function Sidebar({
           onOpen={(note) => note.path && workspace.goTo({ path: note.path, line: note.line ?? 1 })}
           onDelete={workspace.deleteNote}
         />
-      </TabsContent>
-      <TabsContent
-        value="chats"
-        className="scrollbar-hidden min-h-0 animate-step-enter overflow-y-auto p-3"
-      >
+      </SidebarPanel>
+      <SidebarPanel value="chats">
         <SavedChatsPanel
           chats={session.assistThreads}
           headSha={review.headSha}
@@ -220,11 +254,8 @@ function Sidebar({
             workspace.deleteSavedChat(id);
           }}
         />
-      </TabsContent>
-      <TabsContent
-        value="context"
-        className="scrollbar-hidden min-h-0 animate-step-enter overflow-y-auto p-3"
-      >
+      </SidebarPanel>
+      <SidebarPanel value="context">
         <ContextList
           symbols={session.contextSymbols}
           stepId={workspace.currentStep?.id ?? null}
@@ -234,7 +265,7 @@ function Sidebar({
           onBack={workspace.back}
           onClearTrail={workspace.clearJumps}
         />
-      </TabsContent>
+      </SidebarPanel>
     </Tabs>
   );
 }
@@ -245,7 +276,7 @@ function StepBar({ review, workspace }: { review: ReviewPayload; workspace: Work
   const isLast = workspace.currentIndex >= review.steps.length - 1;
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="min-w-0 flex-1 truncate text-sm">
+      <span className="min-w-48 flex-1 truncate text-sm">
         <span className="font-mono text-xs text-muted-foreground">
           {workspace.currentIndex + 1}/{review.steps.length}
         </span>{" "}
