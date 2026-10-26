@@ -52,6 +52,17 @@ describe("orientationFor", () => {
     expect(calls()).toBe(1);
   });
 
+  it("ignores a cached orientation that no longer matches the schema", async () => {
+    const store = new SessionStore(":memory:");
+    store.setCached("orientation:v2:a/b#1:sha:m", JSON.stringify({ summary: 1 }));
+    const { fetchImpl, calls } = countingFetch();
+    expect(await orientationFor(DATA, store, CONFIG, fetchImpl)).toMatchObject({
+      status: "ready",
+      orientation: { summary: "S" },
+    });
+    expect(calls()).toBe(1);
+  });
+
   it("reports errors without throwing", async () => {
     const store = new SessionStore(":memory:");
     const failing = (async () => new Response("down", { status: 503 })) as unknown as typeof fetch;
