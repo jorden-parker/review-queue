@@ -2,12 +2,17 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PrDescription } from "./pr-description";
 
-const BODY = [
-  "## Summary",
-  "- `format(1e-7)` previously produced `1e-7ms`",
-  "- Align the [parse](https://example.com) message",
-  "",
-  "<script>alert(1)</script>",
+const IMAGE_SRC = "https://private-user-images.githubusercontent.com/1/shot.png?jwt=abc";
+
+const HTML = [
+  '<div class="markdown-heading"><h2 class="heading-element">Summary</h2></div>',
+  '<ul dir="auto">',
+  "<li><code>format(1e-7)</code> previously produced <code>1e-7ms</code></li>",
+  '<li>Align the <a href="https://example.com" rel="nofollow">parse</a> message</li>',
+  "</ul>",
+  '<p dir="auto">First link<br>Second link</p>',
+  `<p dir="auto"><a href="${IMAGE_SRC}"><img src="${IMAGE_SRC}" alt="shot" width="300"></a></p>`,
+  '<script>alert(1)</script><p onclick="alert(1)">Click</p>',
 ].join("\n");
 
 function overflowBy(pixels: number) {
@@ -18,34 +23,33 @@ function overflowBy(pixels: number) {
 describe("PrDescription", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("renders the markdown structure without raw HTML", () => {
-    const { container } = render(<PrDescription body={BODY} />);
+  it("renders the description structure GitHub produced", () => {
+    render(<PrDescription html={HTML} />);
     expect(screen.getByRole("heading", { name: "Summary" })).toBeTruthy();
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
     expect(screen.getByText("format(1e-7)").tagName).toBe("CODE");
     expect(screen.getByRole("link", { name: "parse" }).getAttribute("target")).toBe("_blank");
+  });
+
+  it("keeps line breaks", () => {
+    render(<PrDescription html={HTML} />);
+    expect(screen.getByText(/First link/).querySelector("br")).not.toBeNull();
+  });
+
+  it("renders images", () => {
+    render(<PrDescription html={HTML} />);
+    expect(screen.getByRole("img", { name: "shot" }).getAttribute("src")).toBe(IMAGE_SRC);
+  });
+
+  it("strips scripts and event handlers", () => {
+    const { container } = render(<PrDescription html={HTML} />);
     expect(container.querySelector("script")).toBeNull();
-  });
-
-  it("hides HTML comments", () => {
-    render(<PrDescription body={"Intro\n\n<!-- hidden note -->"} />);
-    expect(screen.queryByText(/hidden note/)).toBeNull();
-  });
-
-  it("renders HTML image tags", () => {
-    const src = "https://github.com/user-attachments/assets/x";
-    render(<PrDescription body={`<img src="${src}" alt="shot" width="300">`} />);
-    expect(screen.getByRole("img", { name: "shot" }).getAttribute("src")).toBe(src);
-  });
-
-  it("renders markdown images", () => {
-    render(<PrDescription body="![diagram](https://example.com/d.png)" />);
-    expect(screen.getByRole("img", { name: "diagram" })).toBeTruthy();
+    expect(screen.getByText("Click").getAttribute("onclick")).toBeNull();
   });
 
   it("offers to expand a long description and collapse it again", () => {
     overflowBy(50);
-    render(<PrDescription body={BODY} />);
+    render(<PrDescription html={HTML} />);
     fireEvent.click(screen.getByRole("button", { name: "Show more" }));
     fireEvent.click(screen.getByRole("button", { name: "Show less" }));
     expect(screen.getByRole("button", { name: "Show more" })).toBeTruthy();
@@ -53,7 +57,7 @@ describe("PrDescription", () => {
 
   it("hides the toggle when the description fits", () => {
     overflowBy(0);
-    render(<PrDescription body={BODY} />);
+    render(<PrDescription html={HTML} />);
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
   });
 });

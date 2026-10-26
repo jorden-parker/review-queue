@@ -55,6 +55,7 @@ const PULL_REQUEST: PullRequest = {
   ref: REF,
   title: "Add retrying client",
   body: "Retries failed loads.\n\nMore detail.",
+  bodyHtml: "<p>Retries failed loads.</p><p>More detail.</p>",
   url: "https://github.com/acme/app/pull/7",
   author: "sam",
   baseRef: "main",

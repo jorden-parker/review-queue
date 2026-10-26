@@ -1,14 +1,14 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
-import Markdown, { type Components } from "react-markdown";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+import { fromHtml } from "hast-util-from-html";
+import { sanitize } from "hast-util-sanitize";
+import { toJsxRuntime, type Components } from "hast-util-to-jsx-runtime";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 
-const MARKDOWN_ELEMENTS: Components = {
+const DESCRIPTION_ELEMENTS: Partial<Components> = {
   h1: ({ children }) => <h3 className="font-semibold text-foreground">{children}</h3>,
   h2: ({ children }) => <h3 className="font-semibold text-foreground">{children}</h3>,
   h3: ({ children }) => <h4 className="font-medium text-foreground">{children}</h4>,
@@ -34,6 +34,11 @@ const MARKDOWN_ELEMENTS: Components = {
   ),
 };
 
+function renderDescription(html: string) {
+  const tree = sanitize(fromHtml(html, { fragment: true }));
+  return toJsxRuntime(tree, { Fragment, jsx, jsxs, components: DESCRIPTION_ELEMENTS });
+}
+
 function useOverflows(content: string) {
   const ref = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
@@ -44,9 +49,10 @@ function useOverflows(content: string) {
   return { ref, overflows };
 }
 
-export function PrDescription({ body }: { body: string }) {
+export function PrDescription({ html }: { html: string }) {
   const [expanded, setExpanded] = useState(false);
-  const { ref, overflows } = useOverflows(body);
+  const description = useMemo(() => renderDescription(html), [html]);
+  const { ref, overflows } = useOverflows(html);
   const collapsed = overflows && !expanded;
   return (
     <div className="flex flex-col items-start gap-1">
@@ -58,13 +64,7 @@ export function PrDescription({ body }: { body: string }) {
           collapsed && "mask-b-from-50%",
         )}
       >
-        <Markdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeRaw, rehypeSanitize]}
-          components={MARKDOWN_ELEMENTS}
-        >
-          {body}
-        </Markdown>
+        {description}
       </div>
       {overflows && (
         <Button variant="link" size="xs" className="px-0" onClick={() => setExpanded(!expanded)}>

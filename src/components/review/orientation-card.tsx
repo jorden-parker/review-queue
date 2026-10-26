@@ -72,7 +72,7 @@ export function OrientationCard({
         <CardTitle className="text-xl font-semibold tracking-tight">{review.pr.title}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {review.pr.body.trim() && <PrDescription body={review.pr.body} />}
+        {review.pr.bodyHtml.trim() && <PrDescription html={review.pr.bodyHtml} />}
         <ul className="flex flex-wrap gap-2 text-sm">
           <li className="rounded-full border px-3 py-1">
             ≈ <strong>{review.estimateMinutes} min</strong>
