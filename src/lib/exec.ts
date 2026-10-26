@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { withoutRepositoryVariables } from "./git-env";
 
 export type RunOptions = { cwd?: string; input?: string };
 
@@ -11,7 +12,12 @@ export const runCommand: Runner = (command, args, options = {}) =>
     const child = execFile(
       command,
       args,
-      { cwd: options.cwd, maxBuffer: MAX_OUTPUT_BYTES, encoding: "utf8" },
+      {
+        cwd: options.cwd,
+        env: withoutRepositoryVariables(process.env),
+        maxBuffer: MAX_OUTPUT_BYTES,
+        encoding: "utf8",
+      },
       (error, stdout, stderr) => {
         if (error) {
           reject(new Error(`${command} ${args.join(" ")} failed: ${stderr || error.message}`));
