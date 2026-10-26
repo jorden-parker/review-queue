@@ -491,6 +491,7 @@ export function ReviewWorkspace({
     () => ({
       files: workspace.files,
       hotspots: workspace.hotspots,
+      checkedHotspots: session.checkedHotspots,
       notes: session.notes,
       composer: workspace.composer,
       landed: workspace.landed,
@@ -503,11 +504,15 @@ export function ReviewWorkspace({
         onHoverIdentifier: workspace.setHovered,
         onAddNote: (path, line) => workspace.setComposer({ path, line }),
         onDeleteNote: workspace.deleteNote,
+        onToggleHotspot: workspace.toggleHotspot,
+        onCheckFlag: workspace.aiEnabled
+          ? (range) => workspace.assist.open({ kind: "lines", range }, "check")
+          : null,
         onSaveNote: (target, kind, body) => workspace.saveNote(target, kind, body),
         onCancelNote: () => workspace.setComposer(null),
       },
     }),
-    [workspace, session.notes],
+    [workspace, session.notes, session.checkedHotspots],
   );
 
   return (
