@@ -15,6 +15,7 @@ type Pattern = { rule: string; severity: Severity; pattern: RegExp; title: strin
 const DEFINITION =
   /\b(?:function|func|def|fn|class|interface|type|struct)\s+(?:\([^)]*\)\s*)?([A-Za-z_$][\w$]*)/;
 const BRANCH = /\b(if|else if|elif|for|while|switch|case|catch|except|match)\b|\?\?|\s\?\s/;
+const SCANNED_LINE_LENGTH = 1000;
 const HUNK_SIZE_LIMIT = 80;
 const BRANCH_LIMIT = 6;
 const CHURN_LIMIT = 20;
@@ -152,8 +153,12 @@ function hotspot(
   };
 }
 
+function scannable(line: DiffLine): string {
+  return line.text.slice(0, SCANNED_LINE_LENGTH);
+}
+
 function matchPattern(file: FileDiff, pattern: Pattern): Hotspot[] {
-  const matches = addedLines(file).filter((line) => pattern.pattern.test(line.text));
+  const matches = addedLines(file).filter((line) => pattern.pattern.test(scannable(line)));
   if (matches.length === 0) return [];
   const where = matches.length > 1 ? ` (${plural(matches.length, "place")})` : "";
   return [
@@ -184,7 +189,7 @@ const leftovers: Rule = (file) =>
 function definitionNames(lines: DiffLine[]): Map<string, DiffLine> {
   const names = new Map<string, DiffLine>();
   for (const line of lines) {
-    const name = line.text.match(DEFINITION)?.[1];
+    const name = scannable(line).match(DEFINITION)?.[1];
     if (name && !names.has(name)) names.set(name, line);
   }
   return names;
@@ -220,7 +225,7 @@ const signatureChange: Rule = (file, context) =>
   });
 
 function branchLines(file: FileDiff): DiffLine[] {
-  return addedLines(file).filter((line) => BRANCH.test(line.text));
+  return addedLines(file).filter((line) => BRANCH.test(scannable(line)));
 }
 
 const largeChange: Rule = (file) => {
@@ -325,7 +330,7 @@ const churn: Rule = (file, context) => {
 };
 
 function testCaseCount(lines: DiffLine[]): number {
-  return lines.filter((line) => TEST_CASE.test(line.text)).length;
+  return lines.filter((line) => TEST_CASE.test(scannable(line))).length;
 }
 
 const removedTests: Rule = (file) => {

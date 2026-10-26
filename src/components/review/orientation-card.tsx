@@ -31,6 +31,9 @@ function AiSummary({ orientation }: { orientation: OrientationState }) {
   const { summary, intent, risk, startReason } = orientation.orientation;
   return (
     <div className="flex flex-col gap-1 text-sm">
+      <p className="text-xs text-muted">
+        The model&apos;s guess, unverified. The PR author can sway it.
+      </p>
       <p className="flex items-center gap-1 font-bold">
         <Sparkles size={14} className="text-accent" /> {summary}
       </p>

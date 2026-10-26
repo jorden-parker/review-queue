@@ -4,11 +4,12 @@ import type { Session } from "@/lib/session/store";
 import type { Hunk } from "@/lib/types";
 
 export const REF = { owner: "acme", repo: "app", number: 7 };
+export const HEAD_SHA = "5".repeat(40);
 
 export function emptySession(overrides: Partial<Session> = {}): Session {
   return {
     currentStepId: null,
-    lastHeadSha: "sha1",
+    lastHeadSha: HEAD_SHA,
     updatedAt: null,
     pause: null,
     doneSteps: [],
@@ -59,7 +60,7 @@ const PULL_REQUEST: PullRequest = {
   baseRef: "main",
   baseSha: "base1",
   headRef: "retry",
-  headSha: "sha1",
+  headSha: HEAD_SHA,
   additions: 3,
   deletions: 0,
   changedFiles: 2,
@@ -68,7 +69,7 @@ const PULL_REQUEST: PullRequest = {
 export function reviewPayload(session: Session = emptySession()): ReviewPayload {
   return {
     pr: PULL_REQUEST,
-    headSha: "sha1",
+    headSha: HEAD_SHA,
     files: [
       file("src/types.ts", [hunk(1, ["export type Options = { retries: number };"])]),
       file("src/client.ts", [

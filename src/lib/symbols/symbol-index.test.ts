@@ -1,4 +1,8 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { Runner } from "@/lib/exec";
 import { ensureCheckout } from "@/lib/git/checkout";
 import { createFixtureRepo, mainOf, removeFixtureRepo, type FixtureRepo } from "@/test/git-fixture";
 import { SymbolIndex } from "./symbol-index";
@@ -63,5 +67,44 @@ describe("SymbolIndex", () => {
       "  return id;",
     ]);
     expect(() => index.readLines("../../etc/passwd", 1, 1)).toThrow();
+  });
+});
+
+describe("SymbolIndex with hostile checkouts", () => {
+  let sandbox: string;
+  let root: string;
+
+  function runnerListing(listing: string, grepOutput = ""): Runner {
+    return async (_command, args) => (args[0] === "ls-files" ? listing : grepOutput);
+  }
+
+  beforeEach(() => {
+    sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "symbol-index-"));
+    root = path.join(sandbox, "checkout");
+    fs.mkdirSync(root);
+    fs.writeFileSync(path.join(sandbox, "secret.ts"), "export function secretThing() {}\n");
+    fs.writeFileSync(path.join(root, "ok.ts"), "export function fine() {}\n");
+    fs.symlinkSync(path.join(sandbox, "secret.ts"), path.join(root, "link.ts"));
+    fs.symlinkSync("loop.ts", path.join(root, "loop.ts"));
+  });
+
+  afterEach(() => fs.rmSync(sandbox, { recursive: true, force: true }));
+
+  it("skips symlinks instead of following or failing on them", async () => {
+    const index = await SymbolIndex.build(root, runnerListing("ok.ts\nlink.ts\nloop.ts\n"));
+    expect(index.hasName("fine")).toBe(true);
+    expect(index.hasName("secretThing")).toBe(false);
+  });
+
+  it("refuses to read a snippet through a symlink that leaves the checkout", async () => {
+    const index = await SymbolIndex.build(root, runnerListing("ok.ts\n"));
+    expect(() => index.readLines("link.ts", 1, 1)).toThrow();
+  });
+
+  it("parses grep lines whose text ends in a carriage return", async () => {
+    const index = await SymbolIndex.build(root, runnerListing("", "src/a.ts:3:fine():1:2\r\n"));
+    expect(await index.referencesTo("fine")).toEqual([
+      { path: "src/a.ts", line: 3, text: "fine():1:2\r" },
+    ]);
   });
 });

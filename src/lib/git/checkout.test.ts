@@ -62,6 +62,14 @@ describe("checkout", () => {
     expect(diffs.map((diff) => diff.path)).toEqual(["src/a.ts", "src/b.ts"]);
   });
 
+  it("never parses a from-revision as a git option", async () => {
+    const options = { cacheRoot: fixture.cacheRoot, remoteUrl: fixture.origin };
+    const checkout = await ensureCheckout(REF, currentBase(fixture), options);
+    const target = path.join(fixture.cacheRoot, "written-by-git");
+    await expect(diffCheckout(checkout, `--output=${target}`)).rejects.toThrow();
+    expect(fs.existsSync(target)).toBe(false);
+  });
+
   it("counts how often files changed in history", async () => {
     const checkout = await ensureCheckout(REF, currentBase(fixture), {
       cacheRoot: fixture.cacheRoot,

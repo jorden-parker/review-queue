@@ -3,6 +3,7 @@ import { SessionStore } from "@/lib/session/store";
 import { applySessionAction, SessionActionSchema } from "./session-actions";
 
 const KEY = "acme/app#1";
+const HEAD_SHA = "a".repeat(40);
 
 function run(store: SessionStore, raw: unknown) {
   return applySessionAction(store, KEY, SessionActionSchema.parse(raw));
@@ -11,7 +12,7 @@ function run(store: SessionStore, raw: unknown) {
 describe("applySessionAction", () => {
   it("applies each action and returns the new session", () => {
     const store = new SessionStore(":memory:");
-    run(store, { type: "current-step", stepId: "s1", headSha: "abc" });
+    run(store, { type: "current-step", stepId: "s1", headSha: HEAD_SHA });
     run(store, { type: "step-done", stepId: "s1", done: true });
     run(store, { type: "hotspot-checked", hotspotId: "h1", checked: true });
     run(store, { type: "note-add", path: "a.ts", line: 2, kind: "nit", body: " rename " });
@@ -35,5 +36,12 @@ describe("applySessionAction", () => {
   it("rejects malformed actions", () => {
     expect(() => SessionActionSchema.parse({ type: "note-add", body: "" })).toThrow();
     expect(() => SessionActionSchema.parse({ type: "explode" })).toThrow();
+  });
+
+  it("accepts only a full commit id as the head", () => {
+    const step = { type: "current-step", stepId: "s1" };
+    expect(() => SessionActionSchema.parse({ ...step, headSha: "--output=/tmp/x" })).toThrow();
+    expect(() => SessionActionSchema.parse({ ...step, headSha: "abc" })).toThrow();
+    expect(SessionActionSchema.parse({ ...step, headSha: "b".repeat(64) })).toBeTruthy();
   });
 });

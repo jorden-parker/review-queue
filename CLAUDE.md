@@ -61,9 +61,14 @@ Configure it with `REVIEW_QUEUE_LLM_URL` (or `OLLAMA_HOST`),
 `REVIEW_QUEUE_LLM=off`.
 
 **Security boundary** (`src/proxy.ts`, the Next 16 replacement for middleware).
-It rejects any non-loopback `Host`. Non-GET requests must be same-origin and
-`application/json`. New mutating routes depend on this, so keep request bodies
-JSON.
+It rejects any non-loopback `Host`, then requires the `review-queue-token`
+cookie on every request. The token lives in a 0600 file
+(`~/.local/share/review-queue/access-token`; `REVIEW_QUEUE_TOKEN_FILE` overrides
+it), and `src/instrumentation.ts` prints a `http://127.0.0.1:4477/?token=…` link
+at startup. Opening that link sets the cookie (HttpOnly, SameSite=Strict).
+Non-GET requests must also be same-origin and `application/json`, and every
+response forbids framing. New mutating routes depend on this, so keep request
+bodies JSON.
 
 **Shell-outs** all go through `lib/exec.ts` (`Runner`). It drops the repository
 variables git exports inside hooks (`lib/git-env.ts`), so checkouts never touch
