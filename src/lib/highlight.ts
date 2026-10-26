@@ -2,7 +2,13 @@ import path from "node:path";
 import { createHighlighter, type BundledLanguage, type Highlighter, type ThemedToken } from "shiki";
 import type { FileDiff } from "@/lib/types";
 
-export type Token = { text: string; light?: string; dark?: string; literal?: boolean };
+export type Token = {
+  text: string;
+  light?: string;
+  dark?: string;
+  literal?: boolean;
+  keyword?: boolean;
+};
 
 export type HighlightedHunk = Token[][];
 
@@ -61,16 +67,42 @@ function isLiteralScope(scopes: { scopeName: string }[]): boolean {
   return false;
 }
 
-function isLiteral(token: ThemedToken): boolean {
-  const wordParts = (token.explanation ?? []).filter((part) => IDENTIFIER_CHAR.test(part.content));
-  return wordParts.length > 0 && wordParts.every((part) => isLiteralScope(part.scopes));
+const KEYWORD =
+  /^(keyword|storage|constant\.numeric|constant\.language|support\.type\.primitive|variable\.language)/;
+
+type Explanation = NonNullable<ThemedToken["explanation"]>[number];
+type WordClass = "literal" | "keyword" | "code";
+
+function classify(part: Explanation): WordClass {
+  if (isLiteralScope(part.scopes)) return "literal";
+  const innermost = part.scopes.at(-1)?.scopeName ?? "";
+  return KEYWORD.test(innermost) ? "keyword" : "code";
 }
 
-function toToken(token: ThemedToken): Token {
+type Run = { text: string; wordClass: WordClass | null };
+
+function runsOf(token: ThemedToken): Run[] {
+  const runs: Run[] = [];
+  for (const part of token.explanation ?? [{ content: token.content, scopes: [] }]) {
+    const wordClass = IDENTIFIER_CHAR.test(part.content) ? classify(part) : null;
+    const last = runs.at(-1);
+    if (last && (wordClass === null || last.wordClass === null || last.wordClass === wordClass)) {
+      last.text += part.content;
+      last.wordClass ??= wordClass;
+    } else {
+      runs.push({ text: part.content, wordClass });
+    }
+  }
+  return runs;
+}
+
+function toTokens(token: ThemedToken): Token[] {
   const colours = { light: token.htmlStyle?.color, dark: token.htmlStyle?.["--shiki-dark"] };
-  return isLiteral(token)
-    ? { text: token.content, ...colours, literal: true }
-    : { text: token.content, ...colours };
+  return runsOf(token).map(({ text, wordClass }) => {
+    if (wordClass === "literal") return { text, ...colours, literal: true };
+    if (wordClass === "keyword") return { text, ...colours, keyword: true };
+    return { text, ...colours };
+  });
 }
 
 export async function highlightLines(file: string, lines: string[]): Promise<Token[][]> {
@@ -82,7 +114,7 @@ export async function highlightLines(file: string, lines: string[]): Promise<Tok
     themes: THEMES,
     includeExplanation: "scopeName",
   });
-  return tokens.map((row) => row.map(toToken));
+  return tokens.map((row) => row.flatMap(toTokens));
 }
 
 export async function highlightFile(file: FileDiff): Promise<HighlightedHunk[]> {

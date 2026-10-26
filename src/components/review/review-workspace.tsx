@@ -24,6 +24,8 @@ import type { PullRequestRef } from "@/lib/types";
 import { AssistPanel } from "./assist-panel";
 import { FinishReview } from "./finish-review";
 import { FocusTimer } from "./focus-timer";
+import { ContextList } from "./context-list";
+import { contextCount } from "./context-symbols";
 import { HotspotList } from "./hotspot-list";
 import { JumpTrail } from "./jump-trail";
 import { NotesPanel } from "./notes-panel";
@@ -55,6 +57,7 @@ const TABS: { id: SidebarTab; label: string }[] = [
   { id: "hotspots", label: "Hotspots" },
   { id: "notes", label: "Notes" },
   { id: "chats", label: "Chats" },
+  { id: "context", label: "Context" },
 ];
 
 function TopBar({
@@ -143,6 +146,7 @@ function Sidebar({
     hotspots: openHotspots,
     notes: session.notes.length,
     chats: session.assistThreads.length,
+    context: contextCount(session.contextSymbols, workspace.currentStep?.id ?? null),
   };
   return (
     <Tabs
@@ -215,6 +219,20 @@ function Sidebar({
             if (workspace.assist.thread?.id === id) workspace.assist.close();
             workspace.deleteSavedChat(id);
           }}
+        />
+      </TabsContent>
+      <TabsContent
+        value="context"
+        className="scrollbar-hidden min-h-0 animate-step-enter overflow-y-auto p-3"
+      >
+        <ContextList
+          symbols={session.contextSymbols}
+          stepId={workspace.currentStep?.id ?? null}
+          jumps={session.jumps}
+          onOpen={(symbol) => workspace.peekName(symbol.origin)}
+          onTogglePin={(symbol) => workspace.setSymbolPinned(symbol, !symbol.pinned)}
+          onBack={workspace.back}
+          onClearTrail={workspace.clearJumps}
         />
       </TabsContent>
     </Tabs>
@@ -339,13 +357,14 @@ function WorkspacePeek({ workspace }: { workspace: Workspace }) {
   return (
     <PeekPanel
       peek={peek}
-      linkable={workspace.linkable}
       inPullRequest={(path) => workspace.files.has(path)}
-      onIdentifier={(name, path, line) => workspace.peekName(name, path, line)}
+      onIdentifier={workspace.peekName}
       onGoTo={workspace.goToFromPeek}
+      pinned={workspace.peekPinned}
+      onTogglePin={workspace.togglePeekPin}
       onTab={(tab) => {
-        if (tab === "references") workspace.peek.showReferences(peek.name, peek.from);
-        else workspace.peek.showDefinitions(peek.name, peek.from);
+        if (tab === "references") workspace.peek.showReferences(peek.position);
+        else workspace.peek.showDefinitions(peek.position);
       }}
       onClose={workspace.peek.close}
     />
@@ -424,7 +443,6 @@ export function ReviewWorkspace({
   const context: StepViewContext = useMemo(
     () => ({
       files: workspace.files,
-      linkable: workspace.linkable,
       hotspots: workspace.hotspots,
       notes: session.notes,
       composer: workspace.composer,
@@ -433,7 +451,7 @@ export function ReviewWorkspace({
         ? (path, action) => workspace.assist.open({ kind: "file", path }, action)
         : null,
       handlers: {
-        onIdentifier: (name, path, line) => workspace.peekName(name, path, line),
+        onIdentifier: workspace.peekName,
         onHoverIdentifier: workspace.setHovered,
         onAddNote: (path, line) => workspace.setComposer({ path, line }),
         onDeleteNote: workspace.deleteNote,

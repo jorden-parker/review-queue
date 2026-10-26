@@ -52,9 +52,13 @@ export function installFakeApi(
           line: 1,
           endLine: 1,
           lines: ["export type Options = { retries: number };"],
+          source: "lsp",
+          scope: "repo",
+          signature: "type Options = { retries: number }",
+          hover: null,
           tokens: [
             [
-              { text: "export type ", light: "#d73a49", dark: "#f97583" },
+              { text: "export type ", light: "#d73a49", dark: "#f97583", keyword: true },
               { text: "Options = { retries: number };" },
             ],
           ],
@@ -69,7 +73,7 @@ export function installFakeApi(
           line: 10,
           text: "export function load(options: Options) {",
           tokens: [
-            { text: "export function ", light: "#d73a49", dark: "#f97583" },
+            { text: "export function ", light: "#d73a49", dark: "#f97583", keyword: true },
             { text: "load(options: Options) {" },
           ],
         },

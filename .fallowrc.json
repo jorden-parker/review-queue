@@ -1,4 +1,5 @@
 {
+  "ignoreDependencies": ["typescript-language-server"],
   "health": {
     "coverage": "coverage/coverage-final.json"
   }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { SessionStore } from "./store";
 import type { AssistThread } from "@/lib/assist-protocol";
+import { SessionStore, type SeenSymbol } from "./store";
 
 const KEY = "acme/app#7";
 
@@ -15,6 +15,19 @@ function thread(id: string, text = "It loads."): AssistThread {
       { role: "reviewer", text: "Explain this file" },
       { role: "model", text },
     ],
+  };
+}
+
+function symbol(name: string, line = 1): SeenSymbol {
+  return {
+    name,
+    kind: "function",
+    path: "src/a.ts",
+    line,
+    scope: "repo",
+    signature: `function ${name}()`,
+    stepId: "s1",
+    origin: { name, path: "src/b.ts", line: 7, character: 2, side: "new" },
   };
 }
 
@@ -75,6 +88,33 @@ describe("SessionStore", () => {
     expect(store.popJump(KEY)).toBeNull();
   });
 
+  it("remembers seen and pinned symbols, newest first, keeping the pin on revisit", () => {
+    store.recordSymbolSeen(KEY, symbol("load"));
+    now += 1000;
+    store.recordSymbolSeen(KEY, symbol("parse", 9));
+    store.setSymbolPinned(KEY, symbol("load"), true);
+    now += 1000;
+    store.recordSymbolSeen(KEY, { ...symbol("load"), stepId: "s2" });
+    expect(store.getSession(KEY).contextSymbols).toEqual([
+      { ...symbol("load"), stepId: "s2", pinned: true, seenAt: "2026-10-26T10:00:02.000Z" },
+      { ...symbol("parse", 9), pinned: false, seenAt: "2026-10-26T10:00:01.000Z" },
+    ]);
+    store.setSymbolPinned(KEY, symbol("load"), false);
+    expect(store.getSession(KEY).contextSymbols[0].pinned).toBe(false);
+  });
+
+  it("keeps only the newest unpinned symbols but never drops a pin", () => {
+    store.setSymbolPinned(KEY, symbol("kept", 0), true);
+    for (let line = 1; line <= 60; line += 1) {
+      now += 1000;
+      store.recordSymbolSeen(KEY, symbol(`s${line}`, line));
+    }
+    const symbols = store.getSession(KEY).contextSymbols;
+    expect(symbols).toHaveLength(51);
+    expect(symbols.some((entry) => entry.name === "kept")).toBe(true);
+    expect(symbols.some((entry) => entry.name === "s10")).toBe(false);
+  });
+
   it("remembers checked hotspots", () => {
     store.setHotspotChecked(KEY, "h1", true);
     expect(store.getSession(KEY).checkedHotspots).toEqual(["h1"]);
@@ -85,6 +125,7 @@ describe("SessionStore", () => {
     store.setStepDone(KEY, "s1", true);
     store.setHotspotChecked(KEY, "h1", true);
     store.pushJump(KEY, { name: "f", path: "a.ts", line: 1 });
+    store.recordSymbolSeen(KEY, symbol("f"));
     store.pause(KEY, "next: tests");
     store.addNote(KEY, { path: null, line: null, kind: "parked", body: "later" });
     store.saveAssistThread(KEY, thread("t1"));
@@ -98,6 +139,7 @@ describe("SessionStore", () => {
       doneSteps: [],
       checkedHotspots: [],
       jumps: [],
+      contextSymbols: [],
       notes: [{ body: "later" }],
       assistThreads: [{ id: "t1" }],
     });

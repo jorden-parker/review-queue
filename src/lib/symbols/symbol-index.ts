@@ -36,7 +36,7 @@ export class SymbolIndex {
   private readonly byFile = new Map<string, SymbolDefinition[]>();
 
   private constructor(
-    private readonly root: string,
+    readonly root: string,
     private readonly run: Runner,
   ) {}
 
@@ -80,10 +80,15 @@ export class SymbolIndex {
       .slice(0, MAX_REFERENCES);
   }
 
+  relativePath(absolute: string): string | null {
+    const root = fs.realpathSync(this.root) + path.sep;
+    const resolved = fs.existsSync(absolute) ? fs.realpathSync(absolute) : absolute;
+    return resolved.startsWith(root) ? resolved.slice(root.length) : null;
+  }
+
   readFile(file: string): string {
     const absolute = fs.realpathSync(path.resolve(this.root, file));
-    if (!absolute.startsWith(fs.realpathSync(this.root) + path.sep))
-      throw new Error(`Path outside checkout: ${file}`);
+    if (this.relativePath(absolute) === null) throw new Error(`Path outside checkout: ${file}`);
     return fs.readFileSync(absolute, "utf8");
   }
 

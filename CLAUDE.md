@@ -55,7 +55,33 @@ ends a failed stream with the `ASSIST_ERROR_MARKER` from
 (`lib/session/store.ts`) is stored on `globalThis` so it survives HMR. It
 defaults to `~/.local/share/review-queue/review-queue.db`, and `REVIEW_QUEUE_DB`
 overrides that. The store holds sessions, done steps, checked hotspots, notes,
-jumps and a key/value cache.
+jumps, context symbols and a key/value cache.
+
+**Symbol navigation** (`lib/review/navigation.ts`, `lib/lsp/`). Every identifier
+in a navigable file is a link (shiki keyword scopes are excluded in
+`lib/highlight.ts`). The `definitions` and `references` routes take the
+identifier's exact `path`, `line`, `character` and diff `side`, and ask a real
+language server through `lib/lsp/client.ts`. Servers are pooled per worktree and
+language on `globalThis`, shut down after 10 idle minutes, and warmed when a
+review loads. TypeScript/JavaScript use the bundled `typescript-language-server`
+with its own `tsserver`. `gopls` and `pyright-langserver` are used when they are
+on `PATH`. `rust-analyzer` also needs `REVIEW_QUEUE_LSP_RUST=on`, because a
+repo's own `rust-analyzer.toml` or `.cargo/config.toml` can turn build scripts
+back on. Deleted lines, missing servers, timeouts and empty answers fall back to
+the tree-sitter `SymbolIndex`. Library locations are never read from disk; they
+come back as `scope: "external"` with hover text. Configure it with
+`REVIEW_QUEUE_LSP=off` and `REVIEW_QUEUE_LSP_TIMEOUT_MS` (default 8000). PR code
+is untrusted, so `lib/lsp/servers.ts` turns off everything that could run it:
+build scripts, proc macros, toolchain and module downloads, cgo, repo `rustc`
+wrappers, tsserver plugins and type acquisition. Keep it that way when you add a
+server.
+
+**Context tab** (`components/review/context-list.tsx`, `context-symbols.ts`).
+Each peek that resolves is recorded as a seen symbol (`symbol-seen`), and the
+reader can pin symbols (`symbol-pin`, `m`). These are stored in the
+`context_symbols` table along with where they were clicked from, so reopening a
+row re-runs the peek. The tab has view and kind toggles plus the jump-trail
+buttons. `g c` opens it.
 
 **LLM orientation** (`lib/llm/orientation.ts`,
 `lib/review/orientation-service.ts`). This is optional and calls an

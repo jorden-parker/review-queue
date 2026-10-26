@@ -42,6 +42,26 @@ describe("highlightLines", () => {
     expect(literalText(commentLine)).toBe("// format is handy");
   });
 
+  it("marks keywords and built-in words so only real identifiers remain linkable", async () => {
+    const [line] = await highlightLines("src/a.ts", [
+      "export async function load(id: string) { return this.y ?? true; }",
+    ]);
+    const words = (keyword: boolean) =>
+      line
+        .filter((token) => Boolean(token.keyword) === keyword && !token.literal)
+        .flatMap((token) => token.text.match(/[A-Za-z_$][\w$]*/g) ?? []);
+    expect(words(true)).toEqual([
+      "export",
+      "async",
+      "function",
+      "string",
+      "return",
+      "this",
+      "true",
+    ]);
+    expect(words(false)).toEqual(["load", "id", "y"]);
+  });
+
   it("keeps unknown languages as plain text", async () => {
     expect(await highlightLines("notes.xyz", ["hello"])).toEqual([[{ text: "hello" }]]);
   });

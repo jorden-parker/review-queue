@@ -73,6 +73,24 @@ describe("applySessionAction", () => {
     ).toThrow();
   });
 
+  it("records seen symbols and pins them", () => {
+    const store = new SessionStore(":memory:");
+    const symbol = {
+      name: "load",
+      kind: "parameter",
+      path: "src/a.ts",
+      line: 3,
+      scope: "file",
+      signature: "(parameter) load: number",
+      stepId: "s1",
+      origin: { name: "load", path: "src/a.ts", line: 5, character: 4, side: "new" },
+    };
+    run(store, { type: "symbol-seen", symbol });
+    const session = run(store, { type: "symbol-pin", symbol, pinned: true });
+    expect(session.contextSymbols).toEqual([expect.objectContaining({ ...symbol, pinned: true })]);
+    expect(() => run(store, { type: "symbol-seen", symbol: { ...symbol, kind: "x" } })).toThrow();
+  });
+
   it("starts over and drops notes only when asked", () => {
     const store = new SessionStore(":memory:");
     run(store, { type: "step-done", stepId: "s1", done: true });

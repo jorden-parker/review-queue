@@ -6,6 +6,8 @@ export type ShortcutAction =
   | "done-and-next"
   | "peek-definition"
   | "peek-references"
+  | "pin-symbol"
+  | "open-context"
   | "back"
   | "note"
   | "ask-model"
@@ -22,6 +24,7 @@ const SINGLE_KEYS: Record<string, ShortcutAction> = {
   p: "previous-step",
   x: "done-and-next",
   b: "back",
+  m: "pin-symbol",
   c: "note",
   i: "ask-model",
   P: "park",
@@ -32,7 +35,7 @@ const SINGLE_KEYS: Record<string, ShortcutAction> = {
 };
 
 const CHORDS: Record<string, Record<string, ShortcutAction>> = {
-  g: { d: "peek-definition", r: "peek-references" },
+  g: { d: "peek-definition", r: "peek-references", c: "open-context" },
 };
 
 export function resolveShortcut(

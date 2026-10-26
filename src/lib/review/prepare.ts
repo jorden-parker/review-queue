@@ -8,12 +8,14 @@ import { buildReadingPath, estimateMinutes } from "@/lib/plan/reading-path";
 import { prKey } from "@/lib/pr-ref";
 import type { Session, SessionStore } from "@/lib/session/store";
 import { SymbolIndex } from "@/lib/symbols/symbol-index";
+import { languageClients, type ClientFor } from "@/lib/lsp/pool";
 import type { FileDiff, Hotspot, PullRequestRef, Step } from "@/lib/types";
 
 export type ReviewDeps = {
   fetchPullRequest: (ref: PullRequestRef) => Promise<PullRequest>;
   store: SessionStore;
   checkoutOptions?: CheckoutOptions;
+  languageClients?: typeof languageClients;
 };
 
 export type PreparedFile = FileDiff & { highlighted: HighlightedHunk[]; navigable: boolean };
@@ -25,13 +27,13 @@ export type ReviewData = {
   steps: Step[];
   startStepId: string | null;
   hotspots: Hotspot[];
-  linkableNames: string[];
   estimateMinutes: number;
 };
 
 export type PreparedReview = {
   data: ReviewData;
   index: SymbolIndex;
+  clientFor: ClientFor;
   changedSince: (sha: string) => Promise<string[]>;
 };
 
@@ -40,19 +42,14 @@ export type ReviewPayload = ReviewData & {
   reopenedStepIds: string[];
 };
 
-const IDENTIFIER = /[A-Za-z_$][\w$]*/g;
 const globals = globalThis as { reviewQueuePrepared?: Map<string, Promise<PreparedReview>> };
 const prepared = (globals.reviewQueuePrepared ??= new Map());
 
-function linkableNames(diffs: FileDiff[], index: SymbolIndex): string[] {
-  const names = new Set<string>();
-  const parsed = diffs.filter((diff) => languageFor(diff.path) !== null);
-  for (const line of parsed.flatMap((diff) => diff.hunks.flatMap((hunk) => hunk.lines))) {
-    for (const match of line.text.matchAll(IDENTIFIER)) {
-      if (index.hasName(match[0])) names.add(match[0]);
-    }
-  }
-  return [...names].sort();
+function warmLanguageServers(clientFor: ClientFor, files: PreparedFile[]): void {
+  for (const file of files.filter(
+    (candidate) => candidate.navigable && candidate.status !== "deleted",
+  ))
+    void clientFor(file.path);
 }
 
 async function callerCounts(diffs: FileDiff[], index: SymbolIndex): Promise<Map<string, number>> {
@@ -95,12 +92,16 @@ async function build(pr: PullRequest, deps: ReviewDeps): Promise<PreparedReview>
     steps,
     startStepId,
     hotspots,
-    linkableNames: linkableNames(diffs, index),
     estimateMinutes: estimateMinutes(steps.reduce((sum, step) => sum + step.changedLines, 0)),
   };
+  const clientFor = (deps.languageClients ?? languageClients)(index.root, (file) =>
+    index.readFile(file),
+  );
+  warmLanguageServers(clientFor, files);
   return {
     data,
     index,
+    clientFor,
     changedSince: async (sha) =>
       (await diffCheckout(checkout, sha).catch(() => diffs)).map((diff) => diff.path),
   };

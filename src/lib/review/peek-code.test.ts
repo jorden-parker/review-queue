@@ -19,6 +19,7 @@ function stubIndex(): PeekIndex & { reads: number[][] } {
       reads.push([start, end]);
       return ["function retry() {", "}"];
     },
+    relativePath: () => null,
     referencesTo: async () => [
       { path: "src/a.ts", line: 4, text: "  retry();" },
       { path: "notes.xyz", line: 1, text: "retry" },
@@ -34,6 +35,12 @@ describe("definitionsWithCode", () => {
     expect(result.lines).toEqual(["function retry() {", "}"]);
     expect(result.tokens).toHaveLength(2);
     expect(result.tokens[0][0]).toMatchObject({ light: expect.any(String) });
+    expect(result).toMatchObject({
+      source: "index",
+      scope: "repo",
+      signature: "function retry() {",
+      hover: null,
+    });
   });
 });
 
