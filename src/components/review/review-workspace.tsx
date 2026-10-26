@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, CircleHelp, Coffee, Layers, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CircleHelp,
+  Coffee,
+  Layers,
+  RotateCcw,
+  Send,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { EmptyState } from "@/components/common/empty-state";
@@ -26,6 +35,7 @@ import { PostedToast } from "./posted-toast";
 import { ReadingPath } from "./reading-path";
 import { ResumeCard } from "./resume-card";
 import { ShortcutHelp } from "./shortcut-help";
+import { StartOverDialog } from "./start-over-dialog";
 import { StepExplanation } from "./step-explanation";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
@@ -77,6 +87,15 @@ function TopBar({
       </div>
       <JumpTrail jumps={session.jumps} onBack={workspace.back} onClear={workspace.clearJumps} />
       <FocusTimer onFinished={() => workspace.setBreakDue(true)} />
+      <HintButton
+        variant="ghost"
+        size="icon-sm"
+        hint="Start over"
+        aria-label="Start over"
+        onClick={() => workspace.setDialog("start-over")}
+      >
+        <RotateCcw />
+      </HintButton>
       <HintButton
         variant="ghost"
         size="sm"
@@ -298,9 +317,52 @@ function Dialogs({
       );
     case "help":
       return <ShortcutHelp onClose={close} />;
+    case "start-over":
+      return (
+        <StartOverDialog
+          noteCount={session.notes.length}
+          onStartOver={workspace.startOver}
+          onCancel={close}
+        />
+      );
     default:
       return null;
   }
+}
+
+function ShowAllToggle({ workspace }: { workspace: Workspace }) {
+  return (
+    <div className="flex items-center justify-end">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => workspace.setShowAll(!workspace.showAll)}
+        className="text-muted-foreground"
+      >
+        <Layers />
+        {workspace.showAll ? "Back to one step at a time" : "Show whole PR"} (a)
+      </Button>
+    </div>
+  );
+}
+
+function WorkspacePeek({ workspace }: { workspace: Workspace }) {
+  const { peek } = workspace.peek;
+  if (!peek) return null;
+  return (
+    <PeekPanel
+      peek={peek}
+      linkable={workspace.linkable}
+      inPullRequest={(path) => workspace.files.has(path)}
+      onIdentifier={(name, path, line) => workspace.peekName(name, path, line)}
+      onGoTo={workspace.goToFromPeek}
+      onTab={(tab) => {
+        if (tab === "references") workspace.peek.showReferences(peek.name, peek.from);
+        else workspace.peek.showDefinitions(peek.name, peek.from);
+      }}
+      onClose={workspace.peek.close}
+    />
+  );
 }
 
 export function ReviewWorkspace({
@@ -356,17 +418,7 @@ export function ReviewWorkspace({
                   }
                 />
               )}
-              <div className="flex items-center justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => workspace.setShowAll(!workspace.showAll)}
-                  className="text-muted-foreground"
-                >
-                  <Layers />
-                  {workspace.showAll ? "Back to one step at a time" : "Show whole PR"} (a)
-                </Button>
-              </div>
+              <ShowAllToggle workspace={workspace} />
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}
                 className="flex animate-step-enter flex-col gap-4"
@@ -389,21 +441,7 @@ export function ReviewWorkspace({
               <StepFooter review={review} workspace={workspace} />
             </div>
           </main>
-          {workspace.peek.peek && (
-            <PeekPanel
-              peek={workspace.peek.peek}
-              linkable={workspace.linkable}
-              inPullRequest={(path) => workspace.files.has(path)}
-              onIdentifier={(name, path, line) => workspace.peekName(name, path, line)}
-              onGoTo={workspace.goToFromPeek}
-              onTab={(tab) => {
-                const current = workspace.peek.peek!;
-                if (tab === "references") workspace.peek.showReferences(current.name, current.from);
-                else workspace.peek.showDefinitions(current.name, current.from);
-              }}
-              onClose={workspace.peek.close}
-            />
-          )}
+          <WorkspacePeek workspace={workspace} />
         </div>
       </div>
       <Dialogs review={review} session={session} workspace={workspace} />

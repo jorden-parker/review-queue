@@ -7,6 +7,7 @@ import type { PullRequestRef } from "@/lib/types";
 import { displayHotspots } from "./display-hotspots";
 import { firstNoteLine } from "./hunk-index";
 import { nextOpenStep, type LineTarget } from "./locate";
+import { scrollToElement } from "./scroll-motion";
 import type { ShortcutAction } from "./shortcut-keys";
 import { suggestedStartStepId } from "./start-step";
 import { useJumps } from "./use-jumps";
@@ -17,7 +18,7 @@ import { useSessionEdits } from "./use-session-edits";
 import { useShortcuts } from "./use-shortcuts";
 import { useStepNavigation } from "./use-step-navigation";
 
-type Dialog = "resume" | "pause" | "finish" | "help" | null;
+type Dialog = "resume" | "pause" | "finish" | "help" | "start-over" | null;
 export type SidebarTab = "path" | "hotspots" | "notes";
 
 const STALE_SESSION_MS = 30 * 60 * 1000;
@@ -147,6 +148,11 @@ export function useWorkspace(
     ) => {
       edits.saveNote(target, kind, body);
       setComposer(null);
+    },
+    startOver: async (keepNotes: boolean) => {
+      setDialog(null);
+      await controls.startOver(keepNotes);
+      scrollToElement("step-top", "step");
     },
     pause: (note: string) => {
       edits.pause(note);

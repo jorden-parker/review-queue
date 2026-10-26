@@ -33,6 +33,16 @@ describe("applySessionAction", () => {
     expect(run(store, { type: "jump-clear" }).jumps).toEqual([]);
   });
 
+  it("starts over and drops notes only when asked", () => {
+    const store = new SessionStore(":memory:");
+    run(store, { type: "step-done", stepId: "s1", done: true });
+    run(store, { type: "note-add", path: null, line: null, kind: "parked", body: "later" });
+    const kept = run(store, { type: "start-over", keepNotes: true });
+    expect(kept.doneSteps).toEqual([]);
+    expect(kept.notes).toHaveLength(1);
+    expect(run(store, { type: "start-over", keepNotes: false }).notes).toEqual([]);
+  });
+
   it("rejects malformed actions", () => {
     expect(() => SessionActionSchema.parse({ type: "note-add", body: "" })).toThrow();
     expect(() => SessionActionSchema.parse({ type: "explode" })).toThrow();

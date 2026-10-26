@@ -65,6 +65,30 @@ describe("SessionStore", () => {
     expect(store.getSession(KEY).checkedHotspots).toEqual(["h1"]);
   });
 
+  it("starts over, keeping notes unless told to drop them", () => {
+    store.setCurrentStep(KEY, "s2", "sha1");
+    store.setStepDone(KEY, "s1", true);
+    store.setHotspotChecked(KEY, "h1", true);
+    store.pushJump(KEY, { name: "f", path: "a.ts", line: 1 });
+    store.pause(KEY, "next: tests");
+    store.addNote(KEY, { path: null, line: null, kind: "parked", body: "later" });
+    store.setStepDone("other#1", "s1", true);
+    store.startOver(KEY, true);
+    expect(store.getSession(KEY)).toMatchObject({
+      currentStepId: null,
+      lastHeadSha: null,
+      updatedAt: null,
+      pause: null,
+      doneSteps: [],
+      checkedHotspots: [],
+      jumps: [],
+      notes: [{ body: "later" }],
+    });
+    store.startOver(KEY, false);
+    expect(store.getSession(KEY).notes).toEqual([]);
+    expect(store.getSession("other#1").doneSteps).toEqual(["s1"]);
+  });
+
   it("caches values by key", () => {
     expect(store.getCached("k")).toBeNull();
     store.setCached("k", '{"a":1}');

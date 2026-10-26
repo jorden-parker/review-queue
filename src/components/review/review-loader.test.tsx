@@ -109,6 +109,31 @@ describe("ReviewLoader", () => {
     expect(screen.getByText(/^Step 1 of 3/)).toBeTruthy();
   });
 
+  it("starts the review over after confirming, keeping notes by default", async () => {
+    const payload = reviewPayload(
+      emptySession({
+        doneSteps: ["types:src/types.ts:0"],
+        notes: [{ id: 3, path: null, line: null, kind: "parked", body: "later", createdAt: "" }],
+      }),
+    );
+    const { api, user } = await renderReview(payload);
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+    const dialog = screen.getByRole("dialog", { name: "Start this review over?" });
+    expect(within(dialog).getByRole("checkbox", { name: /Also delete my 1 note/ })).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "Start over" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.actions()).toContainEqual({ type: "start-over", keepNotes: true });
+    expect(await screen.findByText("Before you start")).toBeTruthy();
+  });
+
+  it("keeps progress when starting over is cancelled", async () => {
+    const { api, user } = await renderReview();
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+    await user.click(screen.getByRole("button", { name: "Keep my progress" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.actions()).not.toContainEqual(expect.objectContaining({ type: "start-over" }));
+  });
+
   it("marks a step done and moves to the next one", async () => {
     const { api, user } = await renderReview();
     await user.click(screen.getByRole("button", { name: /Done, next step/ }));

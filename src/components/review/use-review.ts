@@ -61,5 +61,17 @@ export function useReview(ref: PullRequestRef) {
     [ref],
   );
 
-  return { load, session, setSession, orientation, act, actionError };
+  const startOver = useCallback(
+    async (keepNotes: boolean) => {
+      await act({ type: "start-over", keepNotes });
+      setLoad((current) =>
+        current.status === "ready"
+          ? { status: "ready", review: { ...current.review, reopenedStepIds: [] } }
+          : current,
+      );
+    },
+    [act],
+  );
+
+  return { load, session, setSession, orientation, act, actionError, startOver };
 }
