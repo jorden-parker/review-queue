@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Compass, Sparkles } from "lucide-react";
+import { PrDescription } from "@/components/common/pr-description";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReviewPayload } from "@/lib/review/prepare";
@@ -18,10 +19,6 @@ const RISK_STYLES = {
   medium: "text-severity-medium",
   high: "text-severity-high",
 };
-
-function firstParagraph(text: string): string {
-  return text.split(/\n\s*\n/)[0]?.trim() ?? "";
-}
 
 function AiSummary({ orientation }: { orientation: OrientationState }) {
   if (orientation.status === "loading") {
@@ -65,7 +62,6 @@ export function OrientationCard({
   onStart,
 }: OrientationCardProps) {
   const highCount = review.hotspots.filter((hotspot) => hotspot.severity === "high").length;
-  const description = firstParagraph(review.pr.body);
   const startIndex = review.steps.findIndex((step) => step.id === startStepId);
   return (
     <Card className="animate-step-enter">
@@ -76,7 +72,7 @@ export function OrientationCard({
         <CardTitle className="text-xl font-semibold tracking-tight">{review.pr.title}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {description && <p className="line-clamp-3 text-sm text-muted-foreground">{description}</p>}
+        {review.pr.body.trim() && <PrDescription body={review.pr.body} />}
         <ul className="flex flex-wrap gap-2 text-sm">
           <li className="rounded-full border px-3 py-1">
             ≈ <strong>{review.estimateMinutes} min</strong>
