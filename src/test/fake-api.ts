@@ -27,6 +27,24 @@ const STEP_EXPLANATION = {
   },
 };
 
+const REFERENCE_COUNTS: Record<string, unknown> = {
+  "src/client.ts": [{ name: "load", line: 10, character: 16, count: 2 }],
+};
+
+function outlineSymbol(name: string, kind: string, line: number, endLine: number) {
+  return { name, kind, path: "src/client.ts", line, endLine, children: [] };
+}
+
+const OUTLINES: Record<string, unknown> = {
+  "src/client.ts": [
+    {
+      ...outlineSymbol("load", "function", 10, 12),
+      children: [outlineSymbol("attempts", "variable", 11, 11)],
+    },
+    outlineSymbol("retry", "function", 40, 44),
+  ],
+};
+
 export function installFakeApi(
   payload: ReviewPayload,
   orientation: unknown = { status: "disabled" },
@@ -35,8 +53,10 @@ export function installFakeApi(
   const store = new SessionStore(":memory:");
   const calls: Call[] = [];
   const key = "acme/app#7";
-  const routes: [RegExp, (body: unknown) => unknown][] = [
+  const routes: [RegExp, (body: unknown, url: URL) => unknown][] = [
     [/\/orientation/, () => orientation],
+    [/\/reference-counts$/, (_body, url) => REFERENCE_COUNTS[url.searchParams.get("path")!] ?? []],
+    [/\/outline$/, (_body, url) => OUTLINES[url.searchParams.get("path")!] ?? []],
     [
       /\/summary-draft/,
       () => ({ status: "ready", summary: "Looks good overall; one question on retries." }),
@@ -91,7 +111,7 @@ export function installFakeApi(
     const path = url.split("?")[0];
     const route = routes.find(([pattern]) => pattern.test(path));
     if (!route) return Response.json({ error: "not found" }, { status: 404 });
-    const result = await route[1](body);
+    const result = await route[1](body, new URL(url, "http://test"));
     return result instanceof Response ? result : Response.json(result);
   });
   vi.stubGlobal("fetch", fetchMock);

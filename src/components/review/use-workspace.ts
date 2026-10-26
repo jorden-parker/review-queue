@@ -24,7 +24,7 @@ import { useShortcuts } from "./use-shortcuts";
 import { useStepNavigation } from "./use-step-navigation";
 
 type Dialog = "resume" | "pause" | "finish" | "help" | "start-over" | null;
-export type SidebarTab = "step" | "path" | "hotspots" | "notes" | "context" | "chats";
+export type SidebarTab = "step" | "path" | "hotspots" | "notes" | "context" | "outline" | "chats";
 
 const STALE_SESSION_MS = 30 * 60 * 1000;
 
@@ -113,6 +113,7 @@ function shortcutHandlers({
     "peek-references": () => hovered && peek.showReferences(hovered),
     "pin-symbol": pins.togglePeekPin,
     "open-context": () => ui.setTab("context"),
+    "open-outline": () => ui.setTab("outline"),
     "toggle-panel": ui.togglePanel,
     back: jumps.back,
     note: () => ui.setComposer(firstNoteLine(review.files, navigation.activeHunkId)),
@@ -273,6 +274,7 @@ export function useWorkspace(
   useShortcuts(onShortcut, acceptsShortcuts(ui.dialog));
 
   return {
+    pullRequest: ref,
     ...ui,
     ...navigation,
     aiEnabled: orientation.status !== "disabled",

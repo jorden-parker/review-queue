@@ -9,7 +9,7 @@ import type { SessionAction } from "@/lib/review/session-actions";
 import type { SummaryDraftResult } from "@/lib/review/summary-draft-service";
 import type { Session } from "@/lib/session/store";
 import type { DefinitionWithCode, ReferenceWithCode } from "@/lib/review/peek-code";
-import type { PullRequestRef, SymbolPosition } from "@/lib/types";
+import type { OutlineSymbol, PullRequestRef, ReferenceCount, SymbolPosition } from "@/lib/types";
 
 export type SubmitInput = {
   event: ReviewEvent;
@@ -73,6 +73,24 @@ export function fetchReferences(
   return fetch(apiPath(ref, `/references${positionQuery(sha, position)}`)).then(
     json<ReferenceWithCode[]>,
   );
+}
+
+export function fetchReferenceCounts(
+  ref: PullRequestRef,
+  sha: string,
+  path: string,
+): Promise<ReferenceCount[]> {
+  return fetch(apiPath(ref, `/reference-counts${query({ sha, path })}`)).then(
+    json<ReferenceCount[]>,
+  );
+}
+
+export function fetchOutline(
+  ref: PullRequestRef,
+  sha: string,
+  path: string,
+): Promise<OutlineSymbol[]> {
+  return fetch(apiPath(ref, `/outline${query({ sha, path })}`)).then(json<OutlineSymbol[]>);
 }
 
 function post<T>(url: string, body: unknown): Promise<T> {

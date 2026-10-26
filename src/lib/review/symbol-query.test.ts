@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { positionFromQuery, symbolLookupRoute } from "./symbol-query";
+import { fileLookupRoute, positionFromQuery, symbolLookupRoute } from "./symbol-query";
 
 const parse = (query: string) => positionFromQuery(new URLSearchParams(query));
 
@@ -34,6 +34,21 @@ describe("symbolLookupRoute", () => {
     const lookup = vi.fn();
     const GET = symbolLookupRoute(lookup);
     const request = new Request("http://test/api?sha=abc&name=load");
+    expect((await GET(request, context("x"))).status).toBe(400);
+    expect((await GET(request, context("7"))).status).toBe(409);
+    expect(lookup).not.toHaveBeenCalled();
+  });
+});
+
+describe("fileLookupRoute", () => {
+  const context = (number: string) => ({
+    params: Promise.resolve({ owner: "acme", repo: "app", number }),
+  });
+
+  it("rejects a bad reference or a review that is not loaded before looking anything up", async () => {
+    const lookup = vi.fn();
+    const GET = fileLookupRoute(lookup);
+    const request = new Request("http://test/api?sha=abc&path=src/a.ts");
     expect((await GET(request, context("x"))).status).toBe(400);
     expect((await GET(request, context("7"))).status).toBe(409);
     expect(lookup).not.toHaveBeenCalled();
