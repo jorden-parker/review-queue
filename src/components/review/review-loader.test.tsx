@@ -146,6 +146,18 @@ describe("ReviewLoader", () => {
     );
   });
 
+  it("keeps a compact orientation pinned after the review starts", async () => {
+    const { user } = await renderReview();
+    expect(screen.getByText(/Retries failed loads/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Done, next step/ }));
+    await screen.findByText("Step 2 of 3 · core · 2 lines");
+    expect(screen.getByText("≈")).toBeTruthy();
+    expect(screen.queryByText(/Retries failed loads/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Show details" }));
+    expect(screen.getByText(/Retries failed loads/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Hide details" })).toBeTruthy();
+  });
+
   it("moves between steps with the keyboard and toggles the whole PR", async () => {
     const { user } = await renderReview();
     await user.keyboard("n");

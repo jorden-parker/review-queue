@@ -208,6 +208,10 @@
   max-height: 90vh;
 }
 
+@utility max-h-pinned {
+  max-height: 45vh;
+}
+
 @utility bg-whimsy {
   background-image: linear-gradient(
     90deg,
