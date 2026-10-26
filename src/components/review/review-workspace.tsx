@@ -404,7 +404,7 @@ export function ReviewWorkspace({
       <div className="grid min-h-0 grid-cols-workspace">
         <Sidebar review={review} session={session} workspace={workspace} />
         <div className="relative flex min-h-0 min-w-0 flex-col">
-          <div className="shrink-0 px-6 pt-5">
+          <div className="shrink-0 border-b bg-background px-6 py-3">
             <div className="mx-auto max-w-5xl">
               <OrientationCard
                 key={fresh ? "fresh" : "started"}
@@ -416,8 +416,8 @@ export function ReviewWorkspace({
               />
             </div>
           </div>
-          <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-6 py-5">
-            <div id="step-top" className="mx-auto flex max-w-5xl scroll-mt-5 flex-col gap-4">
+          <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-6 pb-5">
+            <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-4 pt-5">
               {controls.actionError && (
                 <p className="rounded-lg bg-del px-3 py-2 text-sm text-del-foreground">
                   Couldn&apos;t save: {controls.actionError}
