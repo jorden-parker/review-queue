@@ -56,7 +56,7 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
                 onClick={() => onOpen(hotspot)}
                 className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
               >
-                <span className="flex items-center gap-2 text-sm font-medium">
+                <span className="flex items-center gap-2 text-sm font-medium wrap-anywhere">
                   <span
                     className={cn(
                       "size-2 shrink-0 rounded-full",
@@ -66,7 +66,7 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
                   {hotspot.title}
                   {hotspot.suggested && <Sparkles size={12} className="text-primary" />}
                 </span>
-                <PathLabel path={hotspot.path} line={hotspot.line} />
+                <PathLabel path={hotspot.path} line={hotspot.line} wrap />
                 <span className="text-xs text-muted-foreground">{hotspot.note ?? hotspot.why}</span>
               </button>
             </li>
