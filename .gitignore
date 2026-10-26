@@ -6,3 +6,5 @@ next-env.d.ts
 coverage
 .playwright-mcp
 .claude/settings.local.json
+
+/plans/
