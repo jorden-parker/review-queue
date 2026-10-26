@@ -62,6 +62,13 @@ describe("highlightLines", () => {
     expect(words(false)).toEqual(["load", "id", "y"]);
   });
 
+  it("survives a huge minified line and still colours the rest", async () => {
+    const minified = Array.from({ length: 20_000 }, (_, i) => `a${i}=f(b${i},"s${i}")`).join(";");
+    const [huge, normal] = await highlightLines("src/a.js", [minified, "const total = 1;"]);
+    expect(huge.map((token) => token.text).join("")).toBe(minified);
+    expect(normal.some((token) => token.keyword && token.light)).toBe(true);
+  });
+
   it("keeps unknown languages as plain text", async () => {
     expect(await highlightLines("notes.xyz", ["hello"])).toEqual([[{ text: "hello" }]]);
   });
