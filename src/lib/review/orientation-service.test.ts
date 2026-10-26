@@ -20,7 +20,6 @@ const REPLY = {
   intent: "I",
   risk: "low",
   stepOrder: [],
-  startReason: "R",
   hotspotNotes: [],
   extraHotspots: [],
 };

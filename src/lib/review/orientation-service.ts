@@ -15,7 +15,7 @@ export type OrientationResult =
   | { status: "disabled" }
   | { status: "error"; message: string };
 
-const ORIENTATION_CACHE_VERSION = 3;
+const ORIENTATION_CACHE_VERSION = 4;
 
 function cacheKey(data: ReviewData, config: LlmConfig): string {
   return `orientation:v${ORIENTATION_CACHE_VERSION}:${prKey(data.pr.ref)}:${data.headSha}:${config.model}`;

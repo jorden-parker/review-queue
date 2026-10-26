@@ -26,7 +26,6 @@ describe("displayHotspots", () => {
         intent: "",
         risk: "low",
         stepOrder: [],
-        startReason: "",
         hotspotNotes: [{ id: "h1", note: "Track it" }],
         extraHotspots: [{ path: "a.ts", line: 9, title: "Odd loop", why: "Never ends?" }],
       },
