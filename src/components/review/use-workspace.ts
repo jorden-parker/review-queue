@@ -130,6 +130,7 @@ export function useWorkspace(
   return {
     ...ui,
     ...navigation,
+    aiEnabled: orientation.status !== "disabled",
     ...jumps,
     ...edits,
     peek,

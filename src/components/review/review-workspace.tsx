@@ -26,6 +26,7 @@ import { PostedToast } from "./posted-toast";
 import { ReadingPath } from "./reading-path";
 import { ResumeCard } from "./resume-card";
 import { ShortcutHelp } from "./shortcut-help";
+import { StepExplanation } from "./step-explanation";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
 import { useWorkspace, type SidebarTab } from "./use-workspace";
@@ -201,6 +202,14 @@ function StepHeader({
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">{step.reason}</p>
+        {workspace.aiEnabled && (
+          <StepExplanation
+            key={step.id}
+            pullRequest={review.pr.ref}
+            headSha={review.headSha}
+            stepId={step.id}
+          />
+        )}
         {done && (
           <Badge className="animate-pop bg-add text-add-foreground">
             <Check /> Done

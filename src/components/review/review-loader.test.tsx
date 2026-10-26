@@ -88,6 +88,18 @@ describe("ReviewLoader", () => {
     expect(await screen.findByText(/connection refused/)).toBeTruthy();
   });
 
+  it("explains the current step on request", async () => {
+    const { user } = await renderReview(reviewPayload(), { status: "error", message: "x" });
+    await user.click(screen.getByRole("button", { name: /Explain this step/ }));
+    expect(await screen.findByText("Adds the Options type.")).toBeTruthy();
+    expect(screen.getByText("Is retries optional?")).toBeTruthy();
+  });
+
+  it("hides the explain button when the model is off", async () => {
+    await renderReview();
+    expect(screen.queryByRole("button", { name: /Explain this step/ })).toBeNull();
+  });
+
   it("keeps the review open when the orientation request fails", async () => {
     await renderReview(
       reviewPayload(),
