@@ -1,12 +1,20 @@
 import type { FileDiff } from "@/lib/types";
 
-export type LlmConfig = { baseURL: string; model: string; enabled: boolean; timeoutMs: number };
+export type LlmConfig = {
+  baseURL: string;
+  model: string;
+  enabled: boolean;
+  thinking: boolean;
+  timeoutMs: number;
+};
 
 export type LlmClient = { config: LlmConfig; fetchImpl: typeof fetch };
 
 export type Message = { role: "user" | "assistant"; content: string };
 
 export type ModelRequest = { system: string; maxTokens: number; messages: Message[] };
+
+const THINKING_TOKENS = 2048;
 
 export const CODE_NAME_RULE =
   "Write markdown, and wrap every function, method, variable, type, file and other identifier name in backticks, like `loadReview`.";
@@ -18,6 +26,7 @@ export function llmConfigFromEnv(env: Record<string, string | undefined> = proce
     baseURL: env.REVIEW_QUEUE_LLM_URL ?? env.OLLAMA_HOST ?? "http://localhost:11434",
     model: env.REVIEW_QUEUE_LLM_MODEL ?? "qwen3.8-27b-cc",
     enabled: env.REVIEW_QUEUE_LLM !== "off",
+    thinking: env.REVIEW_QUEUE_LLM_THINKING !== "off",
     timeoutMs: Number(env.REVIEW_QUEUE_LLM_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS),
   };
 }
@@ -81,6 +90,12 @@ function firstResponseDeadline(timeoutMs: number): Deadline {
   return { signal: controller.signal, release: () => clearTimeout(timer) };
 }
 
+function thinkingFields(config: LlmConfig, maxTokens: number) {
+  return config.thinking
+    ? { max_tokens: maxTokens + THINKING_TOKENS }
+    : { max_tokens: maxTokens, thinking: { type: "disabled" } };
+}
+
 async function postMessages(
   client: LlmClient,
   request: ModelRequest,
@@ -101,11 +116,10 @@ async function postMessages(
       },
       body: JSON.stringify({
         model: client.config.model,
-        max_tokens: request.maxTokens,
+        ...thinkingFields(client.config, request.maxTokens),
         temperature: 0,
         stream,
         system: request.system,
-        thinking: { type: "disabled" },
         messages: request.messages,
       }),
       signal: signal ? AbortSignal.any([deadline.signal, signal]) : deadline.signal,
