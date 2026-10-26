@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { Token } from "@/lib/highlight";
 import type { DiffLine, Hotspot, Note, SymbolPosition } from "@/lib/types";
 import { CodeTokens, type IdentifierTarget } from "./code-tokens";
+import type { LineTarget } from "./locate";
 import { NoteKindBadge } from "./note-kind-badge";
 
 export type LineHandlers = {
@@ -26,6 +27,7 @@ type CodeLineProps = {
   hotspots: Hotspot[];
   notes: Note[];
   elementId: string | undefined;
+  landed: LineTarget | null;
   handlers: LineHandlers;
 };
 
@@ -73,6 +75,7 @@ export function CodeLine({
   hotspots,
   notes,
   elementId,
+  landed,
   handlers,
 }: CodeLineProps) {
   const lineNumber = line.newLine;
@@ -90,9 +93,11 @@ export function CodeLine({
         data-path={path}
         data-hunk={hunkIndex}
         data-line={lineIndex}
+        aria-current={landed ? "location" : undefined}
         className={cn(
           "group flex scroll-mt-32 transition-colors duration-150",
           ROW_STYLES[line.kind],
+          landed && "ring-2 ring-primary ring-inset",
         )}
       >
         <span className="w-12 shrink-0 pr-2 text-right text-muted-foreground/70 select-none">
@@ -122,6 +127,7 @@ export function CodeLine({
               linked ? (target) => handlers.onIdentifier(positionOf(target)) : undefined
             }
             onHover={(target) => handlers.onHoverIdentifier(target && positionOf(target))}
+            emphasis={landed?.name}
           />
         </code>
         {hotspots.length > 0 && (

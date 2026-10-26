@@ -13,7 +13,7 @@ import type { Hotspot, Note, NoteKind, Step, StepFile } from "@/lib/types";
 import { CodeLine, type LineHandlers } from "./code-line";
 import { FileAskButton } from "./file-ask-button";
 import { hunkElementId } from "./hunk-index";
-import { lineElementId, type LineTarget } from "./locate";
+import { isSameLine, lineElementId, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
 
 export type StepViewContext = {
@@ -21,6 +21,7 @@ export type StepViewContext = {
   hotspots: Hotspot[];
   notes: Note[];
   composer: LineTarget | null;
+  landed: LineTarget | null;
   activeHunkId: string | null;
   onAskFile: ((path: string, action: AssistAction) => void) | null;
   handlers: LineHandlers & {
@@ -87,8 +88,8 @@ function HunkBlock({
       {hunk.lines.map((line, lineIndex) => {
         const lineNumber = line.newLine;
         const target = lineNumber !== null ? { path: file.path, line: lineNumber } : null;
-        const composing =
-          target && context.composer?.path === target.path && context.composer.line === target.line;
+        const composing = target && isSameLine(context.composer, target.path, target.line);
+        const landed = target && isSameLine(context.landed, target.path, target.line);
         return (
           <div key={lineIndex}>
             <CodeLine
@@ -107,6 +108,7 @@ function HunkBlock({
                   note.path === file.path && note.line === lineNumber && lineNumber !== null,
               )}
               elementId={target ? lineElementId(target) : undefined}
+              landed={landed ? context.landed : null}
               handlers={context.handlers}
             />
             {composing && target && (

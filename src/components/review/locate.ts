@@ -1,7 +1,11 @@
 import type { PreparedFile } from "@/lib/review/prepare";
 import type { Step } from "@/lib/types";
 
-export type LineTarget = { path: string; line: number };
+export type LineTarget = { path: string; line: number; name?: string };
+
+export function isSameLine(target: LineTarget | null, path: string, line: number): boolean {
+  return target?.path === path && target.line === line;
+}
 
 function hunkContains(file: PreparedFile, hunkIndex: number, line: number): boolean {
   return file.hunks[hunkIndex].lines.some((diffLine) => diffLine.newLine === line);
