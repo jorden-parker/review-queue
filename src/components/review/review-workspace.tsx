@@ -346,6 +346,10 @@ function ShowAllToggle({ workspace }: { workspace: Workspace }) {
   );
 }
 
+function startReview(workspace: Workspace) {
+  if (workspace.startStepId) workspace.selectStep(workspace.startStepId);
+}
+
 function WorkspacePeek({ workspace }: { workspace: Workspace }) {
   const { peek } = workspace.peek;
   if (!peek) return null;
@@ -399,8 +403,20 @@ export function ReviewWorkspace({
       <TopBar review={review} session={session} workspace={workspace} />
       <div className="grid min-h-0 grid-cols-workspace">
         <Sidebar review={review} session={session} workspace={workspace} />
-        <div className="relative min-h-0 min-w-0">
-          <main className="scrollbar-hidden h-full overflow-y-auto px-6 py-5">
+        <div className="relative flex min-h-0 min-w-0 flex-col">
+          <div className="shrink-0 px-6 pt-5">
+            <div className="mx-auto max-w-5xl">
+              <OrientationCard
+                key={fresh ? "fresh" : "started"}
+                review={review}
+                orientation={orientation}
+                startStepId={workspace.startStepId}
+                defaultExpanded={fresh}
+                onStart={fresh ? () => startReview(workspace) : undefined}
+              />
+            </div>
+          </div>
+          <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <div id="step-top" className="mx-auto flex max-w-5xl scroll-mt-5 flex-col gap-4">
               {controls.actionError && (
                 <p className="rounded-lg bg-del px-3 py-2 text-sm text-del-foreground">
@@ -408,16 +424,6 @@ export function ReviewWorkspace({
                 </p>
               )}
               <BreakBanner workspace={workspace} />
-              {fresh && (
-                <OrientationCard
-                  review={review}
-                  orientation={orientation}
-                  startStepId={workspace.startStepId}
-                  onStart={() =>
-                    workspace.startStepId && workspace.selectStep(workspace.startStepId)
-                  }
-                />
-              )}
               <ShowAllToggle workspace={workspace} />
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}
