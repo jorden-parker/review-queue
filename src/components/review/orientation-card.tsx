@@ -9,6 +9,7 @@ import type { OrientationState } from "./use-review";
 type OrientationCardProps = {
   review: ReviewPayload;
   orientation: OrientationState;
+  startStepId: string | null;
   onStart: () => void;
 };
 
@@ -57,9 +58,15 @@ function AiSummary({ orientation }: { orientation: OrientationState }) {
   );
 }
 
-export function OrientationCard({ review, orientation, onStart }: OrientationCardProps) {
+export function OrientationCard({
+  review,
+  orientation,
+  startStepId,
+  onStart,
+}: OrientationCardProps) {
   const highCount = review.hotspots.filter((hotspot) => hotspot.severity === "high").length;
   const description = firstParagraph(review.pr.body);
+  const startIndex = review.steps.findIndex((step) => step.id === startStepId);
   return (
     <Card className="animate-step-enter">
       <CardHeader>
@@ -89,9 +96,11 @@ export function OrientationCard({ review, orientation, onStart }: OrientationCar
           </li>
         </ul>
         <AiSummary orientation={orientation} />
-        <Button size="lg" onClick={onStart} className="w-fit px-4">
-          Start at step 1 <ArrowRight />
-        </Button>
+        {startIndex >= 0 && (
+          <Button size="lg" onClick={onStart} className="w-fit px-4">
+            Start at step {startIndex + 1} <ArrowRight />
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

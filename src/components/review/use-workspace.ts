@@ -8,6 +8,7 @@ import { displayHotspots } from "./display-hotspots";
 import { firstNoteLine } from "./hunk-index";
 import { nextOpenStep, type LineTarget } from "./locate";
 import type { ShortcutAction } from "./shortcut-keys";
+import { suggestedStartStepId } from "./start-step";
 import { useJumps } from "./use-jumps";
 import { usePeek } from "./use-peek";
 import { useReturnDetection } from "./use-return-detection";
@@ -80,6 +81,7 @@ export function useWorkspace(
     () => displayHotspots(review.hotspots, orientation),
     [review.hotspots, orientation],
   );
+  const startStepId = suggestedStartStepId(review.steps, review.startStepId, orientation);
   const files = useMemo(
     () => new Map(review.files.map((file) => [file.path, file])),
     [review.files],
@@ -132,6 +134,7 @@ export function useWorkspace(
     ...edits,
     peek,
     hotspots,
+    startStepId,
     files,
     linkable,
     nextStep,

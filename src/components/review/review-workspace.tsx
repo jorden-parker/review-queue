@@ -141,7 +141,7 @@ function Sidebar({
       >
         <ReadingPath
           steps={review.steps}
-          startStepId={review.startStepId}
+          startStepId={workspace.startStepId}
           currentStepId={workspace.currentStep?.id ?? null}
           doneSteps={session.doneSteps}
           reopenedStepIds={review.reopenedStepIds}
@@ -340,7 +340,10 @@ export function ReviewWorkspace({
                 <OrientationCard
                   review={review}
                   orientation={orientation}
-                  onStart={() => review.steps[0] && workspace.selectStep(review.steps[0].id)}
+                  startStepId={workspace.startStepId}
+                  onStart={() =>
+                    workspace.startStepId && workspace.selectStep(workspace.startStepId)
+                  }
                 />
               )}
               <div className="flex items-center justify-end">
