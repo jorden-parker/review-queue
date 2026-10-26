@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { SessionAction } from "@/lib/review/session-actions";
 import type { Session } from "@/lib/session/store";
 import { hunkIdsFor } from "./hunk-index";
 import { lineElementId, nextOpenStep, stepForLine, type LineTarget } from "./locate";
+import { scrollToElement, type ScrollKind } from "./scroll-motion";
 
 export type Act = (
   action: SessionAction,
@@ -16,14 +17,10 @@ export function toggled(list: string[], value: string, on: boolean): string[] {
   return on ? [...new Set([...list, value])] : list.filter((item) => item !== value);
 }
 
-function scrollToId(id: string): void {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
 export function useStepNavigation(review: ReviewPayload, session: Session, act: Act) {
   const [showAll, setShowAll] = useState(false);
   const [activeHunk, setActiveHunk] = useState(0);
-  const [scrollRequest, setScrollRequest] = useState<{ id: string } | null>(null);
+  const [scrollRequest, setScrollRequest] = useState<{ id: string; kind: ScrollKind } | null>(null);
 
   const currentStepId = session.currentStepId ?? review.startStepId;
   const found = review.steps.findIndex((step) => step.id === currentStepId);
@@ -36,18 +33,18 @@ export function useStepNavigation(review: ReviewPayload, session: Session, act: 
   const hunkIds = useMemo(() => hunkIdsFor(visibleSteps), [visibleSteps]);
   const activeHunkId = hunkIds[Math.min(activeHunk, hunkIds.length - 1)] ?? null;
 
-  useEffect(() => {
-    if (scrollRequest) scrollToId(scrollRequest.id);
+  useLayoutEffect(() => {
+    if (scrollRequest) scrollToElement(scrollRequest.id, scrollRequest.kind);
   }, [scrollRequest]);
 
   const selectStep = useCallback(
-    (stepId: string, scrollTarget = "step-top") => {
+    (stepId: string, scrollTarget = "step-top", kind: ScrollKind = "step") => {
       act({ type: "current-step", stepId, headSha: review.headSha }, (current) => ({
         ...current,
         currentStepId: stepId,
       }));
       setActiveHunk(0);
-      setScrollRequest({ id: scrollTarget });
+      setScrollRequest({ id: scrollTarget, kind });
     },
     [act, review.headSha],
   );
@@ -55,7 +52,7 @@ export function useStepNavigation(review: ReviewPayload, session: Session, act: 
   const goTo = useCallback(
     (target: LineTarget) => {
       const step = stepForLine(review.steps, review.files, target);
-      if (step) selectStep(step.id, lineElementId(target));
+      if (step) selectStep(step.id, lineElementId(target), "line");
     },
     [review.steps, review.files, selectStep],
   );
@@ -88,7 +85,7 @@ export function useStepNavigation(review: ReviewPayload, session: Session, act: 
     (offset: number) => {
       const next = Math.max(0, Math.min(hunkIds.length - 1, activeHunk + offset));
       setActiveHunk(next);
-      if (hunkIds[next]) scrollToId(hunkIds[next]);
+      if (hunkIds[next]) scrollToElement(hunkIds[next], "hunk");
     },
     [activeHunk, hunkIds],
   );

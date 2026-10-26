@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { EmptyState } from "@/components/common/empty-state";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { ReviewRequest } from "@/lib/github/gh";
 import { prKey, prPath } from "@/lib/pr-ref";
 import { reviewRequests, sessionStore } from "@/lib/review/services";
@@ -13,29 +16,28 @@ function relativeTime(iso: string): string {
 }
 
 function ProgressBadge({ progress }: { progress?: ProgressSummary }) {
-  if (!progress) return <span className="text-sm text-muted">Not started</span>;
+  if (!progress) return <Badge variant="outline">Not started</Badge>;
   return (
-    <span className="rounded-full bg-accent-soft px-2 py-0.5 text-sm font-bold text-accent">
+    <Badge className="bg-accent text-accent-foreground">
       Resume · {progress.doneCount} steps done
-    </span>
+    </Badge>
   );
 }
 
 function InboxRow({ request, progress }: { request: ReviewRequest; progress?: ProgressSummary }) {
   return (
     <li>
-      <Link
-        href={prPath(request.ref)}
-        className="flex flex-col gap-1 rounded-xl border border-line bg-panel p-4 hover:border-accent"
-      >
-        <span className="flex items-center justify-between gap-4">
-          <span className="font-bold">{request.title}</span>
-          <ProgressBadge progress={progress} />
-        </span>
-        <span className="text-sm text-muted">
-          {prKey(request.ref)} · {request.author} · updated {relativeTime(request.updatedAt)}
-          {request.isDraft && " · draft"}
-        </span>
+      <Link href={prPath(request.ref)} className="group block rounded-xl focus-visible:outline-2">
+        <Card className="gap-1.5 px-4 transition-[box-shadow,transform] duration-200 ease-spring group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:ring-primary/40">
+          <span className="flex items-center justify-between gap-4">
+            <span className="font-medium">{request.title}</span>
+            <ProgressBadge progress={progress} />
+          </span>
+          <span className="font-mono text-xs text-muted-foreground">
+            {prKey(request.ref)} · {request.author} · updated {relativeTime(request.updatedAt)}
+            {request.isDraft && " · draft"}
+          </span>
+        </Card>
       </Link>
     </li>
   );
@@ -68,19 +70,23 @@ export async function InboxList() {
   const { requests, progress, error } = await loadInbox();
   if (error) {
     return (
-      <p className="rounded-xl border border-high p-4 text-sm">
-        Couldn&apos;t reach GitHub through <code>gh</code>. Is it installed and logged in?
-        <br />
-        <span className="text-muted">{error}</span>
-      </p>
+      <Card className="gap-1 px-4 text-sm ring-destructive/40">
+        <p>
+          🔌 Couldn&apos;t reach GitHub through <code className="font-mono">gh</code>. Is it
+          installed and logged in?
+        </p>
+        <p className="font-mono text-xs text-muted-foreground">{error}</p>
+      </Card>
     );
   }
   if (requests.length === 0) {
-    return <p className="text-muted">Nothing is waiting for your review. Enjoy it.</p>;
+    return <EmptyState emoji="🌴">Nothing is waiting for your review. Enjoy it.</EmptyState>;
   }
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-bold">Waiting for you ({requests.length})</h2>
+      <h2 className="text-sm font-medium text-muted-foreground">
+        Waiting for you ({requests.length})
+      </h2>
       <ul className="flex flex-col gap-3">
         {requests.map((request) => (
           <InboxRow

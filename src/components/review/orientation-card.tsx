@@ -1,6 +1,8 @@
 "use client";
 
-import { Compass, Sparkles } from "lucide-react";
+import { ArrowRight, Compass, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { OrientationState } from "./use-review";
 
@@ -10,7 +12,11 @@ type OrientationCardProps = {
   onStart: () => void;
 };
 
-const RISK_STYLES = { low: "text-add-ink", medium: "text-medium", high: "text-high" };
+const RISK_STYLES = {
+  low: "text-add-foreground",
+  medium: "text-severity-medium",
+  high: "text-severity-high",
+};
 
 function firstParagraph(text: string): string {
   return text.split(/\n\s*\n/)[0]?.trim() ?? "";
@@ -18,34 +24,34 @@ function firstParagraph(text: string): string {
 
 function AiSummary({ orientation }: { orientation: OrientationState }) {
   if (orientation.status === "loading") {
-    return <p className="text-sm text-muted">Local model is reading the diff…</p>;
+    return <p className="text-sm text-muted-foreground">Local model is reading the diff…</p>;
   }
   if (orientation.status === "disabled") return null;
   if (orientation.status === "error") {
     return (
-      <p className="text-sm text-muted">
+      <p className="text-sm text-muted-foreground">
         Local model unavailable ({orientation.message}). Using heuristics only.
       </p>
     );
   }
   const { summary, intent, risk, startReason } = orientation.orientation;
   return (
-    <div className="flex flex-col gap-1 text-sm">
-      <p className="text-xs text-muted">
+    <div className="flex flex-col gap-1.5 rounded-lg bg-muted/60 p-3 text-sm">
+      <p className="text-xs text-muted-foreground">
         The model&apos;s guess, unverified. The PR author can sway it.
       </p>
-      <p className="flex items-center gap-1 font-bold">
-        <Sparkles size={14} className="text-accent" /> {summary}
+      <p className="flex items-center gap-1.5 font-medium">
+        <Sparkles size={14} className="text-primary" /> {summary}
       </p>
       <p>
-        <span className="text-muted">Why:</span> {intent}
+        <span className="text-muted-foreground">Why:</span> {intent}
       </p>
       <p>
-        <span className="text-muted">Risk:</span>{" "}
-        <span className={`font-bold ${RISK_STYLES[risk]}`}>{risk}</span>
+        <span className="text-muted-foreground">Risk:</span>{" "}
+        <span className={`font-medium ${RISK_STYLES[risk]}`}>{risk}</span>
       </p>
       <p>
-        <span className="text-muted">Start because:</span> {startReason}
+        <span className="text-muted-foreground">Start because:</span> {startReason}
       </p>
     </div>
   );
@@ -55,35 +61,38 @@ export function OrientationCard({ review, orientation, onStart }: OrientationCar
   const highCount = review.hotspots.filter((hotspot) => hotspot.severity === "high").length;
   const description = firstParagraph(review.pr.body);
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-line bg-panel p-5">
-      <div className="flex items-center gap-2 text-sm text-muted">
-        <Compass size={16} /> Before you start
-      </div>
-      <h2 className="text-xl font-bold">{review.pr.title}</h2>
-      {description && <p className="line-clamp-3 text-sm">{description}</p>}
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <li>
-          ≈ <strong>{review.estimateMinutes} min</strong>
-        </li>
-        <li>
-          <strong>{review.steps.length}</strong> steps
-        </li>
-        <li>
-          <strong>{review.files.length}</strong> files
-        </li>
-        <li>
-          <strong className={highCount ? "text-high" : ""}>{review.hotspots.length}</strong>{" "}
-          hotspots
-          {highCount > 0 && ` (${highCount} serious)`}
-        </li>
-      </ul>
-      <AiSummary orientation={orientation} />
-      <button
-        onClick={onStart}
-        className="w-fit rounded-lg bg-accent px-4 py-2 font-bold text-panel"
-      >
-        Start at step 1
-      </button>
-    </section>
+    <Card className="animate-step-enter">
+      <CardHeader>
+        <CardDescription className="flex items-center gap-2">
+          <Compass size={16} className="animate-float text-primary" /> Before you start
+        </CardDescription>
+        <CardTitle className="text-xl font-semibold tracking-tight">{review.pr.title}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {description && <p className="line-clamp-3 text-sm text-muted-foreground">{description}</p>}
+        <ul className="flex flex-wrap gap-2 text-sm">
+          <li className="rounded-full border px-3 py-1">
+            ≈ <strong>{review.estimateMinutes} min</strong>
+          </li>
+          <li className="rounded-full border px-3 py-1">
+            <strong>{review.steps.length}</strong> steps
+          </li>
+          <li className="rounded-full border px-3 py-1">
+            <strong>{review.files.length}</strong> files
+          </li>
+          <li className="rounded-full border px-3 py-1">
+            <strong className={highCount ? "text-severity-high" : ""}>
+              {review.hotspots.length}
+            </strong>{" "}
+            hotspots
+            {highCount > 0 && ` (${highCount} serious)`}
+          </li>
+        </ul>
+        <AiSummary orientation={orientation} />
+        <Button size="lg" onClick={onStart} className="w-fit px-4">
+          Start at step 1 <ArrowRight />
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

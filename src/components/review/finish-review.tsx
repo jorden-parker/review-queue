@@ -1,9 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "cn";
+import { AppDialog } from "@/components/common/app-dialog";
+import { EmptyState } from "@/components/common/empty-state";
+import { PathLabel } from "@/components/common/path-label";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import type { ReviewEvent } from "@/lib/github/gh";
 import type { Note } from "@/lib/types";
-import { NOTE_KIND_LABELS, NOTE_KIND_STYLES } from "./note-kinds";
+import { NoteKindBadge } from "./note-kind-badge";
 import { unfinishedMessage } from "./unfinished";
 
 type FinishReviewProps = {
@@ -56,75 +63,60 @@ export function FinishReview({
   const unfinished = unfinishedMessage(stepsLeft, hotspotsLeft);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
-      <section
-        onKeyDown={(keyEvent) => keyEvent.stopPropagation()}
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-2xl border border-line bg-panel p-6 shadow-xl"
-      >
-        <h2 className="text-xl font-bold">Finish review</h2>
-        {unfinished && <p className="rounded-lg bg-focus p-3 text-sm">{unfinished}</p>}
-        <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-bold">Notes to post ({selected.length})</h3>
-          {notes.length === 0 && <p className="text-sm text-muted">No notes.</p>}
-          {notes.map((note) => (
-            <label
-              key={note.id}
-              className="flex items-start gap-2 rounded p-1 text-sm hover:bg-sunken"
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(note.id)}
-                onChange={() => toggle(note.id)}
-                className="mt-1"
-              />
-              <span
-                className={`rounded-full px-2 text-xs font-bold ${NOTE_KIND_STYLES[note.kind]}`}
-              >
-                {NOTE_KIND_LABELS[note.kind]}
-              </span>
-              <span className="flex-1">
-                {note.body}
-                {note.path && (
-                  <span className="block font-mono text-xs text-muted">
-                    {note.path}:{note.line}
-                  </span>
-                )}
-              </span>
-            </label>
-          ))}
-        </div>
-        <textarea
-          value={summary}
-          onChange={(changeEvent) => setSummary(changeEvent.target.value)}
-          rows={3}
-          placeholder="Overall summary (optional)"
-          className="rounded-lg border border-line bg-bg p-2 text-sm outline-none focus:border-accent"
-        />
-        <div className="flex gap-2">
-          {EVENTS.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setEvent(option.value)}
-              className={`rounded-lg border px-3 py-1 text-sm ${event === option.value ? "border-accent bg-accent-soft font-bold" : "border-line"}`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        {error && <p className="text-sm text-high">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button onClick={onCancel} className="px-3 py-1 text-muted">
-            Not yet
-          </button>
-          <button
-            onClick={send}
-            disabled={sending}
-            className="rounded-lg bg-accent px-4 py-2 font-bold text-panel disabled:opacity-50"
+    <AppDialog title="Finish review" onClose={onCancel} className="sm:max-w-2xl">
+      {unfinished && (
+        <p className="rounded-lg bg-callout px-3 py-2 text-sm text-callout-foreground">
+          {unfinished}
+        </p>
+      )}
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-medium">Notes to post ({selected.length})</h3>
+        {notes.length === 0 && <EmptyState emoji="📝">No notes.</EmptyState>}
+        {notes.map((note) => (
+          <label
+            key={note.id}
+            className="flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm transition-colors duration-150 hover:bg-muted"
           >
-            {sending ? "Posting…" : "Post review to GitHub"}
-          </button>
-        </div>
-      </section>
-    </div>
+            <Checkbox
+              checked={selected.includes(note.id)}
+              onCheckedChange={() => toggle(note.id)}
+              className="mt-0.5"
+            />
+            <NoteKindBadge kind={note.kind} />
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              {note.body}
+              {note.path && <PathLabel path={note.path} line={note.line} />}
+            </span>
+          </label>
+        ))}
+      </div>
+      <Textarea
+        value={summary}
+        onChange={(changeEvent) => setSummary(changeEvent.target.value)}
+        rows={3}
+        placeholder="Overall summary (optional)"
+      />
+      <div className="flex gap-2">
+        {EVENTS.map((option) => (
+          <Button
+            key={option.value}
+            variant={event === option.value ? "secondary" : "outline"}
+            onClick={() => setEvent(option.value)}
+            className={cn(event === option.value && "bg-accent text-accent-foreground")}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={onCancel}>
+          Not yet
+        </Button>
+        <Button onClick={send} disabled={sending}>
+          {sending ? "Posting…" : "Post review to GitHub"}
+        </Button>
+      </div>
+    </AppDialog>
   );
 }

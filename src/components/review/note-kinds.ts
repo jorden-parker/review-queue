@@ -11,9 +11,9 @@ export const NOTE_KIND_LABELS: Record<NoteKind, string> = {
 };
 
 export const NOTE_KIND_STYLES: Record<NoteKind, string> = {
-  blocker: "bg-del text-del-ink",
-  question: "bg-accent-soft text-accent",
-  nit: "bg-sunken text-muted",
-  praise: "bg-add text-add-ink",
-  parked: "bg-focus text-ink",
+  blocker: "bg-del text-del-foreground",
+  question: "bg-accent text-accent-foreground",
+  nit: "bg-muted text-muted-foreground",
+  praise: "bg-add text-add-foreground",
+  parked: "bg-callout text-callout-foreground",
 };

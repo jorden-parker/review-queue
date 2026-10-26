@@ -1,8 +1,13 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { PathLabel } from "@/components/common/path-label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { Note } from "@/lib/types";
-import { NOTE_KIND_LABELS, NOTE_KIND_STYLES } from "./note-kinds";
+import { NoteKindBadge } from "./note-kind-badge";
 
 type NotesPanelProps = {
   notes: Note[];
@@ -25,36 +30,33 @@ export function NotesPanel({ notes, onPark, onOpen, onDelete, parkingRef }: Note
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <form onSubmit={park} className="flex flex-col gap-1">
-        <label htmlFor="parking" className="text-sm font-bold">
+    <div className="flex flex-col gap-5">
+      <form onSubmit={park} className="flex flex-col gap-2">
+        <label htmlFor="parking" className="text-sm font-medium">
           Parking lot
         </label>
-        <input
+        <Input
           id="parking"
           ref={parkingRef}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => event.stopPropagation()}
           placeholder="Off-topic thought? Park it here (P)"
-          className="rounded-lg border border-line bg-bg px-2 py-1 text-sm outline-none focus:border-accent"
         />
       </form>
       {parked.length > 0 && (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-0.5">
           {parked.map((note) => (
             <NoteRow key={note.id} note={note} onOpen={onOpen} onDelete={onDelete} />
           ))}
         </ul>
       )}
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-bold">Notes on code ({lineNotes.length})</h3>
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-medium">Notes on code ({lineNotes.length})</h3>
         {lineNotes.length === 0 ? (
-          <p className="text-sm text-muted">
-            Hover a line and click the speech bubble, or press c.
-          </p>
+          <EmptyState emoji="💬">Hover a line and click the speech bubble, or press c.</EmptyState>
         ) : (
-          <ul className="flex flex-col gap-1">
+          <ul className="flex flex-col gap-0.5">
             {lineNotes.map((note) => (
               <NoteRow key={note.id} note={note} onOpen={onOpen} onDelete={onDelete} />
             ))}
@@ -75,26 +77,24 @@ function NoteRow({
   onDelete: (id: number) => void;
 }) {
   return (
-    <li className="group flex items-start gap-2 rounded-lg p-1 hover:bg-sunken">
-      <span
-        className={`shrink-0 rounded-full px-2 text-xs font-bold ${NOTE_KIND_STYLES[note.kind]}`}
-      >
-        {NOTE_KIND_LABELS[note.kind]}
-      </span>
-      <button onClick={() => onOpen(note)} className="flex flex-1 flex-col text-left text-sm">
-        <span className="whitespace-pre-wrap">{note.body}</span>
-        {note.path && (
-          <span className="font-mono text-xs text-muted">
-            {note.path}:{note.line}
-          </span>
-        )}
-      </button>
+    <li className="group flex items-start gap-2 rounded-lg p-2 transition-colors duration-150 hover:bg-muted">
+      <NoteKindBadge kind={note.kind} />
       <button
-        onClick={() => onDelete(note.id)}
-        className="invisible text-xs text-muted group-hover:visible"
+        onClick={() => onOpen(note)}
+        className="flex min-w-0 flex-1 flex-col gap-0.5 text-left text-sm"
       >
-        delete
+        <span className="whitespace-pre-wrap">{note.body}</span>
+        {note.path && <PathLabel path={note.path} line={note.line} />}
       </button>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Delete note"
+        onClick={() => onDelete(note.id)}
+        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+      >
+        <Trash2 />
+      </Button>
     </li>
   );
 }

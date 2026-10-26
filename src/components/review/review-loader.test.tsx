@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { installFakeApi } from "@/test/fake-api";
 import { emptySession, HEAD_SHA, REF, reviewPayload } from "@/test/review-fixture";
 import { ReviewLoader } from "./review-loader";
@@ -16,7 +17,7 @@ vi.mock("next/link", () => ({
 async function renderReview(payload = reviewPayload(), orientation?: unknown) {
   const api = installFakeApi(payload, orientation);
   const user = userEvent.setup();
-  render(<ReviewLoader pullRequest={REF} />);
+  render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
   await screen.findByText(/^Step \d of 3/);
   return { api, user };
 }
@@ -26,7 +27,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("ReviewLoader", () => {
   it("shows a loading message, then the orientation and the first step", async () => {
     installFakeApi(reviewPayload());
-    render(<ReviewLoader pullRequest={REF} />);
+    render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
     expect(screen.getByText("Getting the PR ready…")).toBeTruthy();
     expect(await screen.findByText("Before you start")).toBeTruthy();
     expect(screen.getByText("Start here")).toBeTruthy();
@@ -39,7 +40,7 @@ describe("ReviewLoader", () => {
       "fetch",
       vi.fn(async () => Response.json({ error: "gh failed" }, { status: 502 })),
     );
-    render(<ReviewLoader pullRequest={REF} />);
+    render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
     expect(await screen.findByText("gh failed")).toBeTruthy();
   });
 
@@ -109,12 +110,19 @@ describe("ReviewLoader", () => {
       reviewPayload(emptySession({ currentStepId: "core:src/client.ts:0" })),
     );
     await user.click(screen.getAllByRole("button", { name: "Options" })[0]);
-    expect(await screen.findByText("src/types.ts:1 · type")).toBeTruthy();
+    const peek = await screen.findByRole("complementary", { name: "Options" });
+    expect(await within(peek).findByTitle("src/types.ts")).toBeTruthy();
+    expect(within(peek).getByText("type", { selector: "[data-slot=badge]" })).toBeTruthy();
+    expect(within(peek).getByText("export type").closest(".code-token")).toBeTruthy();
+    expect(document.querySelector(".grid-cols-workspace")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /In this PR/ }));
     expect(await screen.findByText(/1 jump deep from/)).toBeTruthy();
     expect(screen.getByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: /References/ }));
-    expect(await screen.findAllByText("src/client.ts:10")).toHaveLength(2);
+    await user.click(screen.getByRole("tab", { name: /References/ }));
+    const reference = await screen.findByText("load(options: Options) {");
+    expect(reference.closest("button")?.disabled).toBe(false);
+    expect(screen.getByText("in this PR")).toBeTruthy();
+    expect(screen.getByText("src/client.ts:10")).toBeTruthy();
     await user.keyboard("b");
     expect(await screen.findByText("Step 2 of 3 · core · 2 lines")).toBeTruthy();
     expect(api.actions()).toEqual(
@@ -155,7 +163,7 @@ describe("ReviewLoader", () => {
 
   it("opens and ticks off hotspots", async () => {
     const { api, user } = await renderReview();
-    await user.click(screen.getByRole("button", { name: /Hotspots \(1\)/ }));
+    await user.click(screen.getByRole("tab", { name: /Hotspots \(1\)/ }));
     await user.click(screen.getByRole("button", { name: /Debug output left in/ }));
     expect(await screen.findByText("Step 2 of 3 · core · 2 lines")).toBeTruthy();
     await user.click(screen.getByTitle("Checked"));
@@ -193,7 +201,7 @@ describe("ReviewLoader", () => {
   it("greets with reopened steps after new commits", async () => {
     const payload = reviewPayload(emptySession({ doneSteps: ["types:src/types.ts:0"] }));
     installFakeApi({ ...payload, reopenedStepIds: ["core:src/client.ts:0"] });
-    render(<ReviewLoader pullRequest={REF} />);
+    render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
     expect(await screen.findByText("Welcome back")).toBeTruthy();
     expect(screen.getByText(/New commits changed 1 step/)).toBeTruthy();
   });
@@ -208,12 +216,13 @@ describe("ReviewLoader", () => {
     );
     const { api, user } = await renderReview(payload);
     await user.click(screen.getByRole("button", { name: /Finish/ }));
-    const dialog = screen.getByText("Finish review").closest("section")!;
+    const dialog = screen.getByRole("dialog", { name: "Finish review" });
     expect(within(dialog).getByText(/3 steps and 1 hotspot are not/)).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "Approve" }));
     await user.type(within(dialog).getByPlaceholderText(/Overall summary/), "Nice work");
     await user.click(within(dialog).getByRole("button", { name: /Post review/ }));
     await waitFor(() => expect(screen.queryByText("Finish review")).toBeNull());
+    expect(screen.getByRole("status").textContent).toMatch(/Review posted/);
     expect(api.calls.find((call) => call.url.endsWith("/submit"))?.body).toEqual({
       event: "APPROVE",
       summary: "Nice work",

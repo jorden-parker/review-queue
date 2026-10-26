@@ -1,6 +1,8 @@
 "use client";
 
 import { Coffee } from "lucide-react";
+import { AppDialog } from "@/components/common/app-dialog";
+import { Button } from "@/components/ui/button";
 import { plural } from "@/lib/plural";
 import type { Session } from "@/lib/session/store";
 import type { Step } from "@/lib/types";
@@ -32,61 +34,59 @@ export function ResumeCard({
   const position = current ? steps.indexOf(current) + 1 : null;
   const lastNote = session.notes.at(-1);
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
-      <section className="flex w-full max-w-lg flex-col gap-4 rounded-2xl border border-line bg-panel p-6 shadow-xl">
-        <h2 className="flex items-center gap-2 text-xl font-bold">
-          <Coffee size={20} /> Welcome back
-        </h2>
-        <dl className="flex flex-col gap-2 text-sm">
-          {session.pause && (
-            <div className="rounded-lg bg-focus p-3">
-              <dt className="text-xs font-bold">You said you were about to</dt>
-              <dd className="text-base">{session.pause.note || "(no note)"}</dd>
-              <dd className="text-xs text-muted">paused {sinceText(session.pause.at)}</dd>
-            </div>
-          )}
-          {current && (
-            <div>
-              <dt className="text-muted">You were on</dt>
-              <dd className="font-bold">
-                Step {position} of {steps.length}: {current.title}
-              </dd>
-            </div>
-          )}
+    <AppDialog
+      title={
+        <span className="flex items-center gap-2">
+          <Coffee size={20} className="animate-float text-primary" /> Welcome back
+        </span>
+      }
+      onClose={onContinue}
+    >
+      <dl className="flex flex-col gap-3 text-sm">
+        {session.pause && (
+          <div className="rounded-lg bg-callout p-3 text-callout-foreground">
+            <dt className="text-xs font-medium">You said you were about to</dt>
+            <dd className="text-base">{session.pause.note || "(no note)"}</dd>
+            <dd className="text-xs opacity-75">paused {sinceText(session.pause.at)}</dd>
+          </div>
+        )}
+        {current && (
           <div>
-            <dt className="text-muted">Progress</dt>
-            <dd>
-              {session.doneSteps.length} of {steps.length} steps done ·{" "}
-              {plural(session.notes.length, "note")}
+            <dt className="text-muted-foreground">You were on</dt>
+            <dd className="font-medium">
+              Step {position} of {steps.length}: {current.title}
             </dd>
           </div>
-          {lastNote && (
-            <div>
-              <dt className="text-muted">Your last note</dt>
-              <dd className="italic">“{lastNote.body}”</dd>
-            </div>
-          )}
-          {session.jumps.length > 0 && (
-            <div>
-              <dt className="text-muted">You were following</dt>
-              <dd className="font-mono">{session.jumps.map((jump) => jump.name).join(" → ")}</dd>
-            </div>
-          )}
-          {reopenedCount > 0 && (
-            <div className="text-medium">
-              New commits changed {reopenedCount} step{reopenedCount === 1 ? "" : "s"} you had
-              finished. They are marked again.
-            </div>
-          )}
-        </dl>
-        <button
-          onClick={onContinue}
-          autoFocus
-          className="rounded-lg bg-accent px-4 py-2 font-bold text-panel"
-        >
-          {nextStep ? `Continue with: ${nextStep.title}` : "Continue"}
-        </button>
-      </section>
-    </div>
+        )}
+        <div>
+          <dt className="text-muted-foreground">Progress</dt>
+          <dd>
+            {session.doneSteps.length} of {steps.length} steps done ·{" "}
+            {plural(session.notes.length, "note")}
+          </dd>
+        </div>
+        {lastNote && (
+          <div>
+            <dt className="text-muted-foreground">Your last note</dt>
+            <dd className="italic">“{lastNote.body}”</dd>
+          </div>
+        )}
+        {session.jumps.length > 0 && (
+          <div>
+            <dt className="text-muted-foreground">You were following</dt>
+            <dd className="font-mono">{session.jumps.map((jump) => jump.name).join(" → ")}</dd>
+          </div>
+        )}
+        {reopenedCount > 0 && (
+          <div className="text-severity-medium">
+            New commits changed {reopenedCount} step{reopenedCount === 1 ? "" : "s"} you had
+            finished. They are marked again.
+          </div>
+        )}
+      </dl>
+      <Button size="lg" onClick={onContinue} autoFocus>
+        {nextStep ? `Continue with: ${nextStep.title}` : "Continue"}
+      </Button>
+    </AppDialog>
   );
 }

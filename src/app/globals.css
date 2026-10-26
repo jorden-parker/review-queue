@@ -1,71 +1,223 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 :root {
-  --bg: #f7f5f0;
-  --panel: #fffdf8;
-  --sunken: #efece4;
-  --ink: #23211c;
-  --muted: #6e695e;
-  --line: #e2ddd1;
-  --accent: #3b6e8f;
-  --accent-soft: #dce9f1;
-  --add: #e3f2e1;
-  --add-ink: #2f6b2a;
-  --del: #f8e3e0;
-  --del-ink: #9a3a2e;
-  --high: #b5452f;
-  --medium: #b7791f;
-  --low: #6e7f8d;
-  --focus: #f3d77a;
+  --radius: 0.625rem;
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.205 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.205 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.56 0.22 259);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.965 0 0);
+  --muted-foreground: oklch(0.52 0 0);
+  --accent: oklch(0.95 0.025 259);
+  --accent-foreground: oklch(0.45 0.2 259);
+  --destructive: oklch(0.58 0.22 27);
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.9 0 0);
+  --ring: oklch(0.56 0.22 259 / 60%);
+  --add: oklch(0.96 0.04 150);
+  --add-foreground: oklch(0.48 0.14 150);
+  --del: oklch(0.96 0.03 25);
+  --del-foreground: oklch(0.52 0.18 25);
+  --severity-high: oklch(0.58 0.2 30);
+  --severity-medium: oklch(0.68 0.15 70);
+  --severity-low: oklch(0.6 0.03 250);
+  --callout: oklch(0.96 0.06 95);
+  --callout-foreground: oklch(0.42 0.09 80);
+  --whimsy-from: oklch(0.62 0.2 259);
+  --whimsy-via: oklch(0.65 0.22 310);
+  --whimsy-to: oklch(0.72 0.17 150);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #17191c;
-    --panel: #1e2125;
-    --sunken: #15171a;
-    --ink: #e7e3da;
-    --muted: #9a958a;
-    --line: #2e3237;
-    --accent: #7fb0d0;
-    --accent-soft: #23384a;
-    --add: #1c3020;
-    --add-ink: #8fd18a;
-    --del: #3a2220;
-    --del-ink: #f0a093;
-    --high: #f08a72;
-    --medium: #e6b45e;
-    --low: #9fb0bd;
-    --focus: #6b5a1e;
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.94 0 0);
+    --card: oklch(0.18 0 0);
+    --card-foreground: oklch(0.94 0 0);
+    --popover: oklch(0.2 0 0);
+    --popover-foreground: oklch(0.94 0 0);
+    --primary: oklch(0.66 0.18 259);
+    --primary-foreground: oklch(0.145 0 0);
+    --secondary: oklch(0.24 0 0);
+    --secondary-foreground: oklch(0.94 0 0);
+    --muted: oklch(0.21 0 0);
+    --muted-foreground: oklch(0.68 0 0);
+    --accent: oklch(0.27 0.06 259);
+    --accent-foreground: oklch(0.82 0.1 259);
+    --destructive: oklch(0.68 0.19 22);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.66 0.18 259 / 60%);
+    --add: oklch(0.27 0.05 150);
+    --add-foreground: oklch(0.8 0.14 150);
+    --del: oklch(0.27 0.05 25);
+    --del-foreground: oklch(0.8 0.12 25);
+    --severity-high: oklch(0.72 0.16 30);
+    --severity-medium: oklch(0.8 0.13 75);
+    --severity-low: oklch(0.72 0.03 250);
+    --callout: oklch(0.3 0.05 90);
+    --callout-foreground: oklch(0.88 0.1 90);
   }
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-panel: var(--panel);
-  --color-sunken: var(--sunken);
-  --color-ink: var(--ink);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-geist-sans), system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
-  --color-line: var(--line);
+  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-add: var(--add);
-  --color-add-ink: var(--add-ink);
+  --color-add-foreground: var(--add-foreground);
   --color-del: var(--del);
-  --color-del-ink: var(--del-ink);
-  --color-high: var(--high);
-  --color-medium: var(--medium);
-  --color-low: var(--low);
-  --color-focus: var(--focus);
-  --font-sans: var(--font-reading), system-ui, sans-serif;
-  --font-mono: var(--font-code), ui-monospace, monospace;
+  --color-del-foreground: var(--del-foreground);
+  --color-severity-high: var(--severity-high);
+  --color-severity-medium: var(--severity-medium);
+  --color-severity-low: var(--severity-low);
+  --color-callout: var(--callout);
+  --color-callout-foreground: var(--callout-foreground);
+  --color-whimsy-from: var(--whimsy-from);
+  --color-whimsy-via: var(--whimsy-via);
+  --color-whimsy-to: var(--whimsy-to);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-body {
-  background: var(--bg);
-  color: var(--ink);
+@theme {
+  --text-code: 0.8125rem;
+  --text-code--line-height: 1.6;
+  --container-sidebar: 18.75rem;
+  --container-peek: 28rem;
+  --ease-calm: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-calm: 180ms;
+  --animate-step-enter: step-enter var(--duration-calm) var(--ease-calm) both;
+  --animate-line-arrive: line-arrive 1.4s var(--ease-calm) both;
+  --animate-peek-enter: peek-enter 220ms var(--ease-calm) both;
+  --animate-pop: pop 320ms var(--ease-spring) both;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-confetti: confetti 900ms var(--ease-calm) both;
+
+  @keyframes step-enter {
+    from {
+      opacity: 0;
+      transform: translateY(0.25rem);
+    }
+  }
+
+  @keyframes line-arrive {
+    from {
+      background-color: var(--callout);
+    }
+  }
+
+  @keyframes peek-enter {
+    from {
+      opacity: 0;
+      transform: translateX(1.5rem);
+    }
+  }
+
+  @keyframes pop {
+    0% {
+      transform: scale(0.6);
+    }
+    60% {
+      transform: scale(1.15);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes confetti {
+    from {
+      opacity: 1;
+      transform: rotate(var(--angle)) translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: rotate(var(--angle)) translateY(-3rem) scale(0.4);
+    }
+  }
+
+  @keyframes float {
+    50% {
+      transform: translateY(-0.25rem);
+    }
+  }
+}
+
+@utility scrollbar-hidden {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility grid-cols-workspace {
+  grid-template-columns: var(--container-sidebar) minmax(0, 1fr);
+}
+
+@utility grid-cols-keys {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+@utility grid-rows-shell {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+@utility max-h-dialog {
+  max-height: 90vh;
+}
+
+@utility bg-whimsy {
+  background-image: linear-gradient(
+    90deg,
+    var(--whimsy-from),
+    var(--whimsy-via),
+    var(--whimsy-to),
+    var(--whimsy-via),
+    var(--whimsy-from)
+  );
+  background-size: 200% 100%;
 }
 
 .code-token {
@@ -79,8 +231,27 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     scroll-behavior: auto !important;
     transition: none !important;
+    animation: none !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
 }

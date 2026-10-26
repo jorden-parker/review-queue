@@ -82,5 +82,12 @@ fetches. Pure logic is kept in non-hook modules (`hunk-index.ts`, `locate.ts`,
 `display-hotspots.ts`, `unfinished.ts`, `shortcut-keys.ts`) and tested in node.
 `src/components/inbox/` is the home page's list of review requests.
 
+**UI** (`src/components/ui/`) holds shadcn/ui primitives (Radix base); add more
+with `bunx shadcn@latest add <name>` and delete exports nothing uses so Fallow
+stays clean. Shared app pieces (`HintButton`, `PathLabel`, `AppDialog`,
+`EmptyState`, `Celebration`) live in `src/components/common/`. All colours,
+sizes and motion are tokens in `src/app/globals.css`, with dark mode following
+`prefers-color-scheme`; use those utilities instead of hex or arbitrary values.
+
 Shared domain types are in `src/lib/types.ts`. Use the `@/` import alias for
 `src/`.

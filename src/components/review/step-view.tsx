@@ -1,6 +1,12 @@
 "use client";
 
+import { ChevronRight, FileCode2 } from "lucide-react";
 import { useState } from "react";
+import { cn } from "cn";
+import { PathLabel } from "@/components/common/path-label";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type { PreparedFile } from "@/lib/review/prepare";
 import type { Hotspot, Note, NoteKind, Step, StepFile } from "@/lib/types";
 import { CodeLine, type LineHandlers } from "./code-line";
@@ -24,16 +30,22 @@ export type StepViewContext = {
 };
 
 function FileHeader({ file }: { file: PreparedFile }) {
-  const renamed = file.status === "renamed" ? `${file.oldPath} → ` : "";
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line bg-panel px-4 py-2 font-sans text-sm">
-      <span className="font-mono font-bold">
-        {renamed}
-        {file.path}
+    <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-card/90 px-4 py-2.5 font-sans backdrop-blur-sm">
+      <span className="flex min-w-0 items-center gap-2">
+        <FileCode2 size={14} className="shrink-0 text-muted-foreground" />
+        {file.status === "renamed" && file.oldPath && (
+          <>
+            <PathLabel path={file.oldPath} className="text-sm opacity-60" />
+            <span className="text-muted-foreground">→</span>
+          </>
+        )}
+        <PathLabel path={file.path} className="text-sm" />
       </span>
-      <span className="shrink-0 text-muted">
-        <span className="text-add-ink">+{file.additions}</span>{" "}
-        <span className="text-del-ink">−{file.deletions}</span> · {file.status}
+      <span className="flex shrink-0 items-center gap-2 font-mono text-xs">
+        <span className="text-add-foreground">+{file.additions}</span>
+        <span className="text-del-foreground">−{file.deletions}</span>
+        <Badge variant="outline">{file.status}</Badge>
       </span>
     </div>
   );
@@ -55,9 +67,12 @@ function HunkBlock({
   return (
     <div
       id={id}
-      className={`scroll-mt-24 border-l-4 ${active ? "border-focus" : "border-transparent"}`}
+      className={cn(
+        "scroll-mt-24 border-l-2 transition-colors duration-150",
+        active ? "border-primary" : "border-transparent",
+      )}
     >
-      <div className="bg-sunken px-4 py-1 text-muted">
+      <div className="bg-muted px-4 py-1 text-muted-foreground">
         @@ {hunk.oldStart} → {hunk.newStart} {hunk.header}
       </div>
       {hunk.lines.map((line, lineIndex) => {
@@ -110,27 +125,28 @@ function FileBlock({
   if (!file) return null;
   const empty = file.binary || stepFile.hunkIndexes.length === 0;
   return (
-    <section className="overflow-hidden rounded-xl border border-line bg-panel">
+    <Card className="gap-0 overflow-clip py-0">
       <FileHeader file={file} />
       {!expanded ? (
-        <button
+        <Button
+          variant="ghost"
           onClick={() => setExpanded(true)}
-          className="w-full px-4 py-3 text-left font-sans text-sm text-muted"
+          className="h-auto w-full justify-start rounded-none px-4 py-3 font-normal text-muted-foreground"
         >
-          Collapsed: usually safe to skim. Show anyway
-        </button>
+          <ChevronRight /> Collapsed: usually safe to skim. Show anyway
+        </Button>
       ) : empty ? (
-        <p className="px-4 py-3 font-sans text-sm text-muted">
+        <p className="px-4 py-3 text-sm text-muted-foreground">
           {file.binary ? "Binary file." : "No content changes (rename or mode change)."}
         </p>
       ) : (
-        <div className="font-mono text-[13px] leading-6">
+        <div className="animate-step-enter font-mono text-code">
           {stepFile.hunkIndexes.map((hunkIndex) => (
             <HunkBlock key={hunkIndex} file={file} hunkIndex={hunkIndex} context={context} />
           ))}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 
