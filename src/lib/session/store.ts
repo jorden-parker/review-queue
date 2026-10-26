@@ -81,6 +81,8 @@ CREATE TABLE IF NOT EXISTS cache (
 );
 `;
 
+const PROGRESS_TABLES = ["sessions", "done_steps", "checked_hotspots", "jumps"];
+
 export function defaultDatabasePath(): string {
   return path.join(dataDirectory(), "review-queue.db");
 }
@@ -203,6 +205,13 @@ export class SessionStore {
 
   clearJumps(key: string): void {
     this.db.prepare("DELETE FROM jumps WHERE pr_key = ?").run(key);
+  }
+
+  startOver(key: string, keepNotes: boolean): void {
+    const tables = keepNotes ? PROGRESS_TABLES : [...PROGRESS_TABLES, "notes"];
+    for (const table of tables) {
+      this.db.prepare(`DELETE FROM ${table} WHERE pr_key = ?`).run(key);
+    }
   }
 
   getCached(key: string): string | null {

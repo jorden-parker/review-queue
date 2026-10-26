@@ -26,35 +26,39 @@ export const SessionActionSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("jump-pop") }),
   z.object({ type: z.literal("jump-clear") }),
+  z.object({ type: z.literal("start-over"), keepNotes: z.boolean() }),
 ]);
 
 export type SessionAction = z.infer<typeof SessionActionSchema>;
 
+type Handler<Action> = (store: SessionStore, key: string, action: Action) => void;
+
+type Handlers = {
+  [Type in SessionAction["type"]]: Handler<Extract<SessionAction, { type: Type }>>;
+};
+
+const HANDLERS: Handlers = {
+  "current-step": (store, key, action) => store.setCurrentStep(key, action.stepId, action.headSha),
+  "step-done": (store, key, action) => store.setStepDone(key, action.stepId, action.done),
+  "hotspot-checked": (store, key, action) =>
+    store.setHotspotChecked(key, action.hotspotId, action.checked),
+  "note-add": (store, key, action) => {
+    store.addNote(key, action);
+  },
+  "note-delete": (store, key, action) => store.deleteNote(key, action.id),
+  pause: (store, key, action) => store.pause(key, action.note),
+  resume: (store, key) => store.resume(key),
+  "jump-push": (store, key, action) => store.pushJump(key, action),
+  "jump-pop": (store, key) => {
+    store.popJump(key);
+  },
+  "jump-clear": (store, key) => store.clearJumps(key),
+  "start-over": (store, key, action) => store.startOver(key, action.keepNotes),
+};
+
 function apply(store: SessionStore, key: string, action: SessionAction): void {
-  switch (action.type) {
-    case "current-step":
-      return store.setCurrentStep(key, action.stepId, action.headSha);
-    case "step-done":
-      return store.setStepDone(key, action.stepId, action.done);
-    case "hotspot-checked":
-      return store.setHotspotChecked(key, action.hotspotId, action.checked);
-    case "note-add":
-      store.addNote(key, action);
-      return;
-    case "note-delete":
-      return store.deleteNote(key, action.id);
-    case "pause":
-      return store.pause(key, action.note);
-    case "resume":
-      return store.resume(key);
-    case "jump-push":
-      return store.pushJump(key, action);
-    case "jump-pop":
-      store.popJump(key);
-      return;
-    case "jump-clear":
-      return store.clearJumps(key);
-  }
+  const handler = HANDLERS[action.type] as Handler<SessionAction>;
+  handler(store, key, action);
 }
 
 export function applySessionAction(
