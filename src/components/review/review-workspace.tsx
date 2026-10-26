@@ -570,6 +570,7 @@ export function ReviewWorkspace({
       hotspots: workspace.hotspots,
       notes: session.notes,
       composer: workspace.composer,
+      landed: workspace.landed,
       activeHunkId: workspace.activeHunkId,
       onAskFile: workspace.aiEnabled
         ? (path, action) => workspace.assist.open({ kind: "file", path }, action)
