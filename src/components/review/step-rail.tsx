@@ -93,7 +93,7 @@ export function StepRail({
     <aside aria-label="This step" className="flex min-h-0 flex-col border-l bg-background">
       <div
         className={cn(
-          "scrollbar-hidden flex min-h-0 flex-col gap-3 overflow-y-auto p-3",
+          "scrollbar-thin flex min-h-0 flex-col gap-3 overflow-y-auto p-3 *:shrink-0",
           workspace.assist.thread ? "shrink-0 basis-1/2" : "flex-1",
         )}
       >

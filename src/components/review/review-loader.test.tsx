@@ -260,7 +260,9 @@ describe("ReviewLoader", () => {
     await user.keyboard("{Escape}gc");
     expect(await screen.findByRole("button", { name: "Open Options" })).toBeTruthy();
     expect(screen.getByText("type Options = { retries: number }")).toBeTruthy();
-    expect(screen.getByRole("tab", { name: /Context \(1\)/ })).toBeTruthy();
+    const contextTab = screen.getByRole("tab", { name: "Context (1)" });
+    expect(within(contextTab).getByText("Context")).toBeTruthy();
+    expect(within(contextTab).getByText("1")).toBeTruthy();
     expect(api.actions()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: "symbol-seen" }),

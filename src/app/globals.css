@@ -116,7 +116,7 @@
 @theme {
   --text-code: 0.8125rem;
   --text-code--line-height: 1.6;
-  --container-sidebar: 18.75rem;
+  --container-sidebar: 20rem;
   --container-peek: 28rem;
   --container-rail: 26rem;
   --container-rail-narrow: 18rem;
@@ -192,6 +192,11 @@
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 @utility grid-cols-workspace {
