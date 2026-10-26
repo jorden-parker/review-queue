@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { llmConfigFromEnv } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/llm/model-choice";
 import { prKey } from "@/lib/pr-ref";
 import { jsonError, preparedFromRequest, type PrRouteContext } from "@/lib/review/route-context";
 import { sessionStore } from "@/lib/review/services";
@@ -19,6 +19,6 @@ export async function POST(request: Request, context: PrRouteContext) {
     .getSession(prKey(prepared.data.pr.ref))
     .notes.filter((note) => input.data.noteIds.includes(note.id));
   return Response.json(
-    await summaryDraftFor(prepared.data.pr.title, input.data.event, notes, llmConfigFromEnv()),
+    await summaryDraftFor(prepared.data.pr.title, input.data.event, notes, await llmConfig()),
   );
 }
