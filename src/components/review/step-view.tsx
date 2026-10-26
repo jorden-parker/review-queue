@@ -31,7 +31,7 @@ export type StepViewContext = {
 
 function FileHeader({ file }: { file: PreparedFile }) {
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-card/90 px-4 py-2.5 font-sans backdrop-blur-sm">
+    <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-card px-4 py-2.5 font-sans">
       <span className="flex min-w-0 items-center gap-2">
         <FileCode2 size={14} className="shrink-0 text-muted-foreground" />
         {file.status === "renamed" && file.oldPath && (
