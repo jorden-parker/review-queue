@@ -2,6 +2,8 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import Markdown, { type Components } from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
@@ -51,12 +53,16 @@ export function PrDescription({ body }: { body: string }) {
       <div
         ref={ref}
         className={cn(
-          "flex w-full flex-col gap-2 text-sm wrap-anywhere text-muted-foreground",
+          "flex w-full flex-col gap-2 text-sm wrap-anywhere text-muted-foreground [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded",
           !expanded && "max-h-40 overflow-hidden",
           collapsed && "mask-b-from-50%",
         )}
       >
-        <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_ELEMENTS}>
+        <Markdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw, rehypeSanitize]}
+          components={MARKDOWN_ELEMENTS}
+        >
           {body}
         </Markdown>
       </div>
