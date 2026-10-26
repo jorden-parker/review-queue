@@ -21,6 +21,7 @@ function renderLine(landed: LineTarget | null) {
       tokens={[{ text: LINE.text }]}
       linked
       hotspots={[]}
+      checkedHotspots={[]}
       notes={[]}
       elementId="line-src/app.ts-7"
       landed={landed}
@@ -29,6 +30,8 @@ function renderLine(landed: LineTarget | null) {
         onHoverIdentifier: vi.fn(),
         onAddNote: vi.fn(),
         onDeleteNote: vi.fn(),
+        onToggleHotspot: vi.fn(),
+        onCheckFlag: null,
       }}
     />,
   );

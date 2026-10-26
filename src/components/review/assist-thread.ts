@@ -18,6 +18,7 @@ export function actionLabel(action: AssistAction, target: AssistTarget): string 
     simplify: `Simplify ${subject(target)}`,
     comment: "Draft a review comment",
     ask: `Ask about ${subject(target)}`,
+    check: `Check the flag on ${subject(target)}`,
   };
   return labels[action];
 }
@@ -28,6 +29,7 @@ export function questionPrompt(action: AssistAction, target: AssistTarget): stri
     simplify: null,
     comment: `What worries you about ${subject(target)}?`,
     ask: "What do you want to know?",
+    check: null,
   };
   return prompts[action];
 }

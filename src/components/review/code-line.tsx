@@ -1,12 +1,14 @@
 "use client";
 
-import { Flag, MessageSquarePlus, Trash2 } from "lucide-react";
+import { MessageSquarePlus, Trash2 } from "lucide-react";
 import { cn } from "cn";
-import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
+import type { LineRange } from "@/lib/assist-protocol";
 import type { Token } from "@/lib/highlight";
-import type { DiffLine, Hotspot, Note, SymbolPosition } from "@/lib/types";
+import type { DiffLine, Note, SymbolPosition } from "@/lib/types";
 import { CodeTokens, type IdentifierTarget } from "./code-tokens";
+import { HotspotFlag } from "./hotspot-flag";
+import type { DisplayHotspot } from "./hotspot-list";
 import type { LineTarget } from "./locate";
 import { NoteKindBadge } from "./note-kind-badge";
 
@@ -15,6 +17,8 @@ export type LineHandlers = {
   onHoverIdentifier: (position: SymbolPosition | null) => void;
   onAddNote: (path: string, line: number) => void;
   onDeleteNote: (id: number) => void;
+  onToggleHotspot: (id: string) => void;
+  onCheckFlag: ((range: LineRange) => void) | null;
 };
 
 type CodeLineProps = {
@@ -24,7 +28,8 @@ type CodeLineProps = {
   line: DiffLine;
   tokens: Token[];
   linked: boolean;
-  hotspots: Hotspot[];
+  hotspots: DisplayHotspot[];
+  checkedHotspots: string[];
   notes: Note[];
   elementId: string | undefined;
   landed: LineTarget | null;
@@ -65,6 +70,63 @@ function LineNotes({ notes, onDelete }: { notes: Note[]; onDelete: (id: number) 
   );
 }
 
+function symbolPosition(path: string, line: DiffLine, target: IdentifierTarget): SymbolPosition {
+  const onNewSide = line.newLine !== null;
+  return {
+    ...target,
+    path,
+    line: line.newLine ?? line.oldLine ?? 1,
+    side: onNewSide ? "new" : "old",
+  };
+}
+
+function LineNumber({ value }: { value: number | null }) {
+  return (
+    <span className="w-12 shrink-0 pr-2 text-right text-muted-foreground/70 select-none">
+      {value ?? ""}
+    </span>
+  );
+}
+
+function NoteButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title="Add a note on this line (c)"
+      className="text-primary opacity-0 transition-[opacity,transform] duration-150 ease-spring group-hover:opacity-100 hover:scale-125 focus-visible:opacity-100"
+    >
+      <MessageSquarePlus size={14} />
+    </button>
+  );
+}
+
+function LineFlags({
+  range,
+  hotspots,
+  checked,
+  onAddNote,
+  handlers,
+}: {
+  range: LineRange;
+  hotspots: DisplayHotspot[];
+  checked: string[];
+  onAddNote: (() => void) | null;
+  handlers: LineHandlers;
+}) {
+  const { onCheckFlag } = handlers;
+  return (
+    <span className="shrink-0 self-start px-2">
+      <HotspotFlag
+        hotspots={hotspots}
+        checked={checked}
+        onToggleChecked={handlers.onToggleHotspot}
+        onAddNote={onAddNote}
+        onCheck={onCheckFlag ? () => onCheckFlag(range) : null}
+      />
+    </span>
+  );
+}
+
 export function CodeLine({
   path,
   hunkIndex,
@@ -73,19 +135,16 @@ export function CodeLine({
   tokens,
   linked,
   hotspots,
+  checkedHotspots,
   notes,
   elementId,
   landed,
   handlers,
 }: CodeLineProps) {
   const lineNumber = line.newLine;
-  const canNote = lineNumber !== null;
-  const positionOf = (target: IdentifierTarget): SymbolPosition => ({
-    ...target,
-    path,
-    line: lineNumber ?? line.oldLine ?? 1,
-    side: lineNumber === null ? "old" : "new",
-  });
+  const addNote = lineNumber === null ? null : () => handlers.onAddNote(path, lineNumber);
+  const positionOf = (target: IdentifierTarget) => symbolPosition(path, line, target);
+  const here = { hunk: hunkIndex, line: lineIndex };
   return (
     <>
       <div
@@ -100,22 +159,10 @@ export function CodeLine({
           landed && "ring-2 ring-primary ring-inset",
         )}
       >
-        <span className="w-12 shrink-0 pr-2 text-right text-muted-foreground/70 select-none">
-          {line.oldLine ?? ""}
-        </span>
-        <span className="w-12 shrink-0 pr-2 text-right text-muted-foreground/70 select-none">
-          {lineNumber ?? ""}
-        </span>
+        <LineNumber value={line.oldLine} />
+        <LineNumber value={lineNumber} />
         <span className="flex w-6 shrink-0 justify-center select-none">
-          {canNote ? (
-            <button
-              onClick={() => handlers.onAddNote(path, lineNumber)}
-              title="Add a note on this line (c)"
-              className="text-primary opacity-0 transition-[opacity,transform] duration-150 ease-spring group-hover:opacity-100 hover:scale-125 focus-visible:opacity-100"
-            >
-              <MessageSquarePlus size={14} />
-            </button>
-          ) : null}
+          {addNote && <NoteButton onClick={addNote} />}
         </span>
         <span className={cn("w-4 shrink-0 select-none", MARKER_STYLES[line.kind])}>
           {MARKERS[line.kind]}
@@ -131,12 +178,13 @@ export function CodeLine({
           />
         </code>
         {hotspots.length > 0 && (
-          <span
-            className="flex shrink-0 items-center gap-1 px-2 font-sans text-xs text-severity-high"
-            title={hotspots.map((hotspot) => `${hotspot.title}: ${hotspot.why}`).join("\n")}
-          >
-            <Flag size={12} /> <InlineMarkdown text={hotspots[0].title} />
-          </span>
+          <LineFlags
+            range={{ path, from: here, to: here }}
+            hotspots={hotspots}
+            checked={checkedHotspots}
+            onAddNote={addNote}
+            handlers={handlers}
+          />
         )}
       </div>
       {notes.length > 0 && <LineNotes notes={notes} onDelete={handlers.onDeleteNote} />}
