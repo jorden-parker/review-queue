@@ -29,7 +29,13 @@ const INPUT: OrientationInput = {
   steps: [STEP],
   hotspots: [HOTSPOT],
 };
-const CONFIG = { baseURL: "http://llm.test", model: "m", enabled: true, timeoutMs: 1000 };
+const CONFIG = {
+  baseURL: "http://llm.test",
+  model: "m",
+  enabled: true,
+  thinking: true,
+  timeoutMs: 1000,
+};
 
 const GOOD = {
   summary: "Adds a cache.",
@@ -77,7 +83,7 @@ describe("orient", () => {
     const orientation = await orient(INPUT, CONFIG, fetchImpl);
     expect(orientation.hotspotNotes).toEqual([{ id: "todo:src/a.ts:1", note: "Track it." }]);
     expect(orientation.extraHotspots.map((hotspot) => hotspot.title)).toEqual(["No eviction"]);
-    expect(bodies[0]).toMatchObject({ model: "m", temperature: 0, thinking: { type: "disabled" } });
+    expect(bodies[0]).toMatchObject({ model: "m", temperature: 0 });
   });
 
   it("asks for markdown with code names in backticks", async () => {

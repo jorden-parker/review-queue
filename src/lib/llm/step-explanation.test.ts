@@ -17,7 +17,13 @@ const DIFFS: FileDiff[] = [
   fileDiff("src/b.ts", [addedHunk(["OTHER_FILE_LINE"])]),
 ];
 const INPUT: StepExplanationInput = { title: "Add cache", step: STEP, diffs: DIFFS };
-const CONFIG = { baseURL: "http://llm.test", model: "m", enabled: true, timeoutMs: 1000 };
+const CONFIG = {
+  baseURL: "http://llm.test",
+  model: "m",
+  enabled: true,
+  thinking: true,
+  timeoutMs: 1000,
+};
 
 const GOOD = {
   what: "Adds a cache.",

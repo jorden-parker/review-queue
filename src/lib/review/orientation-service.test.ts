@@ -13,7 +13,13 @@ const DATA: ReviewData = {
   hotspots: [],
   estimateMinutes: 1,
 };
-const CONFIG = { baseURL: "http://llm.test", model: "m", enabled: true, timeoutMs: 1000 };
+const CONFIG = {
+  baseURL: "http://llm.test",
+  model: "m",
+  enabled: true,
+  thinking: true,
+  timeoutMs: 1000,
+};
 const REPLY = {
   summary: "S",
   intent: "I",

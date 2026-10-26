@@ -120,6 +120,10 @@ CREATE TABLE IF NOT EXISTS cache (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 `;
 
 const PROGRESS_TABLES = ["sessions", "done_steps", "checked_hotspots", "jumps", "context_symbols"];
@@ -359,6 +363,24 @@ export class SessionStore {
     this.db
       .prepare(
         "INSERT INTO cache (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?",
+      )
+      .run(key, value, value);
+  }
+
+  clearCache(): number {
+    return Number(this.db.prepare("DELETE FROM cache").run().changes);
+  }
+
+  getSetting(key: string): string | null {
+    const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(key) as
+      { value: string } | undefined;
+    return row?.value ?? null;
+  }
+
+  setSetting(key: string, value: string): void {
+    this.db
+      .prepare(
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?",
       )
       .run(key, value, value);
   }

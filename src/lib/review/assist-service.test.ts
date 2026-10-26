@@ -3,7 +3,13 @@ import { ASSIST_ERROR_MARKER } from "@/lib/assist-protocol";
 import { reviewPayload } from "@/test/review-fixture";
 import { assistResponse } from "./assist-service";
 
-const CONFIG = { baseURL: "http://llm.test", model: "m", enabled: true, timeoutMs: 1000 };
+const CONFIG = {
+  baseURL: "http://llm.test",
+  model: "m",
+  enabled: true,
+  thinking: true,
+  timeoutMs: 1000,
+};
 const DATA = { data: reviewPayload(), index: { readFile: () => "export const client = 1;" } };
 const RANGE = { path: "src/client.ts", from: { hunk: 0, line: 0 }, to: { hunk: 0, line: 1 } };
 const BODY = {

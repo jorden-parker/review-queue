@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { llmConfig } from "@/lib/llm/model-choice";
 import { prKey } from "@/lib/pr-ref";
 import { jsonError, preparedFromRequest, type PrRouteContext } from "@/lib/review/route-context";
-import { sessionStore } from "@/lib/review/services";
+import { currentLlmConfig, sessionStore } from "@/lib/review/services";
 import { summaryDraftFor } from "@/lib/review/summary-draft-service";
 
 const SummaryDraftSchema = z.object({
@@ -19,6 +18,11 @@ export async function POST(request: Request, context: PrRouteContext) {
     .getSession(prKey(prepared.data.pr.ref))
     .notes.filter((note) => input.data.noteIds.includes(note.id));
   return Response.json(
-    await summaryDraftFor(prepared.data.pr.title, input.data.event, notes, await llmConfig()),
+    await summaryDraftFor(
+      prepared.data.pr.title,
+      input.data.event,
+      notes,
+      await currentLlmConfig(),
+    ),
   );
 }
