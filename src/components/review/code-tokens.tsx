@@ -11,14 +11,24 @@ export type IdentifierTarget = { name: string; character: number };
 type IdentifierHandlers = {
   onIdentifier?: (target: IdentifierTarget) => void;
   onHover?: (target: IdentifierTarget | null) => void;
+  emphasis?: string;
 };
 
 function ignore(): void {}
+
+function IdentifierName({ name, emphasis }: { name: string; emphasis?: string }) {
+  return name === emphasis ? (
+    <mark className="rounded-sm bg-callout text-callout-foreground">{name}</mark>
+  ) : (
+    name
+  );
+}
 
 function IdentifierButton({
   target,
   onIdentifier,
   onHover = ignore,
+  emphasis,
 }: { target: IdentifierTarget } & Required<Pick<IdentifierHandlers, "onIdentifier">> &
   IdentifierHandlers) {
   return (
@@ -28,26 +38,28 @@ function IdentifierButton({
       onMouseLeave={() => onHover(null)}
       className="cursor-pointer rounded-sm underline decoration-dotted decoration-1 underline-offset-4 transition-colors duration-150 hover:bg-accent"
     >
-      {target.name}
+      <IdentifierName name={target.name} emphasis={emphasis} />
     </button>
   );
 }
 
-function linkedParts(text: string, start: number, handlers: IdentifierHandlers) {
-  const { onIdentifier } = handlers;
+function identifierParts(text: string, start: number, handlers: IdentifierHandlers) {
+  const { onIdentifier, emphasis } = handlers;
   let character = start;
   return text.split(IDENTIFIER_SPLIT).map((part, index) => {
     const target = { name: part, character };
     character += part.length;
-    return onIdentifier && IDENTIFIER.test(part) ? (
+    if (!IDENTIFIER.test(part)) return part;
+    return onIdentifier ? (
       <IdentifierButton
         key={index}
         target={target}
         onIdentifier={onIdentifier}
         onHover={handlers.onHover}
+        emphasis={emphasis}
       />
     ) : (
-      part
+      <IdentifierName key={index} name={part} emphasis={emphasis} />
     );
   });
 }
@@ -62,10 +74,10 @@ function TokenText({
   handlers: IdentifierHandlers;
 }) {
   const style = { "--light": token.light, "--dark": token.dark } as CSSProperties;
-  const plain = token.literal || token.keyword || !handlers.onIdentifier;
+  const plain = token.literal || token.keyword || !(handlers.onIdentifier || handlers.emphasis);
   return (
     <span className="code-token" style={style}>
-      {plain ? token.text : linkedParts(token.text, start, handlers)}
+      {plain ? token.text : identifierParts(token.text, start, handlers)}
     </span>
   );
 }

@@ -37,4 +37,20 @@ describe("CodeTokens", () => {
     render(<CodeTokens tokens={[{ text: "load(id)" }]} />);
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  it("marks only identifiers that match the emphasised name", () => {
+    const { container } = render(
+      <CodeTokens tokens={[{ text: "load(id, idle, id)" }]} onIdentifier={vi.fn()} emphasis="id" />,
+    );
+    expect([...container.querySelectorAll("mark")].map((mark) => mark.textContent)).toEqual([
+      "id",
+      "id",
+    ]);
+  });
+
+  it("marks the emphasised name in plain text too", () => {
+    const { container } = render(<CodeTokens tokens={[{ text: "load(id)" }]} emphasis="id" />);
+    expect(container.querySelector("mark")?.textContent).toBe("id");
+    expect(screen.queryByRole("button")).toBeNull();
+  });
 });

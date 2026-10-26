@@ -49,6 +49,7 @@ const SCOPE_LABELS: Record<DefinitionWithCode["scope"], string | null> = {
 
 function DefinitionHeader({
   definition,
+  peek,
   inPullRequest,
   onGoTo,
 }: PanelBodyProps & { definition: DefinitionWithCode }) {
@@ -64,7 +65,9 @@ function DefinitionHeader({
           variant="ghost"
           size="xs"
           className="text-primary"
-          onClick={() => onGoTo({ path: definition.path, line: definition.line })}
+          onClick={() =>
+            onGoTo({ path: definition.path, line: definition.line, name: peek.position.name })
+          }
         >
           In this PR <ArrowRight />
         </Button>
@@ -137,9 +140,11 @@ function Definitions(props: PanelBodyProps) {
 
 function ReferenceFile({
   group,
+  name,
   onGoTo,
 }: {
   group: ReferenceGroup;
+  name: string;
   onGoTo: PanelBodyProps["onGoTo"];
 }) {
   return (
@@ -154,7 +159,7 @@ function ReferenceFile({
           <li key={reference.line}>
             <button
               disabled={!group.inPullRequest}
-              onClick={() => onGoTo({ path: reference.path, line: reference.line })}
+              onClick={() => onGoTo({ path: reference.path, line: reference.line, name })}
               className="flex w-full gap-3 rounded-md px-2 py-1 text-left font-mono text-code transition-colors duration-150 hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent"
             >
               <span className="w-8 shrink-0 text-right text-muted-foreground/70 select-none">
@@ -178,7 +183,7 @@ function References({ peek, inPullRequest, onGoTo }: PanelBodyProps) {
   return (
     <div className="flex flex-col gap-4">
       {groupReferencesByFile(peek.references, inPullRequest).map((group) => (
-        <ReferenceFile key={group.path} group={group} onGoTo={onGoTo} />
+        <ReferenceFile key={group.path} group={group} name={peek.position.name} onGoTo={onGoTo} />
       ))}
     </div>
   );
