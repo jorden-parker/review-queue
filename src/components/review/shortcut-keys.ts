@@ -8,6 +8,7 @@ export type ShortcutAction =
   | "peek-references"
   | "pin-symbol"
   | "open-context"
+  | "open-outline"
   | "back"
   | "note"
   | "ask-model"
@@ -37,7 +38,7 @@ const SINGLE_KEYS: Record<string, ShortcutAction> = {
 };
 
 const CHORDS: Record<string, Record<string, ShortcutAction>> = {
-  g: { d: "peek-definition", r: "peek-references", c: "open-context" },
+  g: { d: "peek-definition", r: "peek-references", c: "open-context", o: "open-outline" },
 };
 
 export function resolveShortcut(

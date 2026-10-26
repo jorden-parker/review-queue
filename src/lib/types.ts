@@ -86,6 +86,10 @@ export type SymbolDefinition = {
   endLine: number;
 };
 
+export type OutlineSymbol = SymbolDefinition & { children: OutlineSymbol[] };
+
+export type ReferenceCount = { name: string; line: number; character: number; count: number };
+
 export type DiffSide = "old" | "new";
 
 export type SymbolPosition = {

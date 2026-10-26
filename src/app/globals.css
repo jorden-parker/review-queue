@@ -116,7 +116,6 @@
 @theme {
   --text-code: 0.8125rem;
   --text-code--line-height: 1.6;
-  --container-panel: 24rem;
   --container-panel-strip: 4.5rem;
   --container-panel-strip-compact: 3rem;
   --ease-calm: cubic-bezier(0.22, 1, 0.36, 1);

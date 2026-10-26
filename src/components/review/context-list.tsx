@@ -1,24 +1,6 @@
 "use client";
 
-import {
-  AtSign,
-  BookOpen,
-  Box,
-  Braces,
-  CircleDot,
-  Eraser,
-  Hash,
-  ListOrdered,
-  type LucideIcon,
-  Package,
-  Pin,
-  PinOff,
-  Shapes,
-  SquareFunction,
-  Type,
-  Undo2,
-  Variable,
-} from "lucide-react";
+import { BookOpen, Eraser, Pin, PinOff, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "cn";
 import { EmptyState } from "@/components/common/empty-state";
@@ -27,7 +9,6 @@ import { PathLabel } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { ContextSymbol, Jump } from "@/lib/session/store";
-import type { SymbolKind } from "@/lib/types";
 import {
   ALL_KIND_GROUPS,
   type ContextFilter,
@@ -35,6 +16,7 @@ import {
   type KindGroup,
   visibleSymbols,
 } from "./context-symbols";
+import { KIND_ICONS } from "./symbol-kind-icons";
 
 type ContextListProps = {
   symbols: ContextSymbol[];
@@ -57,20 +39,6 @@ const KIND_GROUP_LABELS: Record<KindGroup, string> = {
   types: "Types",
   values: "Values",
   library: "Library",
-};
-
-const KIND_ICONS: Record<SymbolKind, LucideIcon> = {
-  function: SquareFunction,
-  method: Braces,
-  class: Box,
-  interface: Shapes,
-  type: Type,
-  enum: ListOrdered,
-  variable: Variable,
-  constant: Hash,
-  parameter: AtSign,
-  property: CircleDot,
-  module: Package,
 };
 
 function TrailButtons({

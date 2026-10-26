@@ -118,6 +118,7 @@ function shortcutHandlers({
     "peek-references": () => hovered && peek.showReferences(hovered),
     "pin-symbol": pins.togglePeekPin,
     "open-context": () => ui.showPane("context"),
+    "open-outline": () => ui.showPane("outline"),
     "toggle-panel": ui.togglePanel,
     back: jumps.back,
     note: () => ui.setComposer(firstNoteLine(review.files, navigation.activeHunkId)),
@@ -264,6 +265,7 @@ export function useWorkspace(
   useShortcuts(onShortcut, acceptsShortcuts(ui.dialog));
 
   return {
+    pullRequest: ref,
     ...ui,
     ...navigation,
     aiEnabled: orientation.status !== "disabled",
