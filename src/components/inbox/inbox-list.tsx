@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { InlineMarkdown } from "@/components/common/markdown-text";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -30,7 +31,9 @@ function InboxRow({ request, progress }: { request: ReviewRequest; progress?: Pr
       <Link href={prPath(request.ref)} className="group block rounded-xl focus-visible:outline-2">
         <Card className="gap-1.5 px-4 transition-[box-shadow,transform] duration-200 ease-spring group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:ring-primary/40">
           <span className="flex items-center justify-between gap-4">
-            <span className="font-medium">{request.title}</span>
+            <span className="font-medium">
+              <InlineMarkdown text={request.title} />
+            </span>
             <ProgressBadge progress={progress} />
           </span>
           <span className="font-mono text-xs text-muted-foreground">

@@ -1,6 +1,13 @@
 import type { AssistAction } from "@/lib/assist-protocol";
 import type { DiffLine, Hunk } from "@/lib/types";
-import { fenced, type LlmConfig, type Message, type ModelRequest, streamModel } from "./client";
+import {
+  CODE_NAME_RULE,
+  fenced,
+  type LlmConfig,
+  type Message,
+  type ModelRequest,
+  streamModel,
+} from "./client";
 
 export type AssistInput = {
   title: string;
@@ -34,7 +41,7 @@ Reply with only the comment text: kind, specific and actionable, at most four se
 };
 
 function systemPrompt(action: AssistAction): string {
-  return [ROLE, TASKS[action], DATA_RULE].join("\n\n");
+  return [ROLE, TASKS[action], CODE_NAME_RULE, DATA_RULE].join("\n\n");
 }
 
 function linePrefix(line: DiffLine): string {

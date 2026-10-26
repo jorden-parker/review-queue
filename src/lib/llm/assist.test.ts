@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Hunk } from "@/lib/types";
 import { addedHunk, lines } from "@/test/diff-builders";
 import { type AssistInput, assistRequest, buildAssistPrompt } from "./assist";
+import { CODE_NAME_RULE } from "./client";
 
 const CONTEXT: Hunk[] = [addedHunk(["const a = 1;", "const b = 2;", "const c = 3;"], 10)];
 const INPUT: AssistInput = {
@@ -56,6 +57,12 @@ describe("buildAssistPrompt", () => {
 });
 
 describe("assistRequest", () => {
+  it("asks for markdown with code names in backticks for every action", () => {
+    for (const action of ["explain", "simplify", "comment", "ask"] as const) {
+      expect(assistRequest({ ...INPUT, action }, []).system).toContain(CODE_NAME_RULE);
+    }
+  });
+
   it("uses a different system prompt for each action", () => {
     const systems = (["explain", "simplify", "comment", "ask"] as const).map(
       (action) => assistRequest({ ...INPUT, action }, []).system,

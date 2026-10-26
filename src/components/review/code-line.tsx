@@ -2,6 +2,7 @@
 
 import { Flag, MessageSquarePlus, Trash2 } from "lucide-react";
 import { cn } from "cn";
+import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import type { Token } from "@/lib/highlight";
 import type { DiffLine, Hotspot, Note } from "@/lib/types";
@@ -123,7 +124,7 @@ export function CodeLine({
             className="flex shrink-0 items-center gap-1 px-2 font-sans text-xs text-severity-high"
             title={hotspots.map((hotspot) => `${hotspot.title}: ${hotspot.why}`).join("\n")}
           >
-            <Flag size={12} /> {hotspots[0].title}
+            <Flag size={12} /> <InlineMarkdown text={hotspots[0].title} />
           </span>
         )}
       </div>

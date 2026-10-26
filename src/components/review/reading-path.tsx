@@ -4,6 +4,7 @@ import { Check, Circle, Play, RotateCcw } from "lucide-react";
 import { cn } from "cn";
 import { Celebration } from "@/components/common/celebration";
 import { HintButton } from "@/components/common/hint-button";
+import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { Step } from "@/lib/types";
@@ -71,7 +72,7 @@ function StepNotes({ reason, start, reopened }: StepNotesProps) {
     <>
       {reason && (
         <span data-testid="step-reason" className="text-xs text-muted-foreground">
-          {reason}
+          <InlineMarkdown text={reason} />
         </span>
       )}
       {start && (

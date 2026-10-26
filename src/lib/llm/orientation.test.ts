@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Hotspot, Step } from "@/lib/types";
 import { addedHunk, fileDiff, lines } from "@/test/diff-builders";
+import { CODE_NAME_RULE } from "./client";
 import { buildPrompt, orient, type OrientationInput } from "./orientation";
 
 const STEP: Step = {
@@ -77,6 +78,12 @@ describe("orient", () => {
     expect(orientation.hotspotNotes).toEqual([{ id: "todo:src/a.ts:1", note: "Track it." }]);
     expect(orientation.extraHotspots.map((hotspot) => hotspot.title)).toEqual(["No eviction"]);
     expect(bodies[0]).toMatchObject({ model: "m", temperature: 0, thinking: { type: "disabled" } });
+  });
+
+  it("asks for markdown with code names in backticks", async () => {
+    const { fetchImpl, bodies } = scriptedFetch([JSON.stringify(GOOD)]);
+    await orient(INPUT, CONFIG, fetchImpl);
+    expect(bodies[0]).toMatchObject({ system: expect.stringContaining(CODE_NAME_RULE) });
   });
 
   it("retries once when the first reply is not valid JSON", async () => {

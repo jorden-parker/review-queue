@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Note } from "@/lib/types";
+import { CODE_NAME_RULE } from "./client";
 import { buildSummaryPrompt, draftSummary, type SummaryDraftInput } from "./summary-draft";
 
 const NOTES: Note[] = [
@@ -73,6 +74,12 @@ describe("draftSummary", () => {
   it("returns the trimmed summary from the reply", async () => {
     const { fetchImpl } = scriptedFetch([`{"summary": "  Needs an eviction policy.  "}`]);
     expect(await draftSummary(INPUT, CONFIG, fetchImpl)).toBe("Needs an eviction policy.");
+  });
+
+  it("asks for markdown with code names in backticks", async () => {
+    const { fetchImpl, bodies } = scriptedFetch([`{"summary": "Fine."}`]);
+    await draftSummary(INPUT, CONFIG, fetchImpl);
+    expect(bodies[0]).toMatchObject({ system: expect.stringContaining(CODE_NAME_RULE) });
   });
 
   it("retries once when the first reply is not valid JSON", async () => {
