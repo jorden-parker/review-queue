@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { PreparedFile } from "@/lib/review/prepare";
 import type { Step } from "@/lib/types";
 import { addedHunk, fileDiff } from "@/test/diff-builders";
-import { nextOpenStep, stepForLine } from "./locate";
+import { isSameLine, nextOpenStep, stepForLine } from "./locate";
+
+describe("isSameLine", () => {
+  it("matches a target on the same path and line, ignoring the symbol name", () => {
+    const target = { path: "src/a.ts", line: 4, name: "total" };
+    expect(isSameLine(target, "src/a.ts", 4)).toBe(true);
+    expect(isSameLine(target, "src/a.ts", 5)).toBe(false);
+    expect(isSameLine(target, "src/b.ts", 4)).toBe(false);
+    expect(isSameLine(null, "src/a.ts", 4)).toBe(false);
+  });
+});
 
 const FILE: PreparedFile = {
   ...fileDiff("a.ts", [addedHunk(["a", "b"], 1), addedHunk(["c"], 50)]),
