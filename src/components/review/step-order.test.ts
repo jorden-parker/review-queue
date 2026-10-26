@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { reviewPayload } from "@/test/review-fixture";
-import { orderedSteps } from "./step-order";
+import { orderedSteps, stepReasons } from "./step-order";
 import type { OrientationState } from "./use-review";
 
 const STEPS = reviewPayload().steps;
 const [FIRST, SECOND, THIRD] = STEPS;
 
-function readyWithOrder(stepOrder: string[]): OrientationState {
+function ready(stepOrder: { id: string; why: string }[]): OrientationState {
   return {
     status: "ready",
     orientation: {
@@ -15,16 +15,19 @@ function readyWithOrder(stepOrder: string[]): OrientationState {
       intent: "",
       risk: "low",
       stepOrder,
-      startReason: "",
       hotspotNotes: [],
       extraHotspots: [],
     },
   };
 }
 
+function readyWithOrder(ids: string[]): OrientationState {
+  return ready(ids.map((id) => ({ id, why: `Read ${id} here.` })));
+}
+
 describe("orderedSteps", () => {
-  it("keeps the heuristic order while loading", () => {
-    expect(orderedSteps(STEPS, { status: "loading" })).toBe(STEPS);
+  it("holds back every step while the model is ordering them", () => {
+    expect(orderedSteps(STEPS, { status: "loading" })).toEqual([]);
   });
 
   it("keeps the heuristic order when the model is off or failed", () => {
@@ -43,5 +46,21 @@ describe("orderedSteps", () => {
       FIRST,
       THIRD,
     ]);
+  });
+});
+
+describe("stepReasons", () => {
+  it("maps each step to the model's reason for its place", () => {
+    expect(stepReasons(readyWithOrder([SECOND.id]))).toEqual({
+      [SECOND.id]: `Read ${SECOND.id} here.`,
+    });
+  });
+
+  it("leaves out steps the model gave no reason for", () => {
+    expect(stepReasons(ready([{ id: FIRST.id, why: "" }]))).toEqual({});
+  });
+
+  it("has no reasons until the model is ready", () => {
+    expect(stepReasons({ status: "loading" })).toEqual({});
   });
 });

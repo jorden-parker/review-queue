@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ChevronDown, ChevronUp, Compass, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Compass, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { PrDescription } from "@/components/common/pr-description";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,7 @@ import type { OrientationState } from "./use-review";
 type OrientationCardProps = {
   review: ReviewPayload;
   orientation: OrientationState;
-  startStepId: string | null;
-  defaultExpanded: boolean;
-  onStart?: () => void;
+  fresh: boolean;
 };
 
 const RISK_STYLES = {
@@ -34,7 +32,7 @@ function AiSummary({ orientation }: { orientation: OrientationState }) {
       </p>
     );
   }
-  const { summary, intent, risk, startReason } = orientation.orientation;
+  const { summary, intent, risk } = orientation.orientation;
   return (
     <div className="flex flex-col gap-1.5 rounded-lg bg-muted/60 p-3 text-sm">
       <p className="text-xs text-muted-foreground">
@@ -49,9 +47,6 @@ function AiSummary({ orientation }: { orientation: OrientationState }) {
       <p>
         <span className="text-muted-foreground">Risk:</span>{" "}
         <span className={`font-medium ${RISK_STYLES[risk]}`}>{risk}</span>
-      </p>
-      <p>
-        <span className="text-muted-foreground">Start because:</span> {startReason}
       </p>
     </div>
   );
@@ -100,22 +95,15 @@ function DetailsToggle({ expanded, onToggle }: { expanded: boolean; onToggle: ()
   );
 }
 
-export function OrientationCard({
-  review,
-  orientation,
-  startStepId,
-  defaultExpanded,
-  onStart,
-}: OrientationCardProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const startIndex = review.steps.findIndex((step) => step.id === startStepId);
+export function OrientationCard({ review, orientation, fresh }: OrientationCardProps) {
+  const [expanded, setExpanded] = useState(fresh);
   return (
     <Card size={expanded ? "default" : "sm"}>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <CardDescription className="flex items-center gap-2">
             <Compass size={16} className="animate-float text-primary" />
-            {onStart ? "Before you start" : "About this PR"}
+            {fresh ? "Before you start" : "About this PR"}
           </CardDescription>
           <DetailsToggle expanded={expanded} onToggle={() => setExpanded(!expanded)} />
         </div>
@@ -134,11 +122,6 @@ export function OrientationCard({
           <AiSummary orientation={orientation} />
         ) : (
           <AiSummaryLine orientation={orientation} />
-        )}
-        {expanded && onStart && startIndex >= 0 && (
-          <Button size="lg" onClick={onStart} className="w-fit px-4">
-            Start at step {startIndex + 1} <ArrowRight />
-          </Button>
         )}
       </CardContent>
     </Card>

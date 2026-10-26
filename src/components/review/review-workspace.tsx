@@ -34,12 +34,12 @@ import { OrientationCard } from "./orientation-card";
 import { PauseDialog } from "./pause-dialog";
 import { PeekPanel } from "./peek-panel";
 import { PostedToast } from "./posted-toast";
-import { ReadingPath } from "./reading-path";
+import { ORDERING_MESSAGE, ReadingPath } from "./reading-path";
 import { ResumeCard } from "./resume-card";
 import { ShortcutHelp } from "./shortcut-help";
 import { StartOverDialog } from "./start-over-dialog";
 import { StepExplanation } from "./step-explanation";
-import { orderedSteps } from "./step-order";
+import { orderedSteps, stepReasons } from "./step-order";
 import { SelectionToolbar } from "./selection-toolbar";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
@@ -130,10 +130,12 @@ function Sidebar({
   review,
   session,
   workspace,
+  orientation,
 }: {
   review: ReviewPayload;
   session: Session;
   workspace: Workspace;
+  orientation: OrientationState;
 }) {
   const openHotspots = workspace.hotspots.filter(
     (hotspot) => !session.checkedHotspots.includes(hotspot.id),
@@ -169,6 +171,9 @@ function Sidebar({
           currentStepId={workspace.currentStep?.id ?? null}
           doneSteps={session.doneSteps}
           reopenedStepIds={review.reopenedStepIds}
+          reasons={stepReasons(orientation)}
+          ordering={orientation.status === "loading"}
+          fallback={orientation.status === "error"}
           onSelect={(stepId) => workspace.selectStep(stepId)}
           onToggleDone={(stepId) =>
             workspace.setStepDone(stepId, !session.doneSteps.includes(stepId))
@@ -335,6 +340,7 @@ function Dialogs({
 }
 
 function ShowAllToggle({ workspace }: { workspace: Workspace }) {
+  if (!workspace.currentStep) return null;
   return (
     <div className="flex items-center justify-end">
       <Button
@@ -348,10 +354,6 @@ function ShowAllToggle({ workspace }: { workspace: Workspace }) {
       </Button>
     </div>
   );
-}
-
-function startReview(workspace: Workspace) {
-  if (workspace.startStepId) workspace.selectStep(workspace.startStepId);
 }
 
 function WorkspacePeek({ workspace }: { workspace: Workspace }) {
@@ -404,6 +406,20 @@ function WorkspaceSelectionToolbar({ workspace }: { workspace: Workspace }) {
   );
 }
 
+function NoSteps({
+  review,
+  orientation,
+}: {
+  review: ReviewPayload;
+  orientation: OrientationState;
+}) {
+  if (review.steps.length === 0) {
+    return <EmptyState emoji="🫥">This PR has no file changes.</EmptyState>;
+  }
+  if (orientation.status !== "loading") return null;
+  return <EmptyState emoji="🧭">{ORDERING_MESSAGE}</EmptyState>;
+}
+
 export function ReviewWorkspace({
   pullRequest,
   review: payload,
@@ -447,17 +463,20 @@ export function ReviewWorkspace({
             : "grid min-h-0 grid-cols-workspace"
         }
       >
-        <Sidebar review={review} session={session} workspace={workspace} />
+        <Sidebar
+          review={review}
+          session={session}
+          workspace={workspace}
+          orientation={orientation}
+        />
         <div className="relative flex min-h-0 min-w-0 flex-col">
           <div className="shrink-0 border-b bg-background px-6 py-3">
             <div className="mx-auto max-w-5xl">
               <OrientationCard
                 key={fresh ? "fresh" : "started"}
-                review={review}
+                review={payload}
                 orientation={orientation}
-                startStepId={workspace.startStepId}
-                defaultExpanded={fresh}
-                onStart={fresh ? () => startReview(workspace) : undefined}
+                fresh={fresh}
               />
             </div>
           </div>
@@ -486,9 +505,7 @@ export function ReviewWorkspace({
                   </div>
                 ))}
               </div>
-              {review.steps.length === 0 && (
-                <EmptyState emoji="🫥">This PR has no file changes.</EmptyState>
-              )}
+              <NoSteps review={payload} orientation={orientation} />
               <StepFooter review={review} workspace={workspace} />
             </div>
           </main>

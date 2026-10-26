@@ -87,7 +87,7 @@ export function installFakeApi(
     const path = url.split("?")[0];
     const route = routes.find(([pattern]) => pattern.test(path));
     if (!route) return Response.json({ error: "not found" }, { status: 404 });
-    const result = route[1](body);
+    const result = await route[1](body);
     return result instanceof Response ? result : Response.json(result);
   });
   vi.stubGlobal("fetch", fetchMock);

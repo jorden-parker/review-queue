@@ -67,7 +67,6 @@ describe("ReviewLoader", () => {
         intent: "Loads fail on flaky networks.",
         risk: "medium",
         stepOrder: [],
-        startReason: "Everything uses Options.",
         hotspotNotes: [{ id: "debug-output:src/client.ts:11", note: "Drop the log." }],
         extraHotspots: [
           { path: "src/client.ts", line: 10, title: "No backoff", why: "Hammers the server." },
@@ -79,27 +78,48 @@ describe("ReviewLoader", () => {
     expect(screen.getByText(/unverified/i)).toBeTruthy();
   });
 
-  it("follows the reading order the local model suggests", async () => {
-    const { user } = await renderReview(reviewPayload(), {
+  it("opens and lists the steps in the local model's order, with its reasons", async () => {
+    await renderReview(reviewPayload(), {
       status: "ready",
       orientation: {
         model: "m",
         summary: "Adds retries to loading.",
         intent: "Loads fail on flaky networks.",
         risk: "medium",
-        stepOrder: ["core:src/client.ts:0", "types:src/types.ts:0", "generated:pnpm-lock.yaml:0"],
-        startReason: "The retry loop lives here.",
+        stepOrder: [
+          { id: "core:src/client.ts:0", why: "The retry loop lives here." },
+          { id: "types:src/types.ts:0", why: "Then the options it reads." },
+          { id: "generated:pnpm-lock.yaml:0", why: "Last, the lockfile." },
+        ],
         hotspotNotes: [],
         extraHotspots: [],
       },
     });
-    await user.click(await screen.findByRole("button", { name: /Start at step 1/ }));
-    expect(await screen.findByText("Step 1 of 3 · core · 2 lines")).toBeTruthy();
+    expect(screen.getByText("Step 1 of 3 · core · 2 lines")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Start at step/ })).toBeNull();
+    const reasons = [
+      "The retry loop lives here.",
+      "Then the options it reads.",
+      "Last, the lockfile.",
+    ];
+    const path = within(screen.getByRole("list", { name: "Reading path" }));
+    expect(path.getAllByTestId("step-reason").map((reason) => reason.textContent)).toEqual(reasons);
   });
 
-  it("explains when the local model is unavailable", async () => {
+  it("shows no steps until the local model has ordered them", async () => {
+    installFakeApi(reviewPayload(), new Promise(() => {}));
+    render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
+    expect(await screen.findAllByText("Local model is ordering the steps…")).toHaveLength(2);
+    expect(screen.queryByRole("list", { name: "Reading path" })).toBeNull();
+    expect(screen.queryByText(/^Step \d of 3/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Show whole PR/ })).toBeNull();
+  });
+
+  it("falls back to the built-in order when the local model is unavailable", async () => {
     await renderReview(reviewPayload(), { status: "error", message: "connection refused" });
     expect(await screen.findByText(/connection refused/)).toBeTruthy();
+    expect(screen.getByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
+    expect(screen.getByText(/Built-in order/)).toBeTruthy();
   });
 
   it("explains the current step on request", async () => {

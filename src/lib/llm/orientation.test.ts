@@ -34,8 +34,7 @@ const GOOD = {
   summary: "Adds a cache.",
   intent: "Loads are slow.",
   risk: "medium",
-  stepOrder: ["core:src/a.ts:0"],
-  startReason: "It is the core.",
+  stepOrder: [{ id: "core:src/a.ts:0", why: "It is the core." }],
   hotspotNotes: [
     { id: "todo:src/a.ts:1", note: "Track it." },
     { id: "made-up", note: "x" },
@@ -87,24 +86,34 @@ describe("orient", () => {
     expect(bodies).toHaveLength(2);
   });
 
-  it("keeps the model's step order", async () => {
+  it("keeps the model's step order and reasons", async () => {
     const input = { ...INPUT, steps: [STEP, LATER_STEP] };
-    const order = [LATER_STEP.id, STEP.id];
+    const order = [
+      { id: LATER_STEP.id, why: "Defines the types." },
+      { id: STEP.id, why: "Uses them." },
+    ];
     const { fetchImpl } = scriptedFetch([JSON.stringify({ ...GOOD, stepOrder: order })]);
     expect((await orient(input, CONFIG, fetchImpl)).stepOrder).toEqual(order);
   });
 
   it("drops invented and repeated steps from the order", async () => {
     const input = { ...INPUT, steps: [STEP, LATER_STEP] };
-    const order = ["nope", LATER_STEP.id, LATER_STEP.id, STEP.id];
+    const order = ["nope", LATER_STEP.id, LATER_STEP.id, STEP.id].map((id) => ({ id, why: id }));
     const { fetchImpl } = scriptedFetch([JSON.stringify({ ...GOOD, stepOrder: order })]);
-    expect((await orient(input, CONFIG, fetchImpl)).stepOrder).toEqual([LATER_STEP.id, STEP.id]);
+    expect((await orient(input, CONFIG, fetchImpl)).stepOrder).toEqual([
+      { id: LATER_STEP.id, why: LATER_STEP.id },
+      { id: STEP.id, why: STEP.id },
+    ]);
   });
 
-  it("appends steps the model left out in their original order", async () => {
+  it("appends steps the model left out in their original order, without a reason", async () => {
     const input = { ...INPUT, steps: [STEP, LATER_STEP] };
-    const { fetchImpl } = scriptedFetch([JSON.stringify({ ...GOOD, stepOrder: [] })]);
-    expect((await orient(input, CONFIG, fetchImpl)).stepOrder).toEqual([STEP.id, LATER_STEP.id]);
+    const order = [{ id: LATER_STEP.id, why: "Start here." }];
+    const { fetchImpl } = scriptedFetch([JSON.stringify({ ...GOOD, stepOrder: order })]);
+    expect((await orient(input, CONFIG, fetchImpl)).stepOrder).toEqual([
+      { id: LATER_STEP.id, why: "Start here." },
+      { id: STEP.id, why: "" },
+    ]);
   });
 
   it("names the model when the server does not have it", async () => {
