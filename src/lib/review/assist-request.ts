@@ -7,10 +7,11 @@ import {
   MAX_HISTORY_TURNS,
   targetPath,
 } from "@/lib/assist-protocol";
-import type { AssistInput } from "@/lib/llm/assist";
+import { checksFor } from "@/lib/hotspots/checks";
+import type { AssistFlag, AssistInput } from "@/lib/llm/assist";
 import type { Message } from "@/lib/llm/client";
 import type { SymbolIndex } from "@/lib/symbols/symbol-index";
-import type { Hunk } from "@/lib/types";
+import type { DiffLine, Hotspot, Hunk } from "@/lib/types";
 import type { PreparedFile, ReviewData } from "./prepare";
 
 const PositionSchema = z.object({
@@ -102,6 +103,17 @@ function fileContent(index: AssistSource["index"], file: PreparedFile): ContentR
   };
 }
 
+function flagsOn(hotspots: Hotspot[], path: string, selected: DiffLine[]): AssistFlag[] {
+  const lines = new Set(selected.map((line) => line.newLine));
+  return hotspots
+    .filter((hotspot) => hotspot.path === path && lines.has(hotspot.line))
+    .map((hotspot) => ({
+      title: hotspot.title,
+      why: hotspot.why,
+      checks: checksFor(hotspot.rule),
+    }));
+}
+
 export function assistInputFrom(source: AssistSource, request: AssistRequest): AssistInputResult {
   const { target } = request;
   const file = source.data.files.find((candidate) => candidate.path === targetPath(target));
@@ -111,6 +123,12 @@ export function assistInputFrom(source: AssistSource, request: AssistRequest): A
       ? lineContent(file, target.range.from, target.range.to)
       : fileContent(source.index, file);
   if (!result.ok) return result;
+  const flags =
+    request.action === "check"
+      ? flagsOn(source.data.hotspots, file.path, result.content.selected)
+      : [];
+  if (request.action === "check" && flags.length === 0)
+    return { ok: false, error: "Those lines have no flags" };
   return {
     ok: true,
     input: {
@@ -118,6 +136,7 @@ export function assistInputFrom(source: AssistSource, request: AssistRequest): A
       path: file.path,
       action: request.action,
       question: request.question,
+      flags,
       ...result.content,
     },
   };

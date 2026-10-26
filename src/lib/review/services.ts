@@ -1,7 +1,10 @@
 import { getPullRequest, listReviewRequests, type ReviewRequest } from "@/lib/github/gh";
 import { TtlCache } from "@/lib/github/ttl-cache";
+import type { LlmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/llm/model-choice";
 import { prKey } from "@/lib/pr-ref";
 import { defaultDatabasePath, SessionStore } from "@/lib/session/store";
+import { savedLlmSettings } from "@/lib/settings/llm-settings";
 import type { ReviewDeps } from "./prepare";
 
 const REVIEW_REQUESTS_TTL_MS = 60_000;
@@ -36,4 +39,8 @@ export function reviewDeps(): ReviewDeps {
       ),
     store: sessionStore(),
   };
+}
+
+export function currentLlmConfig(): Promise<LlmConfig> {
+  return llmConfig(process.env, fetch, savedLlmSettings(sessionStore()));
 }

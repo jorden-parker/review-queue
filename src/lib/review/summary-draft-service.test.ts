@@ -12,7 +12,13 @@ const NOTES: Note[] = [
     createdAt: "2026-10-26T10:00:00Z",
   },
 ];
-const CONFIG = { baseURL: "http://llm.test", model: "m", enabled: true, timeoutMs: 1000 };
+const CONFIG = {
+  baseURL: "http://llm.test",
+  model: "m",
+  enabled: true,
+  thinking: true,
+  timeoutMs: 1000,
+};
 const OFF = { ...CONFIG, enabled: false };
 
 function reply(text: string): Response {
