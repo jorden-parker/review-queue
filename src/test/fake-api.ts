@@ -15,6 +15,10 @@ export function installFakeApi(
   const routes: [RegExp, (body: unknown) => unknown][] = [
     [/\/orientation/, () => orientation],
     [
+      /\/summary-draft/,
+      () => ({ status: "ready", summary: "Looks good overall; one question on retries." }),
+    ],
+    [
       /\/explanation/,
       () => ({
         status: "ready",

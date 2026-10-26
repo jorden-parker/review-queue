@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import type { ReviewEvent } from "@/lib/github/gh";
 import type { Session } from "@/lib/session/store";
 import type { Note, NoteKind, PullRequestRef } from "@/lib/types";
-import { submitReviewRequest } from "./api";
+import { requestSummaryDraft, submitReviewRequest } from "./api";
 import type { LineTarget } from "./locate";
 import { toggled, type Act } from "./use-step-navigation";
 
@@ -67,5 +67,15 @@ export function useSessionEdits(
     [ref, headSha, setSession],
   );
 
-  return { toggleHotspot, saveNote, deleteNote, pause, resume, submit };
+  const draftSummary = useCallback(
+    async (event: ReviewEvent, noteIds: number[]) => {
+      const result = await requestSummaryDraft(ref, headSha, { event, noteIds });
+      if (result.status === "ready") return result.summary;
+      if (result.status === "error") throw new Error(result.message);
+      throw new Error("The local model is switched off");
+    },
+    [ref, headSha],
+  );
+
+  return { toggleHotspot, saveNote, deleteNote, pause, resume, submit, draftSummary };
 }
