@@ -1,4 +1,4 @@
-import type { Hotspot } from "@/lib/types";
+import type { Hotspot, Step } from "@/lib/types";
 import type { DisplayHotspot } from "./hotspot-list";
 import type { OrientationState } from "./use-review";
 
@@ -22,4 +22,9 @@ export function displayHotspots(
     ...hotspots.map((hotspot) => ({ ...hotspot, note: notes.get(hotspot.id) })),
     ...suggested,
   ];
+}
+
+export function hotspotsInStep<T extends Hotspot>(hotspots: T[], step: Step): T[] {
+  const paths = new Set(step.files.map((file) => file.path));
+  return hotspots.filter((hotspot) => paths.has(hotspot.path));
 }

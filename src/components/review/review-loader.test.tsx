@@ -14,8 +14,12 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-async function renderReview(payload = reviewPayload(), orientation?: unknown) {
-  const api = installFakeApi(payload, orientation);
+async function renderReview(
+  payload = reviewPayload(),
+  orientation?: unknown,
+  explanations?: unknown[],
+) {
+  const api = installFakeApi(payload, orientation, explanations);
   const user = userEvent.setup();
   render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
   await screen.findByText(/^Step \d of 3/);
@@ -75,7 +79,7 @@ describe("ReviewLoader", () => {
     });
     expect(await screen.findByText("Adds retries to loading.")).toBeTruthy();
     expect(screen.getByText("medium")).toBeTruthy();
-    expect(screen.getByText(/unverified/i)).toBeTruthy();
+    expect(await screen.findAllByText(/unverified/i)).toHaveLength(2);
   });
 
   it("opens and lists the steps in the local model's order, with its reasons", async () => {
@@ -122,16 +126,25 @@ describe("ReviewLoader", () => {
     expect(screen.getByText(/Built-in order/)).toBeTruthy();
   });
 
-  it("explains the current step on request", async () => {
-    const { user } = await renderReview(reviewPayload(), { status: "error", message: "x" });
-    await user.click(screen.getByRole("button", { name: /Explain this step/ }));
-    expect(await screen.findByText("Adds the Options type.")).toBeTruthy();
-    expect(screen.getByText("Is retries optional?")).toBeTruthy();
+  it("explains the current step without being asked", async () => {
+    await renderReview(reviewPayload(), MODEL_ON);
+    const rail = screen.getByRole("complementary", { name: "This step" });
+    expect(await within(rail).findByText("Adds the Options type.")).toBeTruthy();
+    expect(within(rail).getByText("Is retries optional?")).toBeTruthy();
   });
 
-  it("hides the explain button when the model is off", async () => {
-    await renderReview();
-    expect(screen.queryByRole("button", { name: /Explain this step/ })).toBeNull();
+  it("asks for no explanation when the model is off", async () => {
+    const { api } = await renderReview();
+    expect(api.calls.some((call) => call.url.includes("/explanation"))).toBe(false);
+  });
+
+  it("retries a failed step explanation", async () => {
+    const { user } = await renderReview(reviewPayload(), MODEL_ON, [
+      { status: "error", message: "timed out" },
+    ]);
+    expect(await screen.findByText(/timed out/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("Adds the Options type.")).toBeTruthy();
   });
 
   it("keeps the review open when the orientation request fails", async () => {
@@ -267,7 +280,8 @@ describe("ReviewLoader", () => {
     await user.click(screen.getByRole("tab", { name: /Hotspots \(1\)/ }));
     await user.click(screen.getByRole("button", { name: /Debug output left in/ }));
     expect(await screen.findByText("Step 2 of 3 · core · 2 lines")).toBeTruthy();
-    await user.click(screen.getByTitle("Checked"));
+    const stepHotspots = screen.getByRole("region", { name: "Hotspots in this step" });
+    await user.click(within(stepHotspots).getByTitle("Checked"));
     expect(api.actions()).toContainEqual({
       type: "hotspot-checked",
       hotspotId: "debug-output:src/client.ts:11",
@@ -373,8 +387,9 @@ describe("ReviewLoader", () => {
     selectFirstLine("src/types.ts");
     const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
     await user.click(within(toolbar).getByRole("button", { name: /Explain/ }));
-    const panel = await screen.findByRole("complementary", { name: "Ask the model" });
+    const panel = await screen.findByRole("region", { name: "Ask the model" });
     expect(await within(panel).findByText(ASSIST_REPLY.join(""))).toBeTruthy();
+    expect(screen.getByText("Adds the Options type.")).toBeTruthy();
     await user.click(within(panel).getByRole("button", { name: "src/types.ts L1" }));
     await user.type(
       within(panel).getByLabelText("Ask the model"),
@@ -391,7 +406,7 @@ describe("ReviewLoader", () => {
       }),
     );
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("complementary", { name: "Ask the model" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Ask the model" })).toBeNull();
   });
 
   it("asks about a whole file from its header", async () => {
@@ -399,7 +414,7 @@ describe("ReviewLoader", () => {
     await user.click(screen.getAllByRole("button", { name: /Ask about file/ })[0]);
     const toolbar = screen.getByRole("toolbar", { name: "Ask the model about this file" });
     await user.click(within(toolbar).getByRole("button", { name: /Simplify/ }));
-    const panel = await screen.findByRole("complementary", { name: "Ask the model" });
+    const panel = await screen.findByRole("region", { name: "Ask the model" });
     expect(within(panel).getAllByText("Simplify this file")).toHaveLength(2);
     expect(await within(panel).findByText(ASSIST_REPLY.join(""))).toBeTruthy();
     const request = api.calls.filter((call) => call.url.includes("/assist")).at(-1)?.body;
@@ -411,7 +426,7 @@ describe("ReviewLoader", () => {
     selectFirstLine("src/types.ts");
     const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
     await user.click(within(toolbar).getByRole("button", { name: /Explain/ }));
-    const panel = await screen.findByRole("complementary", { name: "Ask the model" });
+    const panel = await screen.findByRole("region", { name: "Ask the model" });
     await within(panel).findByText(ASSIST_REPLY.join(""));
     await waitFor(() =>
       expect(api.actions()).toContainEqual(expect.objectContaining({ type: "assist-save" })),
@@ -419,7 +434,7 @@ describe("ReviewLoader", () => {
     await user.click(within(panel).getByRole("button", { name: "Close" }));
     await user.click(screen.getByRole("tab", { name: "Chats (1)" }));
     await user.click(screen.getByRole("button", { name: /Explain these lines/ }));
-    const reopened = await screen.findByRole("complementary", { name: "Ask the model" });
+    const reopened = await screen.findByRole("region", { name: "Ask the model" });
     expect(within(reopened).getByText(ASSIST_REPLY.join(""))).toBeTruthy();
     expect(within(reopened).getByLabelText("Ask the model")).toBeTruthy();
   });
@@ -428,7 +443,7 @@ describe("ReviewLoader", () => {
     const { api, user } = await renderReview(reviewPayload(), MODEL_ON);
     selectFirstLine("src/types.ts");
     await user.click(await screen.findByRole("button", { name: /Comment/ }));
-    const panel = await screen.findByRole("complementary", { name: "Ask the model" });
+    const panel = await screen.findByRole("region", { name: "Ask the model" });
     await user.type(
       within(panel).getByPlaceholderText(/What worries you/),
       "retries unbounded{Meta>}{Enter}{/Meta}",

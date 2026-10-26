@@ -18,9 +18,19 @@ function streamedText(chunks: string[]): Response {
   return new Response(body, { headers: { "content-type": "text/plain; charset=utf-8" } });
 }
 
+const STEP_EXPLANATION = {
+  status: "ready",
+  explanation: {
+    model: "m",
+    what: "Adds the Options type.",
+    checks: ["Is retries optional?"],
+  },
+};
+
 export function installFakeApi(
   payload: ReviewPayload,
   orientation: unknown = { status: "disabled" },
+  explanations: unknown[] = [],
 ) {
   const store = new SessionStore(":memory:");
   const calls: Call[] = [];
@@ -31,17 +41,7 @@ export function installFakeApi(
       /\/summary-draft/,
       () => ({ status: "ready", summary: "Looks good overall; one question on retries." }),
     ],
-    [
-      /\/explanation/,
-      () => ({
-        status: "ready",
-        explanation: {
-          model: "m",
-          what: "Adds the Options type.",
-          checks: ["Is retries optional?"],
-        },
-      }),
-    ],
+    [/\/explanation/, () => explanations.shift() ?? STEP_EXPLANATION],
     [
       /\/definitions/,
       () => [

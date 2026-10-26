@@ -1,7 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import type { StepExplanation } from "@/lib/llm/step-explanation";
@@ -9,7 +9,7 @@ import type { ExplanationResult } from "@/lib/review/explanation-service";
 import type { PullRequestRef } from "@/lib/types";
 import { fetchStepExplanation } from "./api";
 
-type ExplanationState = ExplanationResult | { status: "idle" } | { status: "loading" };
+type ExplanationState = ExplanationResult | { status: "loading" };
 
 type StepExplanationProps = {
   pullRequest: PullRequestRef;
@@ -40,33 +40,43 @@ function ExplanationPanel({ explanation }: { explanation: StepExplanation }) {
   );
 }
 
-function ExplainButton({ onExplain }: { onExplain: () => void }) {
+function ExplanationError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <Button variant="outline" size="sm" className="w-fit" onClick={onExplain}>
-      <Sparkles /> Explain this step
-    </Button>
+    <div className="flex flex-col items-start gap-2 text-sm text-muted-foreground">
+      <p>Local model unavailable ({message}).</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        Try again
+      </Button>
+    </div>
   );
 }
 
-export function StepExplanation({ pullRequest, headSha, stepId }: StepExplanationProps) {
-  const [state, setState] = useState<ExplanationState>({ status: "idle" });
+function useStepExplanation({ pullRequest, headSha, stepId }: StepExplanationProps) {
+  const [state, setState] = useState<ExplanationState>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
 
-  const explain = () => {
-    setState({ status: "loading" });
+  useEffect(() => {
+    let current = true;
     fetchStepExplanation(pullRequest, headSha, stepId)
-      .then(setState)
-      .catch((error: Error) => setState({ status: "error", message: error.message }));
-  };
+      .then((result) => current && setState(result))
+      .catch((error: Error) => current && setState({ status: "error", message: error.message }));
+    return () => {
+      current = false;
+    };
+  }, [pullRequest, headSha, stepId, attempt]);
 
+  const retry = useCallback(() => {
+    setState({ status: "loading" });
+    setAttempt((count) => count + 1);
+  }, []);
+
+  return { state, retry };
+}
+
+export function StepExplanation(props: StepExplanationProps) {
+  const { state, retry } = useStepExplanation(props);
   if (state.status === "disabled") return null;
   if (state.status === "ready") return <ExplanationPanel explanation={state.explanation} />;
-  if (state.status === "error") {
-    return (
-      <p className="text-sm text-muted-foreground">Local model unavailable ({state.message}).</p>
-    );
-  }
-  if (state.status === "loading") {
-    return <p className="text-sm text-muted-foreground">Local model is reading this step…</p>;
-  }
-  return <ExplainButton onExplain={explain} />;
+  if (state.status === "error") return <ExplanationError message={state.message} onRetry={retry} />;
+  return <p className="text-sm text-muted-foreground">Local model is reading this step…</p>;
 }
