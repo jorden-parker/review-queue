@@ -164,10 +164,7 @@ function SidebarTabTrigger({ tab, count }: { tab: (typeof TABS)[number]; count: 
 
 function SidebarPanel({ value, children }: { value: SidebarTab; children: ReactNode }) {
   return (
-    <TabsContent
-      value={value}
-      className="scrollbar-thin min-h-0 animate-step-enter overflow-y-auto p-3"
-    >
+    <TabsContent value={value} className="min-h-0 animate-step-enter overflow-y-auto p-3">
       {children}
     </TabsContent>
   );
@@ -515,7 +512,7 @@ export function ReviewWorkspace({
               <BreakBanner workspace={workspace} />
             </div>
           </div>
-          <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-6 pb-5">
+          <main className="min-h-0 flex-1 overflow-y-auto px-6 pb-5">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-4 pt-5">
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}
