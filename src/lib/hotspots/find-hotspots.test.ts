@@ -50,6 +50,13 @@ describe("findHotspots", () => {
     });
   });
 
+  it("stays fast on very long crafted lines", () => {
+    const crafted = ["SELECT ".repeat(6000), "type (".repeat(7000)];
+    const started = performance.now();
+    findHotspots([codeFile(crafted), fileDiff("src/old.ts", [removedHunk(crafted)])], EMPTY);
+    expect(performance.now() - started).toBeLessThan(300);
+  });
+
   it("skips security patterns in tests and everything in generated files", () => {
     expect(rulesFor([codeFile(["execSync(cmd)"], "src/a.test.ts")])).toEqual([]);
     expect(rulesFor([codeFile(["console.log(1)"], "dist/app.min.js"), SPEC])).toEqual([]);

@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { installFakeApi } from "@/test/fake-api";
-import { emptySession, REF, reviewPayload } from "@/test/review-fixture";
+import { emptySession, HEAD_SHA, REF, reviewPayload } from "@/test/review-fixture";
 import { ReviewLoader } from "./review-loader";
 
 vi.mock("next/link", () => ({
@@ -61,6 +61,7 @@ describe("ReviewLoader", () => {
     });
     expect(await screen.findByText("Adds retries to loading.")).toBeTruthy();
     expect(screen.getByText("medium")).toBeTruthy();
+    expect(screen.getByText(/unverified/i)).toBeTruthy();
   });
 
   it("explains when the local model is unavailable", async () => {
@@ -84,7 +85,7 @@ describe("ReviewLoader", () => {
     expect(api.actions()).toEqual(
       expect.arrayContaining([
         { type: "step-done", stepId: "types:src/types.ts:0", done: true },
-        { type: "current-step", stepId: "core:src/client.ts:0", headSha: "sha1" },
+        { type: "current-step", stepId: "core:src/client.ts:0", headSha: HEAD_SHA },
       ]),
     );
   });
@@ -217,7 +218,7 @@ describe("ReviewLoader", () => {
       event: "APPROVE",
       summary: "Nice work",
       noteIds: [3],
-      headSha: "sha1",
+      headSha: HEAD_SHA,
     });
   });
 

@@ -1,10 +1,11 @@
 import { z } from "zod";
 import type { Session, SessionStore } from "@/lib/session/store";
 
+const CommitShaSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 const NoteKindSchema = z.enum(["blocker", "question", "nit", "praise", "parked"]);
 
 export const SessionActionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("current-step"), stepId: z.string(), headSha: z.string() }),
+  z.object({ type: z.literal("current-step"), stepId: z.string(), headSha: CommitShaSchema }),
   z.object({ type: z.literal("step-done"), stepId: z.string(), done: z.boolean() }),
   z.object({ type: z.literal("hotspot-checked"), hotspotId: z.string(), checked: z.boolean() }),
   z.object({

@@ -101,6 +101,7 @@ export async function diffCheckout(checkout: Checkout, fromSha?: string): Promis
       "--no-color",
       "--no-ext-diff",
       "-M",
+      "--end-of-options",
       fromSha ?? checkout.mergeBaseSha,
       checkout.headSha,
     ],

@@ -26,7 +26,7 @@ function isIndexable(file: string): boolean {
 }
 
 function parseGrepLine(line: string): Reference | null {
-  const match = line.match(/^(.+?):(\d+):(.*)$/);
+  const match = line.match(/^(.+?):(\d+):(.*)$/s);
   if (!match) return null;
   return { path: match[1], line: Number(match[2]), text: match[3] };
 }
@@ -81,8 +81,8 @@ export class SymbolIndex {
   }
 
   readLines(file: string, startLine: number, endLine: number): string[] {
-    const absolute = path.resolve(this.root, file);
-    if (!absolute.startsWith(this.root + path.sep))
+    const absolute = fs.realpathSync(path.resolve(this.root, file));
+    if (!absolute.startsWith(fs.realpathSync(this.root) + path.sep))
       throw new Error(`Path outside checkout: ${file}`);
     const lines = fs.readFileSync(absolute, "utf8").split("\n");
     return lines.slice(startLine - 1, endLine);
@@ -90,7 +90,7 @@ export class SymbolIndex {
 
   private async addFile(file: string): Promise<void> {
     const absolute = path.join(this.root, file);
-    const stat = fs.statSync(absolute, { throwIfNoEntry: false });
+    const stat = fs.lstatSync(absolute, { throwIfNoEntry: false });
     if (!stat?.isFile() || stat.size > MAX_FILE_BYTES) return;
     const definitions = await parseDefinitions(file, fs.readFileSync(absolute, "utf8"));
     this.byFile.set(file, definitions);

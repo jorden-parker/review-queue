@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { loadAccessToken, matchesAccessToken } from "@/lib/access-token";
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+const TOKEN_COOKIE = "review-queue-token";
+const TOKEN_PARAM = "token";
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 function hostName(host: string | null): string | null {
   if (!host) return null;
@@ -24,12 +28,44 @@ function isSameOriginJson(request: NextRequest): boolean {
   return sameOrigin && json;
 }
 
-export function proxy(request: NextRequest) {
+function signInFromLink(request: NextRequest, token: string): NextResponse | null {
+  if (!matchesAccessToken(request.nextUrl.searchParams.get(TOKEN_PARAM), token)) return null;
+  const destination = new URL(request.url);
+  destination.searchParams.delete(TOKEN_PARAM);
+  destination.host = request.headers.get("host") ?? destination.host;
+  const response = NextResponse.redirect(destination.toString());
+  response.cookies.set(TOKEN_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "strict",
+    path: "/",
+    maxAge: COOKIE_MAX_AGE_SECONDS,
+  });
+  return response;
+}
+
+function guard(request: NextRequest, token: string): NextResponse {
   if (!isLoopback(request.headers.get("host"))) {
     return new NextResponse("Forbidden", { status: 403 });
+  }
+  const signedIn = signInFromLink(request, token);
+  if (signedIn) return signedIn;
+  if (!matchesAccessToken(request.cookies.get(TOKEN_COOKIE)?.value, token)) {
+    return new NextResponse("Open the review-queue link printed in the terminal.", {
+      status: 401,
+    });
   }
   if (request.method !== "GET" && request.method !== "HEAD" && !isSameOriginJson(request)) {
     return new NextResponse("Cross-site request refused", { status: 403 });
   }
   return NextResponse.next();
+}
+
+function forbidFraming(response: NextResponse): NextResponse {
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Content-Security-Policy", "frame-ancestors 'none'");
+  return response;
+}
+
+export function proxy(request: NextRequest) {
+  return forbidFraming(guard(request, loadAccessToken()));
 }

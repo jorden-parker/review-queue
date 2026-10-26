@@ -1,7 +1,7 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { dataDirectory } from "@/lib/data-directory";
 import type { Note, NoteKind } from "@/lib/types";
 
 export type Jump = { name: string; path: string; line: number };
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS cache (
 `;
 
 export function defaultDatabasePath(): string {
-  return path.join(os.homedir(), ".local", "share", "review-queue", "review-queue.db");
+  return path.join(dataDirectory(), "review-queue.db");
 }
 
 function openDatabase(file: string): DatabaseSync {
