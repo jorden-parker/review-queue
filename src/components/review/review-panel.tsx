@@ -1,10 +1,12 @@
 "use client";
 
-import { type LucideIcon, PanelRightClose, PanelRightOpen, X } from "lucide-react";
+import { GripVertical, type LucideIcon, PanelRightClose, PanelRightOpen, X } from "lucide-react";
 import { type DragEvent, Fragment, type MouseEvent, type ReactNode, useState } from "react";
 import { HintButton } from "@/components/common/hint-button";
 import { Button } from "@/components/ui/button";
 import type { PaneId, PaneLayout } from "./pane-layout";
+import { PANEL_WIDTH, maxPanelWidth } from "./panel-width";
+import { usePanelWidth } from "./use-panel-width";
 
 export type PaneEntry = { id: PaneId; label: string; icon: LucideIcon; count: number | null };
 export type PaneContent = { body: ReactNode; ownHeader?: boolean };
@@ -73,7 +75,7 @@ function PaneButton({
       draggable
       onDragStart={(event) => startPaneDrag(event, pane.id)}
       onClick={onClick}
-      className="relative h-auto w-full flex-col gap-1 rounded-none px-1 py-2.5 text-xs text-foreground/60 aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:after:absolute aria-pressed:after:inset-y-1 aria-pressed:after:left-0 aria-pressed:after:w-0.5 aria-pressed:after:bg-foreground"
+      className="relative mx-1 h-auto w-auto flex-col gap-1 rounded-md px-1 py-2.5 text-xs text-foreground/60 transition-colors duration-calm ease-calm hover:bg-background/60 hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-xs aria-pressed:after:absolute aria-pressed:after:inset-y-2 aria-pressed:after:-left-1 aria-pressed:after:w-0.5 aria-pressed:after:rounded-full aria-pressed:after:bg-primary"
     >
       <span className="relative">
         <Icon />
@@ -99,6 +101,7 @@ function PaneFrame({
   content: PaneContent;
   onClose: () => void;
 }) {
+  const PaneIcon = pane.icon;
   if (content.ownHeader) {
     return (
       <div data-pane-index={index} className="flex min-h-0 flex-1 basis-0 flex-col">
@@ -115,17 +118,50 @@ function PaneFrame({
       <header
         draggable
         onDragStart={(event) => startPaneDrag(event, pane.id)}
-        className="flex shrink-0 cursor-grab items-center justify-between border-b px-3 py-1 text-xs font-medium text-muted-foreground"
+        className="group/pane-header flex shrink-0 cursor-grab items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground active:cursor-grabbing"
       >
-        {pane.label}
-        <Button variant="ghost" size="icon-xs" aria-label={`Close ${pane.label}`} onClick={onClose}>
+        <PaneIcon className="size-3.5 shrink-0" />
+        <span className="flex-1 truncate text-foreground/80">{pane.label}</span>
+        <GripVertical className="size-3.5 opacity-0 transition-opacity duration-calm group-hover/pane-header:opacity-60" />
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={`Close ${pane.label}`}
+          className="text-muted-foreground/70 hover:text-foreground"
+          onClick={onClose}
+        >
           <X />
         </Button>
       </header>
-      <div className="flex min-h-0 flex-1 animate-step-enter flex-col overflow-y-auto p-3">
+      <div className="flex min-h-0 flex-1 animate-step-enter flex-col overflow-y-auto p-3 [scrollbar-gutter:stable]">
         {content.body}
       </div>
     </section>
+  );
+}
+
+function PanelResizeHandle({
+  width,
+  dragging,
+  handlers,
+}: Pick<ReturnType<typeof usePanelWidth>, "width" | "dragging" | "handlers">) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize panel"
+      aria-valuenow={width}
+      aria-valuemin={PANEL_WIDTH.min}
+      aria-valuemax={maxPanelWidth(window.innerWidth)}
+      tabIndex={0}
+      title="Drag to resize · double-click to fit the content"
+      data-dragging={dragging || undefined}
+      className="group/resize absolute inset-y-0 -left-1 z-10 flex w-2 cursor-col-resize touch-none justify-center outline-none"
+      {...handlers}
+    >
+      <span className="h-full w-px bg-transparent transition-colors duration-calm group-hover/resize:bg-primary/60 group-focus-visible/resize:bg-primary group-data-dragging/resize:bg-primary" />
+      <span className="absolute top-1/2 h-8 w-1 -translate-y-1/2 rounded-full bg-border opacity-0 transition-opacity duration-calm group-hover/resize:opacity-100 group-focus-visible/resize:opacity-100 group-data-dragging/resize:bg-primary group-data-dragging/resize:opacity-100" />
+    </div>
   );
 }
 
@@ -144,6 +180,7 @@ export function ReviewPanel({
 }) {
   const { panes } = controls;
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const { width, dragging, contentRef, handlers } = usePanelWidth();
   const entryOf = (id: PaneId) => entries.find((entry) => entry.id === id);
   const onDragOver = (event: DragEvent) => {
     if (!isPaneDrag(event)) return;
@@ -181,7 +218,13 @@ export function ReviewPanel({
         </div>
       </div>
       {(panes.length > 0 || dropIndex !== null) && (
-        <div className="flex min-h-0 w-panel flex-col bg-card">
+        <div
+          ref={contentRef}
+          data-testid="pane-column"
+          style={{ width }}
+          className={`relative flex min-h-0 flex-col bg-card ${dragging ? "" : "transition-[width] duration-calm ease-calm"}`}
+        >
+          <PanelResizeHandle width={width} dragging={dragging} handlers={handlers} />
           {panes.map((id, index) => {
             const entry = entryOf(id);
             if (!entry) return null;
