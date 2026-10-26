@@ -32,7 +32,7 @@ export function reviewDeps(): ReviewDeps {
   return {
     fetchPullRequest: (ref) =>
       githubCache().get(`pull-request:${prKey(ref)}`, PULL_REQUEST_TTL_MS, () =>
-        getPullRequest(ref),
+        getPullRequest(ref, sessionStore()),
       ),
     store: sessionStore(),
   };
