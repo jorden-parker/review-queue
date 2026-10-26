@@ -292,6 +292,7 @@ function Dialogs({
               .length
           }
           onSubmit={workspace.submit}
+          onDraftSummary={workspace.aiEnabled ? workspace.draftSummary : undefined}
           onCancel={close}
         />
       );

@@ -261,6 +261,33 @@ describe("ReviewLoader", () => {
     });
   });
 
+  it("drafts the summary from notes", async () => {
+    const payload = reviewPayload(
+      emptySession({
+        notes: [
+          { id: 3, path: "src/client.ts", line: 11, kind: "nit", body: "rename", createdAt: "" },
+        ],
+      }),
+    );
+    const { user } = await renderReview(payload, { status: "error", message: "x" });
+    await user.click(screen.getByRole("button", { name: /Finish/ }));
+    const dialog = screen.getByRole("dialog", { name: "Finish review" });
+    await user.click(within(dialog).getByRole("button", { name: /Draft from my notes/ }));
+    await waitFor(() =>
+      expect(within(dialog).getByPlaceholderText(/Overall summary/)).toHaveProperty(
+        "value",
+        "Looks good overall; one question on retries.",
+      ),
+    );
+  });
+
+  it("has no draft button when the model is off", async () => {
+    const { user } = await renderReview();
+    await user.click(screen.getByRole("button", { name: /Finish/ }));
+    const dialog = screen.getByRole("dialog", { name: "Finish review" });
+    expect(within(dialog).queryByRole("button", { name: /Draft from my notes/ })).toBeNull();
+  });
+
   it("shows the keyboard help", async () => {
     const { user } = await renderReview();
     await user.keyboard("?");

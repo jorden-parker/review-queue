@@ -4,6 +4,7 @@ import type { ExplanationResult } from "@/lib/review/explanation-service";
 import type { OrientationResult } from "@/lib/review/orientation-service";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { SessionAction } from "@/lib/review/session-actions";
+import type { SummaryDraftResult } from "@/lib/review/summary-draft-service";
 import type { Session } from "@/lib/session/store";
 import type { DefinitionWithCode, ReferenceWithCode } from "@/lib/review/peek-code";
 import type { PullRequestRef } from "@/lib/types";
@@ -80,4 +81,12 @@ export function sendSessionAction(ref: PullRequestRef, action: SessionAction): P
 
 export function submitReviewRequest(ref: PullRequestRef, input: SubmitInput): Promise<Session> {
   return post<Session>(apiPath(ref, "/submit"), input);
+}
+
+export function requestSummaryDraft(
+  ref: PullRequestRef,
+  sha: string,
+  input: { event: ReviewEvent; noteIds: number[] },
+): Promise<SummaryDraftResult> {
+  return post<SummaryDraftResult>(apiPath(ref, `/summary-draft${query({ sha })}`), input);
 }
