@@ -6,5 +6,5 @@ export async function POST(request: Request, context: PrRouteContext) {
   const prepared = await preparedFromRequest(request, context);
   if (prepared instanceof Response) return prepared;
   const body = await request.json().catch(() => null);
-  return assistResponse(prepared.data, body, llmConfigFromEnv(), fetch, request.signal);
+  return assistResponse(prepared, body, llmConfigFromEnv(), fetch, request.signal);
 }

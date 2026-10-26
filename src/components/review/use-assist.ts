@@ -1,21 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AssistAction, LineRange } from "@/lib/assist-protocol";
+import type { AssistAction, AssistTarget, AssistThread } from "@/lib/assist-protocol";
 import type { PullRequestRef } from "@/lib/types";
 import { streamAssist } from "./api";
 import {
   askedThread,
-  type AssistThread,
   awaitsQuestion,
   canFollowUp,
+  hasModelReply,
   openThread,
   threadRequest,
   withFollowUp,
   withModelText,
 } from "./assist-thread";
 
-export function useAssist(ref: PullRequestRef, headSha: string) {
+export function useAssist(
+  ref: PullRequestRef,
+  headSha: string,
+  onSave: (thread: AssistThread) => void,
+) {
   const [thread, setThread] = useState<AssistThread | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,40 +38,55 @@ export function useAssist(ref: PullRequestRef, headSha: string) {
       controller.current?.abort();
       const abort = new AbortController();
       controller.current = abort;
+      let latest = next;
       setThread(next);
       setStreaming(true);
       setError(null);
-      const onText = (text: string) =>
-        setThread((current) => current && withModelText(current, text));
+      const onText = (text: string) => {
+        latest = withModelText(latest, text);
+        setThread((current) => (current?.id === latest.id ? latest : current));
+      };
       streamAssist(ref, headSha, threadRequest(next), onText, abort.signal)
         .catch((failure: Error) => {
           if (!abort.signal.aborted) setError(failure.message);
         })
         .finally(() => {
           if (controller.current === abort) setStreaming(false);
+          if (hasModelReply(latest)) onSave(latest);
         });
     },
-    [ref, headSha],
+    [ref, headSha, onSave],
   );
 
   const open = useCallback(
-    (range: LineRange, action: AssistAction) => {
-      const next = openThread(range, action);
+    (target: AssistTarget, action: AssistAction) => {
+      const next = openThread(target, action, headSha);
       if (!awaitsQuestion(next)) return run(next);
       stop();
       setError(null);
       setThread(next);
     },
-    [run, stop],
+    [run, stop, headSha],
   );
+
+  const reopen = useCallback(
+    (saved: AssistThread) => {
+      stop();
+      setError(null);
+      setThread(saved);
+    },
+    [stop],
+  );
+
+  const readOnly = thread !== null && thread.headSha !== headSha;
 
   const send = useCallback(
     (text: string) => {
-      if (!thread) return;
+      if (!thread || readOnly) return;
       if (awaitsQuestion(thread)) run(askedThread(thread, text));
       else if (canFollowUp(thread)) run(withFollowUp(thread, text));
     },
-    [run, thread],
+    [run, thread, readOnly],
   );
 
   const close = useCallback(() => {
@@ -75,7 +94,7 @@ export function useAssist(ref: PullRequestRef, headSha: string) {
     setThread(null);
   }, [stop]);
 
-  return { thread, streaming, error, open, send, stop, close };
+  return { thread, streaming, error, readOnly, open, reopen, send, stop, close };
 }
 
 export type Assist = ReturnType<typeof useAssist>;

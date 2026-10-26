@@ -1,7 +1,22 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { SessionStore } from "./store";
+import type { AssistThread } from "@/lib/assist-protocol";
 
 const KEY = "acme/app#7";
+
+function thread(id: string, text = "It loads."): AssistThread {
+  return {
+    id,
+    headSha: "sha1",
+    target: { kind: "file", path: "src/a.ts" },
+    action: "explain",
+    question: null,
+    turns: [
+      { role: "reviewer", text: "Explain this file" },
+      { role: "model", text },
+    ],
+  };
+}
 
 describe("SessionStore", () => {
   let store: SessionStore;
@@ -72,6 +87,7 @@ describe("SessionStore", () => {
     store.pushJump(KEY, { name: "f", path: "a.ts", line: 1 });
     store.pause(KEY, "next: tests");
     store.addNote(KEY, { path: null, line: null, kind: "parked", body: "later" });
+    store.saveAssistThread(KEY, thread("t1"));
     store.setStepDone("other#1", "s1", true);
     store.startOver(KEY, true);
     expect(store.getSession(KEY)).toMatchObject({
@@ -83,10 +99,38 @@ describe("SessionStore", () => {
       checkedHotspots: [],
       jumps: [],
       notes: [{ body: "later" }],
+      assistThreads: [{ id: "t1" }],
     });
     store.startOver(KEY, false);
     expect(store.getSession(KEY).notes).toEqual([]);
+    expect(store.getSession(KEY).assistThreads).toEqual([]);
     expect(store.getSession("other#1").doneSteps).toEqual(["s1"]);
+  });
+
+  it("saves model chats, newest first, and updates them in place", () => {
+    store.saveAssistThread(KEY, thread("t1"));
+    now += 1000;
+    store.saveAssistThread(KEY, thread("t2"));
+    now += 1000;
+    store.saveAssistThread(KEY, thread("t1", "It loads twice."));
+    const saved = store.getSession(KEY).assistThreads;
+    expect(saved.map((chat) => chat.id)).toEqual(["t1", "t2"]);
+    expect(saved[0]).toEqual({
+      ...thread("t1", "It loads twice."),
+      updatedAt: "2026-10-26T10:00:02.000Z",
+    });
+  });
+
+  it("keeps each PR's chats apart", () => {
+    store.saveAssistThread(KEY, thread("t1"));
+    store.saveAssistThread("other#1", thread("t1", "Other."));
+    expect(store.getSession(KEY).assistThreads[0].turns[1].text).toBe("It loads.");
+  });
+
+  it("deletes a model chat", () => {
+    store.saveAssistThread(KEY, thread("t1"));
+    store.deleteAssistThread(KEY, "t1");
+    expect(store.getSession(KEY).assistThreads).toEqual([]);
   });
 
   it("caches values by key", () => {

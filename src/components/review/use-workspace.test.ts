@@ -13,6 +13,7 @@ const EMPTY: Session = {
   checkedHotspots: [],
   notes: [],
   jumps: [],
+  assistThreads: [],
 };
 
 function review(session: Partial<Session>, reopenedStepIds: string[] = []): ReviewPayload {

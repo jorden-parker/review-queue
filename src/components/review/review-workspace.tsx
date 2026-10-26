@@ -20,7 +20,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { commentLine, firstLineNumber, rangeLabel } from "@/lib/assist-protocol";
+import {
+  type AssistTarget,
+  targetCommentLine,
+  targetFirstLine,
+  targetLabel,
+  targetPath,
+} from "@/lib/assist-protocol";
 import { prKey } from "@/lib/pr-ref";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
@@ -41,6 +47,7 @@ import { ShortcutHelp } from "./shortcut-help";
 import { StartOverDialog } from "./start-over-dialog";
 import { StepExplanation } from "./step-explanation";
 import { orderedSteps, stepReasons } from "./step-order";
+import { SavedChatsPanel } from "./saved-chats-panel";
 import { SelectionToolbar } from "./selection-toolbar";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
@@ -60,6 +67,7 @@ const TABS: { id: SidebarTab; label: string }[] = [
   { id: "path", label: "Path" },
   { id: "hotspots", label: "Hotspots" },
   { id: "notes", label: "Notes" },
+  { id: "chats", label: "Chats" },
 ];
 
 function TopBar({
@@ -147,6 +155,7 @@ function Sidebar({
     path: null,
     hotspots: openHotspots,
     notes: session.notes.length,
+    chats: session.assistThreads.length,
   };
   return (
     <Tabs
@@ -204,6 +213,21 @@ function Sidebar({
           onPark={(body) => workspace.saveNote(null, "parked", body)}
           onOpen={(note) => note.path && workspace.goTo({ path: note.path, line: note.line ?? 1 })}
           onDelete={workspace.deleteNote}
+        />
+      </TabsContent>
+      <TabsContent
+        value="chats"
+        className="scrollbar-hidden min-h-0 animate-step-enter overflow-y-auto p-3"
+      >
+        <SavedChatsPanel
+          chats={session.assistThreads}
+          headSha={review.headSha}
+          labelOf={(chat) => labelFor(workspace, chat.target)}
+          onOpen={workspace.assist.reopen}
+          onDelete={(id) => {
+            if (workspace.assist.thread?.id === id) workspace.assist.close();
+            workspace.deleteSavedChat(id);
+          }}
         />
       </TabsContent>
     </Tabs>
@@ -378,22 +402,31 @@ function WorkspacePeek({ workspace }: { workspace: Workspace }) {
   );
 }
 
+function hunksOf(workspace: Workspace, target: AssistTarget) {
+  return workspace.files.get(targetPath(target))?.hunks ?? [];
+}
+
+function labelFor(workspace: Workspace, target: AssistTarget): string {
+  return targetLabel(hunksOf(workspace, target), target);
+}
+
 function WorkspaceAssist({ workspace }: { workspace: Workspace }) {
   const { thread } = workspace.assist;
   if (!thread) return null;
-  const { range } = thread;
-  const hunks = workspace.files.get(range.path)?.hunks ?? [];
+  const { target } = thread;
+  const path = targetPath(target);
+  const hunks = hunksOf(workspace, target);
   return (
     <AssistPanel
-      key={`${range.path}:${range.from.hunk}:${range.from.line}:${range.to.hunk}:${range.to.line}:${thread.action}`}
+      key={thread.id}
       assist={workspace.assist}
       thread={thread}
-      label={rangeLabel(hunks, range)}
-      commentLine={commentLine(hunks, range.from, range.to)}
+      label={targetLabel(hunks, target)}
+      commentLine={targetCommentLine(hunks, target)}
       onSaveNote={(line, kind, body) =>
-        workspace.saveNote(line === null ? null : { path: range.path, line }, kind, body)
+        workspace.saveNote(line === null ? null : { path, line }, kind, body)
       }
-      onShowLines={() => workspace.goTo({ path: range.path, line: firstLineNumber(hunks, range) })}
+      onShowLines={() => workspace.goTo({ path, line: targetFirstLine(hunks, target) })}
     />
   );
 }
@@ -404,7 +437,9 @@ function WorkspaceSelectionToolbar({ workspace }: { workspace: Workspace }) {
   return (
     <SelectionToolbar
       selection={selection}
-      onAction={(action) => workspace.assist.open(selection.range, action)}
+      onAction={(action) =>
+        workspace.assist.open({ kind: "lines", range: selection.range }, action)
+      }
     />
   );
 }
@@ -444,6 +479,9 @@ export function ReviewWorkspace({
       notes: session.notes,
       composer: workspace.composer,
       activeHunkId: workspace.activeHunkId,
+      onAskFile: workspace.aiEnabled
+        ? (path, action) => workspace.assist.open({ kind: "file", path }, action)
+        : null,
       handlers: {
         onIdentifier: (name, path, line) => workspace.peekName(name, path, line),
         onHoverIdentifier: workspace.setHovered,

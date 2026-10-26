@@ -5,11 +5,13 @@ import {
   type LinePosition,
   linesInRange,
   MAX_HISTORY_TURNS,
+  targetPath,
 } from "@/lib/assist-protocol";
 import type { AssistInput } from "@/lib/llm/assist";
 import type { Message } from "@/lib/llm/client";
+import type { SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { Hunk } from "@/lib/types";
-import type { ReviewData } from "./prepare";
+import type { PreparedFile, ReviewData } from "./prepare";
 
 const PositionSchema = z.object({
   hunk: z.number().int().nonnegative(),
@@ -35,38 +37,88 @@ const HistorySchema = z
     "History must alternate model and reviewer turns, ending with the reviewer",
   );
 
+export const AssistTargetSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("lines"),
+    range: z.object({ path: z.string().min(1), from: PositionSchema, to: PositionSchema }),
+  }),
+  z.object({ kind: z.literal("file"), path: z.string().min(1) }),
+]);
+
 export const AssistRequestSchema = z.object({
   action: z.enum(ASSIST_ACTIONS),
-  path: z.string().min(1),
-  from: PositionSchema,
-  to: PositionSchema,
+  target: AssistTargetSchema,
   question: z.string().trim().min(1).max(2_000).nullable(),
   history: HistorySchema,
 });
 
 export type AssistRequest = z.infer<typeof AssistRequestSchema>;
 
+export type AssistSource = { data: ReviewData; index: Pick<SymbolIndex, "readFile"> };
+
 type AssistInputResult = { ok: true; input: AssistInput } | { ok: false; error: string };
+
+type TargetContent = Pick<AssistInput, "scope" | "context" | "selected" | "fileText">;
+
+type ContentResult = { ok: true; content: TargetContent } | { ok: false; error: string };
 
 function hasLine(hunks: Hunk[], position: LinePosition): boolean {
   return position.line < (hunks[position.hunk]?.lines.length ?? 0);
 }
 
-export function assistInputFrom(data: ReviewData, request: AssistRequest): AssistInputResult {
-  const file = data.files.find((candidate) => candidate.path === request.path);
-  if (!file) return { ok: false, error: "That file is not in this review" };
-  const { from, to } = request;
+function lineContent(file: PreparedFile, from: LinePosition, to: LinePosition): ContentResult {
   if (!hasLine(file.hunks, from) || !hasLine(file.hunks, to) || isBefore(to, from))
     return { ok: false, error: "Those lines are not in this diff" };
   return {
     ok: true,
-    input: {
-      title: data.pr.title,
-      path: file.path,
+    content: {
+      scope: "lines",
       context: file.hunks.slice(from.hunk, to.hunk + 1),
       selected: linesInRange(file.hunks, from, to),
+      fileText: null,
+    },
+  };
+}
+
+function headText(index: AssistSource["index"], file: PreparedFile): string | null {
+  if (file.status === "deleted") return null;
+  try {
+    return index.readFile(file.path);
+  } catch {
+    return null;
+  }
+}
+
+function fileContent(index: AssistSource["index"], file: PreparedFile): ContentResult {
+  if (file.binary) return { ok: false, error: "Binary files cannot be sent to the model" };
+  return {
+    ok: true,
+    content: {
+      scope: "file",
+      context: file.hunks,
+      selected: [],
+      fileText: headText(index, file),
+    },
+  };
+}
+
+export function assistInputFrom(source: AssistSource, request: AssistRequest): AssistInputResult {
+  const { target } = request;
+  const file = source.data.files.find((candidate) => candidate.path === targetPath(target));
+  if (!file) return { ok: false, error: "That file is not in this review" };
+  const result =
+    target.kind === "lines"
+      ? lineContent(file, target.range.from, target.range.to)
+      : fileContent(source.index, file);
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    input: {
+      title: source.data.pr.title,
+      path: file.path,
       action: request.action,
       question: request.question,
+      ...result.content,
     },
   };
 }

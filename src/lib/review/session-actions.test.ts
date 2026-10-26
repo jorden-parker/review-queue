@@ -33,6 +33,46 @@ describe("applySessionAction", () => {
     expect(run(store, { type: "jump-clear" }).jumps).toEqual([]);
   });
 
+  it("saves, updates and deletes model chats", () => {
+    const store = new SessionStore(":memory:");
+    const thread = {
+      id: "6f1c8f9e-1d2b-4c3a-9e8f-7a6b5c4d3e2f",
+      headSha: HEAD_SHA,
+      target: { kind: "file", path: "src/a.ts" },
+      action: "explain",
+      question: null,
+      turns: [
+        { role: "reviewer", text: "Explain this file" },
+        { role: "model", text: "It loads." },
+      ],
+    };
+    run(store, { type: "assist-save", thread });
+    const turns = [...thread.turns, { role: "reviewer", text: "Why?" }];
+    const saved = run(store, { type: "assist-save", thread: { ...thread, turns } });
+    expect(saved.assistThreads).toEqual([expect.objectContaining({ ...thread, turns })]);
+    expect(run(store, { type: "assist-delete", id: thread.id }).assistThreads).toEqual([]);
+  });
+
+  it("rejects a chat with an unknown target or too many turns", () => {
+    const thread = {
+      id: "6f1c8f9e-1d2b-4c3a-9e8f-7a6b5c4d3e2f",
+      headSha: HEAD_SHA,
+      target: { kind: "folder", path: "src" },
+      action: "explain",
+      question: null,
+      turns: [],
+    };
+    expect(() => SessionActionSchema.parse({ type: "assist-save", thread })).toThrow();
+    const turns = Array.from({ length: 40 }, () => ({ role: "model", text: "x" }));
+    const file = { kind: "file", path: "src/a.ts" };
+    expect(() =>
+      SessionActionSchema.parse({
+        type: "assist-save",
+        thread: { ...thread, target: file, turns },
+      }),
+    ).toThrow();
+  });
+
   it("starts over and drops notes only when asked", () => {
     const store = new SessionStore(":memory:");
     run(store, { type: "step-done", stepId: "s1", done: true });

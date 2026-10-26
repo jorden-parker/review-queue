@@ -383,7 +383,7 @@ describe("ReviewLoader", () => {
     await waitFor(() =>
       expect(api.calls.filter((call) => call.url.includes("/assist")).at(-1)?.body).toMatchObject({
         action: "explain",
-        path: "src/types.ts",
+        target: { kind: "lines", range: { path: "src/types.ts" } },
         history: [
           { role: "assistant", content: ASSIST_REPLY.join("") },
           { role: "user", content: "Why a number?" },
@@ -392,6 +392,36 @@ describe("ReviewLoader", () => {
     );
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("complementary", { name: "Ask the model" })).toBeNull();
+  });
+
+  it("asks about a whole file from its header", async () => {
+    const { api, user } = await renderReview(reviewPayload(), MODEL_ON);
+    await user.click(screen.getAllByRole("button", { name: /Ask about file/ })[0]);
+    const toolbar = screen.getByRole("toolbar", { name: "Ask the model about this file" });
+    await user.click(within(toolbar).getByRole("button", { name: /Simplify/ }));
+    const panel = await screen.findByRole("complementary", { name: "Ask the model" });
+    expect(within(panel).getAllByText("Simplify this file")).toHaveLength(2);
+    expect(await within(panel).findByText(ASSIST_REPLY.join(""))).toBeTruthy();
+    const request = api.calls.filter((call) => call.url.includes("/assist")).at(-1)?.body;
+    expect(request).toMatchObject({ action: "simplify", target: { kind: "file" } });
+  });
+
+  it("keeps each chat so it can be reopened and continued later", async () => {
+    const { api, user } = await renderReview(reviewPayload(), MODEL_ON);
+    selectFirstLine("src/types.ts");
+    const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
+    await user.click(within(toolbar).getByRole("button", { name: /Explain/ }));
+    const panel = await screen.findByRole("complementary", { name: "Ask the model" });
+    await within(panel).findByText(ASSIST_REPLY.join(""));
+    await waitFor(() =>
+      expect(api.actions()).toContainEqual(expect.objectContaining({ type: "assist-save" })),
+    );
+    await user.click(within(panel).getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("tab", { name: "Chats (1)" }));
+    await user.click(screen.getByRole("button", { name: /Explain these lines/ }));
+    const reopened = await screen.findByRole("complementary", { name: "Ask the model" });
+    expect(within(reopened).getByText(ASSIST_REPLY.join(""))).toBeTruthy();
+    expect(within(reopened).getByLabelText("Ask the model")).toBeTruthy();
   });
 
   it("drafts a review comment and saves it as a line note", async () => {

@@ -16,6 +16,7 @@ export function emptySession(overrides: Partial<Session> = {}): Session {
     checkedHotspots: [],
     notes: [],
     jumps: [],
+    assistThreads: [],
     ...overrides,
   };
 }

@@ -12,6 +12,21 @@ export type LinePosition = { hunk: number; line: number };
 
 export type LineRange = { path: string; from: LinePosition; to: LinePosition };
 
+export type AssistTarget = { kind: "lines"; range: LineRange } | { kind: "file"; path: string };
+
+export type AssistTurn = { role: "reviewer" | "model"; text: string };
+
+export type AssistThread = {
+  id: string;
+  headSha: string;
+  target: AssistTarget;
+  action: AssistAction;
+  question: string | null;
+  turns: AssistTurn[];
+};
+
+export type SavedAssistThread = AssistThread & { updatedAt: string };
+
 type FileLine = LinePosition & { path: string };
 
 export function isBefore(a: LinePosition, b: LinePosition): boolean {
@@ -41,11 +56,7 @@ function lineNumber(line: DiffLine | undefined): number | null {
   return line ? (line.newLine ?? line.oldLine) : null;
 }
 
-export function firstLineNumber(hunks: Hunk[], range: LineRange): number {
-  return lineNumber(hunks[range.from.hunk]?.lines[range.from.line]) ?? 1;
-}
-
-export function rangeLabel(hunks: Hunk[], range: LineRange): string {
+function rangeLabel(hunks: Hunk[], range: LineRange): string {
   const lines = linesInRange(hunks, range.from, range.to);
   const first = lineNumber(lines[0]);
   const last = lineNumber(lines.at(-1));
@@ -53,7 +64,24 @@ export function rangeLabel(hunks: Hunk[], range: LineRange): string {
   return `${range.path} ${span}`;
 }
 
-export function commentLine(hunks: Hunk[], from: LinePosition, to: LinePosition): number | null {
+function commentLine(hunks: Hunk[], from: LinePosition, to: LinePosition): number | null {
   const newSide = linesInRange(hunks, from, to).filter((line) => line.newLine !== null);
   return newSide.at(-1)?.newLine ?? null;
+}
+
+export function targetPath(target: AssistTarget): string {
+  return target.kind === "lines" ? target.range.path : target.path;
+}
+
+export function targetLabel(hunks: Hunk[], target: AssistTarget): string {
+  return target.kind === "lines" ? rangeLabel(hunks, target.range) : `${target.path} (whole file)`;
+}
+
+export function targetCommentLine(hunks: Hunk[], target: AssistTarget): number | null {
+  return target.kind === "lines" ? commentLine(hunks, target.range.from, target.range.to) : null;
+}
+
+export function targetFirstLine(hunks: Hunk[], target: AssistTarget): number {
+  const first = target.kind === "lines" ? target.range.from : { hunk: 0, line: 0 };
+  return lineNumber(hunks[first.hunk]?.lines[first.line]) ?? 1;
 }

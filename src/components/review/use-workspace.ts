@@ -12,6 +12,7 @@ import type { ShortcutAction } from "./shortcut-keys";
 import { type Assist, useAssist } from "./use-assist";
 import { useJumps } from "./use-jumps";
 import { type LineSelection, useLineSelection } from "./use-line-selection";
+import { useSavedChats } from "./use-saved-chats";
 import { usePeek } from "./use-peek";
 import { useReturnDetection } from "./use-return-detection";
 import type { OrientationState, useReview } from "./use-review";
@@ -20,7 +21,7 @@ import { useShortcuts } from "./use-shortcuts";
 import { useStepNavigation } from "./use-step-navigation";
 
 type Dialog = "resume" | "pause" | "finish" | "help" | "start-over" | null;
-export type SidebarTab = "path" | "hotspots" | "notes";
+export type SidebarTab = "path" | "hotspots" | "notes" | "chats";
 
 const STALE_SESSION_MS = 30 * 60 * 1000;
 
@@ -34,7 +35,7 @@ export function shouldGreet(review: ReviewPayload, now = Date.now()): boolean {
 }
 
 function explainSelection(assist: Assist, selection: LineSelection | null) {
-  if (selection) assist.open(selection.range, "explain");
+  if (selection) assist.open({ kind: "lines", range: selection.range }, "explain");
 }
 
 function closeTopmost(assist: Assist, closeOthers: () => void) {
@@ -121,6 +122,18 @@ function useWorkspaceUi(review: ReviewPayload) {
   };
 }
 
+function resumeStepId(
+  reopenedStepIds: string[],
+  currentStepId: string | undefined,
+  nextStepId: string | undefined,
+): string | undefined {
+  return reopenedStepIds[0] ?? currentStepId ?? nextStepId;
+}
+
+function acceptsShortcuts(dialog: Dialog): boolean {
+  return dialog === null || dialog === "help";
+}
+
 export function useWorkspace(
   ref: PullRequestRef,
   review: ReviewPayload,
@@ -131,7 +144,8 @@ export function useWorkspace(
   const ui = useWorkspaceUi(review);
   const navigation = useStepNavigation(review, session, controls.act);
   const peek = usePeek(ref, review.headSha);
-  const assist = useAssist(ref, review.headSha);
+  const savedChats = useSavedChats(controls.act);
+  const assist = useAssist(ref, review.headSha, savedChats.save);
   const selection = useLineSelection();
   const jumps = useJumps(session, controls.act, navigation.goTo, peek);
   const edits = useSessionEdits(ref, review.headSha, session, controls.act, controls.setSession);
@@ -153,14 +167,14 @@ export function useWorkspace(
   const resume = useCallback(() => {
     edits.resume();
     setDialog(null);
-    const target = review.reopenedStepIds[0] ?? navigation.currentStep?.id ?? nextStep?.id;
+    const target = resumeStepId(review.reopenedStepIds, navigation.currentStep?.id, nextStep?.id);
     if (target) navigation.selectStep(target);
   }, [edits, navigation, nextStep, review.reopenedStepIds, setDialog]);
 
   const onShortcut = (action: ShortcutAction) =>
     shortcutHandlers({ review, ui, navigation, peek, jumps, assist, selection })[action]();
 
-  useShortcuts(onShortcut, ui.dialog === null || ui.dialog === "help");
+  useShortcuts(onShortcut, acceptsShortcuts(ui.dialog));
 
   return {
     ...ui,
@@ -170,6 +184,7 @@ export function useWorkspace(
     ...edits,
     peek,
     assist,
+    deleteSavedChat: savedChats.remove,
     selection,
     hotspots,
     startStepId,

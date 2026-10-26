@@ -1,8 +1,7 @@
 import { ASSIST_ERROR_MARKER } from "@/lib/assist-protocol";
 import { assistStream } from "@/lib/llm/assist";
 import type { LlmConfig } from "@/lib/llm/client";
-import { AssistRequestSchema, assistInputFrom } from "./assist-request";
-import type { ReviewData } from "./prepare";
+import { AssistRequestSchema, type AssistSource, assistInputFrom } from "./assist-request";
 import { jsonError } from "./route-context";
 
 function textStream(chunks: AsyncGenerator<string>): ReadableStream<Uint8Array> {
@@ -26,7 +25,7 @@ function textStream(chunks: AsyncGenerator<string>): ReadableStream<Uint8Array> 
 }
 
 export function assistResponse(
-  data: ReviewData,
+  source: AssistSource,
   body: unknown,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
@@ -35,7 +34,7 @@ export function assistResponse(
   if (!config.enabled) return jsonError("Local model is off", 404);
   const request = AssistRequestSchema.safeParse(body);
   if (!request.success) return jsonError(request.error.message, 400);
-  const input = assistInputFrom(data, request.data);
+  const input = assistInputFrom(source, request.data);
   if (!input.ok) return jsonError(input.error, 400);
   const chunks = assistStream(input.input, request.data.history, config, fetchImpl, signal);
   return new Response(textStream(chunks), {

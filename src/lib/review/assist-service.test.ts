@@ -4,12 +4,11 @@ import { reviewPayload } from "@/test/review-fixture";
 import { assistResponse } from "./assist-service";
 
 const CONFIG = { baseURL: "http://llm.test", model: "m", enabled: true, timeoutMs: 1000 };
-const DATA = reviewPayload();
+const DATA = { data: reviewPayload(), index: { readFile: () => "export const client = 1;" } };
+const RANGE = { path: "src/client.ts", from: { hunk: 0, line: 0 }, to: { hunk: 0, line: 1 } };
 const BODY = {
   action: "explain",
-  path: "src/client.ts",
-  from: { hunk: 0, line: 0 },
-  to: { hunk: 0, line: 1 },
+  target: { kind: "lines", range: RANGE },
   question: null,
   history: [],
 };
@@ -55,6 +54,14 @@ describe("assistResponse", () => {
 
   it("is a 400 for a bad body or lines outside the diff", () => {
     expect(assistResponse(DATA, { action: "nope" }, CONFIG).status).toBe(400);
-    expect(assistResponse(DATA, { ...BODY, to: { hunk: 0, line: 99 } }, CONFIG).status).toBe(400);
+    const outside = { kind: "lines", range: { ...RANGE, to: { hunk: 0, line: 99 } } };
+    expect(assistResponse(DATA, { ...BODY, target: outside }, CONFIG).status).toBe(400);
+  });
+
+  it("streams an answer about a whole file", async () => {
+    const body = { ...BODY, target: { kind: "file", path: "src/client.ts" } };
+    expect(await assistResponse(DATA, body, CONFIG, sseFetch(["A client."])).text()).toBe(
+      "A client.",
+    );
   });
 });

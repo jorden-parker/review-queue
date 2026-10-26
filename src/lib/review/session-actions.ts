@@ -1,8 +1,21 @@
 import { z } from "zod";
+import { ASSIST_ACTIONS, MAX_HISTORY_TURNS } from "@/lib/assist-protocol";
 import type { Session, SessionStore } from "@/lib/session/store";
+import { AssistTargetSchema } from "./assist-request";
 
 const CommitShaSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 const NoteKindSchema = z.enum(["blocker", "question", "nit", "praise", "parked"]);
+
+const AssistThreadSchema = z.object({
+  id: z.uuid(),
+  headSha: CommitShaSchema,
+  target: AssistTargetSchema,
+  action: z.enum(ASSIST_ACTIONS),
+  question: z.string().max(2_000).nullable(),
+  turns: z
+    .array(z.object({ role: z.enum(["reviewer", "model"]), text: z.string().max(16_000) }))
+    .max(MAX_HISTORY_TURNS + 2),
+});
 
 export const SessionActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("current-step"), stepId: z.string(), headSha: CommitShaSchema }),
@@ -27,6 +40,8 @@ export const SessionActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("jump-pop") }),
   z.object({ type: z.literal("jump-clear") }),
   z.object({ type: z.literal("start-over"), keepNotes: z.boolean() }),
+  z.object({ type: z.literal("assist-save"), thread: AssistThreadSchema }),
+  z.object({ type: z.literal("assist-delete"), id: z.uuid() }),
 ]);
 
 export type SessionAction = z.infer<typeof SessionActionSchema>;
@@ -54,6 +69,8 @@ const HANDLERS: Handlers = {
   },
   "jump-clear": (store, key) => store.clearJumps(key),
   "start-over": (store, key, action) => store.startOver(key, action.keepNotes),
+  "assist-save": (store, key, action) => store.saveAssistThread(key, action.thread),
+  "assist-delete": (store, key, action) => store.deleteAssistThread(key, action.id),
 };
 
 function apply(store: SessionStore, key: string, action: SessionAction): void {

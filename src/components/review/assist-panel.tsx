@@ -5,15 +5,9 @@ import { useState } from "react";
 import { Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { AssistThread, AssistTurn } from "@/lib/assist-protocol";
 import type { NoteKind } from "@/lib/types";
-import {
-  ACTION_LABELS,
-  type AssistThread,
-  type AssistTurn,
-  awaitsQuestion,
-  canFollowUp,
-  QUESTION_PROMPTS,
-} from "./assist-thread";
+import { actionLabel, awaitsQuestion, canFollowUp, questionPrompt } from "./assist-thread";
 import { NoteKindPicker } from "./note-composer";
 import type { Assist } from "./use-assist";
 
@@ -76,13 +70,28 @@ function CommentDraft({
   );
 }
 
-function Composer({ thread, onSend }: { thread: AssistThread; onSend: (text: string) => void }) {
+function Composer({
+  thread,
+  readOnly,
+  onSend,
+}: {
+  thread: AssistThread;
+  readOnly: boolean;
+  onSend: (text: string) => void;
+}) {
   const [text, setText] = useState("");
   const asking = awaitsQuestion(thread);
+  if (readOnly) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Asked on an older commit, so it can&apos;t be continued. Ask again to start fresh.
+      </p>
+    );
+  }
   if (!asking && !canFollowUp(thread)) {
     return (
       <p className="text-xs text-muted-foreground">
-        That&apos;s a long thread. Select the lines again to start fresh.
+        That&apos;s a long thread. Ask again to start fresh.
       </p>
     );
   }
@@ -101,7 +110,7 @@ function Composer({ thread, onSend }: { thread: AssistThread; onSend: (text: str
         if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) send();
       }}
       rows={2}
-      placeholder={`${(asking && QUESTION_PROMPTS[thread.action]) || "Ask a follow-up"} (⌘↵ to send)`}
+      placeholder={`${(asking && questionPrompt(thread.action, thread.target)) || "Ask a follow-up"} (⌘↵ to send)`}
     />
   );
 }
@@ -126,7 +135,7 @@ export function AssistPanel({
       <header className="flex items-center gap-2 border-b px-3 py-2.5">
         <Sparkles size={14} className="shrink-0 text-primary" />
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="font-medium">{ACTION_LABELS[thread.action]}</span>
+          <span className="font-medium">{actionLabel(thread.action, thread.target)}</span>
           <button
             onClick={onShowLines}
             className="truncate text-left font-mono text-xs text-muted-foreground hover:text-foreground"
@@ -150,7 +159,7 @@ export function AssistPanel({
           />
         ))}
         {assist.streaming && last?.role === "reviewer" && (
-          <p className="text-muted-foreground">Local model is reading these lines…</p>
+          <p className="text-muted-foreground">Local model is reading…</p>
         )}
         {assist.error && (
           <p className="rounded-lg bg-del px-3 py-2 text-del-foreground">
@@ -172,7 +181,12 @@ export function AssistPanel({
             <Square /> Stop
           </Button>
         ) : (
-          <Composer key={thread.turns.length} thread={thread} onSend={assist.send} />
+          <Composer
+            key={thread.turns.length}
+            thread={thread}
+            readOnly={assist.readOnly}
+            onSend={assist.send}
+          />
         )}
       </footer>
     </aside>
