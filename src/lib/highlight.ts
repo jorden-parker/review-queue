@@ -49,18 +49,21 @@ function plainLines(texts: string[]): HighlightedHunk {
   return texts.map((text) => [{ text }]);
 }
 
-export async function highlightFile(file: FileDiff): Promise<HighlightedHunk[]> {
-  const lang = languageOf(file.path);
-  const texts = file.hunks.map((hunk) => hunk.lines.map((line) => line.text));
-  if (!lang || file.binary) return texts.map(plainLines);
+export async function highlightLines(file: string, lines: string[]): Promise<Token[][]> {
+  const lang = languageOf(file);
+  if (!lang) return plainLines(lines);
   const shiki = await loadHighlighter();
-  return texts.map((lines) =>
-    shiki.codeToTokens(lines.join("\n"), { lang, themes: THEMES }).tokens.map((row) =>
-      row.map((token) => ({
-        text: token.content,
-        light: token.htmlStyle?.color,
-        dark: token.htmlStyle?.["--shiki-dark"],
-      })),
-    ),
+  return shiki.codeToTokens(lines.join("\n"), { lang, themes: THEMES }).tokens.map((row) =>
+    row.map((token) => ({
+      text: token.content,
+      light: token.htmlStyle?.color,
+      dark: token.htmlStyle?.["--shiki-dark"],
+    })),
   );
+}
+
+export async function highlightFile(file: FileDiff): Promise<HighlightedHunk[]> {
+  const texts = file.hunks.map((hunk) => hunk.lines.map((line) => line.text));
+  if (file.binary) return texts.map(plainLines);
+  return Promise.all(texts.map((lines) => highlightLines(file.path, lines)));
 }

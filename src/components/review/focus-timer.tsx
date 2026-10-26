@@ -2,6 +2,8 @@
 
 import { Pause, Play, Timer } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "cn";
+import { HintButton } from "@/components/common/hint-button";
 
 const FOCUS_SECONDS = 25 * 60;
 
@@ -33,19 +35,15 @@ export function FocusTimer({ onFinished }: { onFinished: () => void }) {
   }, [running, onFinished]);
 
   return (
-    <button
+    <HintButton
+      variant="ghost"
+      size="sm"
+      hint="25 minute focus timer"
       onClick={toggle}
-      title="25 minute focus timer"
-      className={`flex items-center gap-1 rounded-lg px-2 py-1 font-mono text-sm ${running ? "bg-accent-soft text-accent" : "text-muted hover:bg-sunken"}`}
+      className={cn("font-mono tabular-nums", running && "bg-accent text-accent-foreground")}
     >
-      {running ? (
-        <Pause size={14} />
-      ) : remaining === FOCUS_SECONDS ? (
-        <Timer size={14} />
-      ) : (
-        <Play size={14} />
-      )}
+      {running ? <Pause /> : remaining === FOCUS_SECONDS ? <Timer /> : <Play />}
       {clock(remaining)}
-    </button>
+    </HintButton>
   );
 }

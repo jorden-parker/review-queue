@@ -4,10 +4,8 @@ import type { OrientationResult } from "@/lib/review/orientation-service";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { SessionAction } from "@/lib/review/session-actions";
 import type { Session } from "@/lib/session/store";
-import type { Reference } from "@/lib/symbols/symbol-index";
-import type { PullRequestRef, SymbolDefinition } from "@/lib/types";
-
-export type DefinitionWithLines = SymbolDefinition & { lines: string[] };
+import type { DefinitionWithCode, ReferenceWithCode } from "@/lib/review/peek-code";
+import type { PullRequestRef } from "@/lib/types";
 
 export type SubmitInput = {
   event: ReviewEvent;
@@ -43,9 +41,9 @@ export function fetchDefinitions(
   sha: string,
   name: string,
   from: string,
-): Promise<DefinitionWithLines[]> {
+): Promise<DefinitionWithCode[]> {
   return fetch(apiPath(ref, `/definitions${query({ sha, name, from })}`)).then(
-    json<DefinitionWithLines[]>,
+    json<DefinitionWithCode[]>,
   );
 }
 
@@ -53,8 +51,8 @@ export function fetchReferences(
   ref: PullRequestRef,
   sha: string,
   name: string,
-): Promise<Reference[]> {
-  return fetch(apiPath(ref, `/references${query({ sha, name })}`)).then(json<Reference[]>);
+): Promise<ReferenceWithCode[]> {
+  return fetch(apiPath(ref, `/references${query({ sha, name })}`)).then(json<ReferenceWithCode[]>);
 }
 
 function post<T>(url: string, body: unknown): Promise<T> {

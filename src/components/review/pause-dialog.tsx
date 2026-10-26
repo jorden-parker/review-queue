@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { AppDialog } from "@/components/common/app-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type PauseDialogProps = { onPause: (note: string) => void; onCancel: () => void };
 
@@ -13,33 +16,25 @@ export function PauseDialog({ onPause, onCancel }: PauseDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
-      <form
-        onSubmit={submit}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          if (event.key === "Escape") onCancel();
-        }}
-        className="flex w-full max-w-md flex-col gap-3 rounded-2xl border border-line bg-panel p-6 shadow-xl"
-      >
-        <h2 className="text-lg font-bold">Pausing. What were you about to do?</h2>
-        <p className="text-sm text-muted">
+    <AppDialog title="☕ Pausing. What were you about to do?" onClose={onCancel}>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">
           One line for future you. It shows up when you come back.
         </p>
-        <input
+        <Input
           autoFocus
+          aria-label="Note for future you"
           value={note}
           onChange={(event) => setNote(event.target.value)}
           placeholder="e.g. check the retry loop handles timeouts"
-          className="rounded-lg border border-line bg-bg px-3 py-2 outline-none focus:border-accent"
         />
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onCancel} className="px-3 py-1 text-muted">
+          <Button type="button" variant="ghost" onClick={onCancel}>
             Keep going
-          </button>
-          <button className="rounded-lg bg-accent px-4 py-1 font-bold text-panel">Pause</button>
+          </Button>
+          <Button type="submit">Pause</Button>
         </div>
       </form>
-    </div>
+    </AppDialog>
   );
 }

@@ -35,6 +35,7 @@ function useWorkspaceUi(review: ReviewPayload) {
   const [tab, setTab] = useState<SidebarTab>("path");
   const [composer, setComposer] = useState<LineTarget | null>(null);
   const [breakDue, setBreakDue] = useState(false);
+  const [posted, setPosted] = useState(false);
   const hovered = useRef<string | null>(null);
   const parkingInput = useRef<HTMLInputElement>(null);
   const setHovered = useCallback((name: string | null) => {
@@ -54,6 +55,8 @@ function useWorkspaceUi(review: ReviewPayload) {
     setComposer,
     breakDue,
     setBreakDue,
+    posted,
+    setPosted,
     getHovered,
     setHovered,
     parkingInput,
@@ -147,7 +150,8 @@ export function useWorkspace(
     },
     submit: async (...args: Parameters<typeof edits.submit>) => {
       await edits.submit(...args);
-      setDialog(null);
+      ui.setDialog(null);
+      ui.setPosted(true);
     },
   };
 }

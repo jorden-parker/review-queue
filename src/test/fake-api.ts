@@ -24,12 +24,28 @@ export function installFakeApi(
           line: 1,
           endLine: 1,
           lines: ["export type Options = { retries: number };"],
+          tokens: [
+            [
+              { text: "export type ", light: "#d73a49", dark: "#f97583" },
+              { text: "Options = { retries: number };" },
+            ],
+          ],
         },
       ],
     ],
     [
       /\/references/,
-      () => [{ path: "src/client.ts", line: 10, text: "export function load(options: Options) {" }],
+      () => [
+        {
+          path: "src/client.ts",
+          line: 10,
+          text: "export function load(options: Options) {",
+          tokens: [
+            { text: "export function ", light: "#d73a49", dark: "#f97583" },
+            { text: "load(options: Options) {" },
+          ],
+        },
+      ],
     ],
     [/\/session$/, (body) => applySessionAction(store, key, SessionActionSchema.parse(body))],
     [/\/submit$/, () => store.getSession(key)],

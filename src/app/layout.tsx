@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Atkinson_Hyperlegible, JetBrains_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-const reading = Atkinson_Hyperlegible({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-reading",
-});
-const code = JetBrains_Mono({ subsets: ["latin"], variable: "--font-code" });
+const sans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
   title: "Review Queue",
@@ -16,8 +13,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${reading.variable} ${code.variable}`}>
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+      <body className="min-h-screen">
+        <TooltipProvider>{children}</TooltipProvider>
+      </body>
     </html>
   );
 }

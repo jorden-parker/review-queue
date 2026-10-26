@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "cn";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import type { NoteKind } from "@/lib/types";
 import { LINE_NOTE_KINDS, NOTE_KIND_LABELS, NOTE_KIND_STYLES } from "./note-kinds";
 
@@ -24,34 +27,35 @@ export function NoteComposer({ onSave, onCancel }: NoteComposerProps) {
   }
 
   return (
-    <div className="flex flex-col gap-2 border-y border-line bg-panel p-3 font-sans">
+    <div className="flex animate-step-enter flex-col gap-2 border-y bg-card p-3 font-sans">
       <div className="flex gap-1">
         {LINE_NOTE_KINDS.map((option) => (
-          <button
+          <Button
             key={option}
+            variant="ghost"
+            size="xs"
             onClick={() => setKind(option)}
-            className={`rounded-full px-3 py-0.5 text-sm ${option === kind ? NOTE_KIND_STYLES[option] + " font-bold" : "text-muted"}`}
+            className={cn("rounded-full", option === kind && NOTE_KIND_STYLES[option])}
           >
             {NOTE_KIND_LABELS[option]}
-          </button>
+          </Button>
         ))}
       </div>
-      <textarea
+      <Textarea
         autoFocus
         value={body}
         onChange={(event) => setBody(event.target.value)}
         onKeyDown={handleKey}
         rows={3}
         placeholder="What did you notice? (⌘↵ to save, Esc to cancel)"
-        className="rounded-lg border border-line bg-bg p-2 text-sm outline-none focus:border-accent"
       />
-      <div className="flex justify-end gap-2 text-sm">
-        <button onClick={onCancel} className="px-3 py-1 text-muted">
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={onCancel}>
           Cancel
-        </button>
-        <button onClick={save} className="rounded-lg bg-accent px-3 py-1 font-bold text-panel">
+        </Button>
+        <Button size="sm" onClick={save}>
           Save note
-        </button>
+        </Button>
       </div>
     </div>
   );

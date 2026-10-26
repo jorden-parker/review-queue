@@ -1,16 +1,16 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { Reference } from "@/lib/symbols/symbol-index";
+import type { DefinitionWithCode, ReferenceWithCode } from "@/lib/review/peek-code";
 import type { PullRequestRef } from "@/lib/types";
-import { fetchDefinitions, fetchReferences, type DefinitionWithLines } from "./api";
+import { fetchDefinitions, fetchReferences } from "./api";
 
 export type PeekState = {
   name: string;
   from: string;
   tab: "definitions" | "references";
-  definitions: DefinitionWithLines[] | null;
-  references: Reference[] | null;
+  definitions: DefinitionWithCode[] | null;
+  references: ReferenceWithCode[] | null;
   error: string | null;
 };
 
