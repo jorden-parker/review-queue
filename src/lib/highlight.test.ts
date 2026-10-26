@@ -25,6 +25,23 @@ describe("highlightLines", () => {
     expect(line[0]).toMatchObject({ light: expect.any(String), dark: expect.any(String) });
   });
 
+  it("marks string and comment text as literal but not code inside template interpolation", async () => {
+    const [importLine, templateLine, commentLine] = await highlightLines("src/a.ts", [
+      'import { format } from "./format";',
+      "const label = `${format(ms)} ms`;",
+      "// format is handy",
+    ]);
+    const literalText = (line: typeof importLine) =>
+      line
+        .filter((token) => token.literal)
+        .map((token) => token.text)
+        .join("");
+    expect(literalText(importLine).trim()).toBe('"./format"');
+    expect(literalText(templateLine)).not.toContain("format");
+    expect(literalText(templateLine)).toContain(" ms");
+    expect(literalText(commentLine)).toBe("// format is handy");
+  });
+
   it("keeps unknown languages as plain text", async () => {
     expect(await highlightLines("notes.xyz", ["hello"])).toEqual([[{ text: "hello" }]]);
   });
