@@ -71,7 +71,7 @@ function orderFiles(files: PreparedFile[], steps: Step[]): PreparedFile[] {
 async function build(pr: PullRequest, deps: ReviewDeps): Promise<PreparedReview> {
   const checkout = await ensureCheckout(
     pr.ref,
-    { branch: pr.baseRef, sha: pr.baseSha },
+    { baseBranch: pr.baseRef, baseSha: pr.baseSha, headSha: pr.headSha },
     deps.checkoutOptions,
   );
   const diffs = await diffCheckout(checkout);
