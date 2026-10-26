@@ -147,7 +147,7 @@ export function AssistPanel({
           <X />
         </Button>
       </header>
-      <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 *:shrink-0">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 *:shrink-0">
         <p className="text-xs text-muted-foreground">
           The model&apos;s guess, unverified. The PR author can sway it.
         </p>

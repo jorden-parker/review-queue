@@ -187,18 +187,6 @@
   }
 }
 
-@utility scrollbar-hidden {
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-@utility scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-
 @utility grid-cols-workspace {
   grid-template-columns: minmax(0, 1fr) var(--container-rail-narrow);
 }
@@ -254,6 +242,10 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
   }
   html {
     @apply font-sans;

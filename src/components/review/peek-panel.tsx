@@ -78,7 +78,7 @@ function DefinitionCode({
   onIdentifier,
 }: Pick<PanelBodyProps, "onIdentifier"> & { definition: DefinitionWithCode }) {
   return (
-    <pre className="scrollbar-hidden overflow-x-auto py-2 font-mono text-code">
+    <pre className="overflow-x-auto py-2 font-mono text-code">
       {definition.tokens.map((row, index) => (
         <div key={index} className="flex px-3 transition-colors duration-150 hover:bg-muted/60">
           <span className="w-8 shrink-0 pr-3 text-right text-muted-foreground/70 select-none">
@@ -251,10 +251,10 @@ export function PeekPanel({ onTab, onClose, pinned, onTogglePin, ...body }: Peek
         {peek.error && (
           <p className="rounded-lg bg-del px-3 py-2 text-sm text-del-foreground">{peek.error}</p>
         )}
-        <TabsContent value="definitions" className="scrollbar-hidden min-h-0 overflow-y-auto">
+        <TabsContent value="definitions" className="min-h-0 overflow-y-auto">
           <Definitions {...body} />
         </TabsContent>
-        <TabsContent value="references" className="scrollbar-hidden min-h-0 overflow-y-auto">
+        <TabsContent value="references" className="min-h-0 overflow-y-auto">
           <References {...body} />
         </TabsContent>
       </Tabs>

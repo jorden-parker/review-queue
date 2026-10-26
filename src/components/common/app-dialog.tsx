@@ -17,10 +17,7 @@ export function AppDialog({ title, onClose, className, children }: AppDialogProp
       <DialogContent
         aria-describedby={undefined}
         onKeyDown={(event) => event.stopPropagation()}
-        className={cn(
-          "scrollbar-hidden max-h-dialog gap-5 overflow-y-auto p-6 sm:max-w-lg",
-          className,
-        )}
+        className={cn("max-h-dialog gap-5 overflow-y-auto p-6 sm:max-w-lg", className)}
       >
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold tracking-tight">{title}</DialogTitle>
