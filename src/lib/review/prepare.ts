@@ -142,5 +142,5 @@ export async function loadReview(ref: PullRequestRef, deps: ReviewDeps): Promise
   const review = await preparedReview(pr, deps);
   const reopenedStepIds = await reopenChangedSteps(review, deps.store);
   deps.store.markSeen(prKey(ref), review.data.headSha);
-  return { ...review.data, session: deps.store.getSession(prKey(ref)), reopenedStepIds };
+  return { ...review.data, pr, session: deps.store.getSession(prKey(ref)), reopenedStepIds };
 }

@@ -36,11 +36,13 @@ export async function conditionalGet(
   path: string,
   cache: EtagCache,
   run: Runner = githubRun,
+  requestHeaders: string[] = [],
 ): Promise<string> {
   const cached = readCached(cache, path);
-  const validator = cached ? ["-H", `If-None-Match: ${cached.etag}`] : [];
+  const validator = cached ? [`If-None-Match: ${cached.etag}`] : [];
+  const headerArgs = [...requestHeaders, ...validator].flatMap((header) => ["-H", header]);
   try {
-    const { headers, body } = splitResponse(await run("gh", ["api", "-i", path, ...validator]));
+    const { headers, body } = splitResponse(await run("gh", ["api", "-i", path, ...headerArgs]));
     const etag = ETAG_HEADER.exec(headers)?.[1];
     if (etag) cache.setCached(cacheKey(path), JSON.stringify({ etag, body }));
     return body;

@@ -19,6 +19,7 @@ function pullRequest(headSha: string, baseSha: string): PullRequest {
     ref: REF,
     title: "Add retry",
     body: "",
+    bodyHtml: "",
     url: "",
     author: "sam",
     baseRef: "main",
@@ -75,6 +76,17 @@ describe("loadReview", () => {
     const review = await loadReview(REF, deps);
     const navigable = Object.fromEntries(review.files.map((file) => [file.path, file.navigable]));
     expect(navigable).toMatchObject({ "scripts/run.sh": false, "src/retry.ts": true });
+  });
+
+  it("returns the latest description for an unchanged head", async () => {
+    await loadReview(REF, deps);
+    const head = headOf(fixture, REF.number);
+    deps.fetchPullRequest = async () => ({
+      ...pullRequest(head, mainOf(fixture)),
+      bodyHtml: "<p>fresh</p>",
+    });
+    const review = await loadReview(REF, deps);
+    expect(review.pr.bodyHtml).toBe("<p>fresh</p>");
   });
 
   it("reopens finished steps whose files changed in new commits", async () => {

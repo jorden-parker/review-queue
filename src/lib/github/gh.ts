@@ -16,6 +16,7 @@ export type PullRequest = {
   ref: PullRequestRef;
   title: string;
   body: string;
+  bodyHtml: string;
   url: string;
   author: string;
   baseRef: string;
@@ -45,6 +46,8 @@ type SearchResult = {
   updatedAt: string;
   isDraft: boolean;
 };
+
+const RENDERED_BODY = "Accept: application/vnd.github.full+json";
 
 const SEARCH_FIELDS = "number,title,url,repository,author,updatedAt,isDraft";
 
@@ -78,11 +81,12 @@ export async function getPullRequest(
   run: Runner = githubRun,
 ): Promise<PullRequest> {
   const path = `repos/${ref.owner}/${ref.repo}/pulls/${ref.number}`;
-  const pull = JSON.parse(await conditionalGet(path, cache, run));
+  const pull = JSON.parse(await conditionalGet(path, cache, run, [RENDERED_BODY]));
   return {
     ref,
     title: pull.title,
     body: pull.body ?? "",
+    bodyHtml: pull.body_html ?? "",
     url: pull.html_url,
     author: pull.user?.login ?? "",
     baseRef: pull.base.ref,

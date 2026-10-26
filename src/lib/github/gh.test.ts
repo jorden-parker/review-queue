@@ -48,6 +48,7 @@ describe("github", () => {
     const body = JSON.stringify({
       title: "Add cache",
       body: null,
+      body_html: "<p>Adds a cache</p>",
       html_url: "https://github.com/acme/app/pull/7",
       user: { login: "sam" },
       base: { ref: "main", sha: "base1" },
@@ -58,11 +59,18 @@ describe("github", () => {
     });
     const { run, calls } = fakeRunner(`HTTP/2.0 200 OK\r\nEtag: "e1"\r\n\r\n${body}`);
     const pr = await getPullRequest(REF, noCache, run);
-    expect(calls[0].args).toEqual(["api", "-i", "repos/acme/app/pulls/7"]);
+    expect(calls[0].args).toEqual([
+      "api",
+      "-i",
+      "repos/acme/app/pulls/7",
+      "-H",
+      "Accept: application/vnd.github.full+json",
+    ]);
     expect(pr).toEqual({
       ref: REF,
       title: "Add cache",
       body: "",
+      bodyHtml: "<p>Adds a cache</p>",
       url: "https://github.com/acme/app/pull/7",
       author: "sam",
       baseRef: "main",
