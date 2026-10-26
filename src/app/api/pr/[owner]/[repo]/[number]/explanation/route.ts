@@ -1,7 +1,6 @@
-import { llmConfig } from "@/lib/llm/model-choice";
 import { explanationFor } from "@/lib/review/explanation-service";
 import { jsonError, preparedFromRequest, type PrRouteContext } from "@/lib/review/route-context";
-import { sessionStore } from "@/lib/review/services";
+import { currentLlmConfig, sessionStore } from "@/lib/review/services";
 
 export async function GET(request: Request, context: PrRouteContext) {
   const prepared = await preparedFromRequest(request, context);
@@ -9,6 +8,6 @@ export async function GET(request: Request, context: PrRouteContext) {
   const stepId = new URL(request.url).searchParams.get("step");
   if (!stepId) return jsonError("Missing step", 400);
   return Response.json(
-    await explanationFor(prepared.data, stepId, sessionStore(), await llmConfig()),
+    await explanationFor(prepared.data, stepId, sessionStore(), await currentLlmConfig()),
   );
 }

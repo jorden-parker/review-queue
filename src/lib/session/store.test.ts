@@ -181,6 +181,14 @@ describe("SessionStore", () => {
     expect(store.getCached("k")).toBe('{"a":1}');
   });
 
+  it("keeps settings apart from the cache and overwrites them", () => {
+    store.setCached("llm", "cached");
+    expect(store.getSetting("llm")).toBeNull();
+    store.setSetting("llm", '{"a":1}');
+    store.setSetting("llm", '{"a":2}');
+    expect(store.getSetting("llm")).toBe('{"a":2}');
+  });
+
   it("summarises progress for many sessions", () => {
     store.setStepDone(KEY, "s1", true);
     store.setCurrentStep(KEY, "s2", "sha1");

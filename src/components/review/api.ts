@@ -1,5 +1,6 @@
 import { ASSIST_ERROR_MARKER } from "@/lib/assist-protocol";
 import type { ReviewEvent } from "@/lib/github/gh";
+import { json } from "@/lib/json-response";
 import { prPath } from "@/lib/pr-ref";
 import type { AssistRequest } from "@/lib/review/assist-request";
 import type { ExplanationResult } from "@/lib/review/explanation-service";
@@ -17,12 +18,6 @@ export type SubmitInput = {
   noteIds: number[];
   headSha: string;
 };
-
-async function json<T>(response: Response): Promise<T> {
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error ?? `Request failed (${response.status})`);
-  return body as T;
-}
 
 function apiPath(ref: PullRequestRef, suffix = ""): string {
   return `/api${prPath(ref)}${suffix}`;
