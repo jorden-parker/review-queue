@@ -9,6 +9,7 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(null, "i")).toBe("ask-model");
     expect(resolveShortcut(null, "Escape")).toBe("close");
     expect(resolveShortcut(null, "m")).toBe("pin-symbol");
+    expect(resolveShortcut(null, "\\")).toBe("toggle-panel");
   });
 
   it("waits for the second key of a chord", () => {

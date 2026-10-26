@@ -48,9 +48,10 @@ describe("ReviewLoader", () => {
     render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
     expect(screen.getByText("Getting the PR ready…")).toBeTruthy();
     expect(await screen.findByText("Before you start")).toBeTruthy();
-    expect(screen.getByText("Start here")).toBeTruthy();
     expect(screen.getByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
     expect(screen.getByText("≈")).toBeTruthy();
+    await userEvent.click(screen.getByRole("tab", { name: "Path" }));
+    expect(screen.getByText("Start here")).toBeTruthy();
   });
 
   it("shows an error when the PR cannot load", async () => {
@@ -83,7 +84,7 @@ describe("ReviewLoader", () => {
   });
 
   it("opens and lists the steps in the local model's order, with its reasons", async () => {
-    await renderReview(reviewPayload(), {
+    const { user } = await renderReview(reviewPayload(), {
       status: "ready",
       orientation: {
         model: "m",
@@ -106,6 +107,7 @@ describe("ReviewLoader", () => {
       "Then the options it reads.",
       "Last, the lockfile.",
     ];
+    await user.click(screen.getByRole("tab", { name: "Path" }));
     const path = within(screen.getByRole("list", { name: "Reading path" }));
     expect(path.getAllByTestId("step-reason").map((reason) => reason.textContent)).toEqual(reasons);
   });
@@ -113,22 +115,28 @@ describe("ReviewLoader", () => {
   it("shows no steps until the local model has ordered them", async () => {
     installFakeApi(reviewPayload(), new Promise(() => {}));
     render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
-    expect(await screen.findAllByText("Local model is ordering the steps…")).toHaveLength(2);
+    expect(await screen.findAllByText("Local model is ordering the steps…")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("tab", { name: "Path" }));
+    expect(screen.getAllByText("Local model is ordering the steps…")).toHaveLength(2);
     expect(screen.queryByRole("list", { name: "Reading path" })).toBeNull();
     expect(screen.queryByText(/^Step \d of 3/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Show whole PR/ })).toBeNull();
   });
 
   it("falls back to the built-in order when the local model is unavailable", async () => {
-    await renderReview(reviewPayload(), { status: "error", message: "connection refused" });
+    const { user } = await renderReview(reviewPayload(), {
+      status: "error",
+      message: "connection refused",
+    });
     expect(await screen.findByText(/connection refused/)).toBeTruthy();
     expect(screen.getByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
+    await user.click(screen.getByRole("tab", { name: "Path" }));
     expect(screen.getByText(/Built-in order/)).toBeTruthy();
   });
 
   it("explains the current step without being asked", async () => {
     await renderReview(reviewPayload(), MODEL_ON);
-    const rail = screen.getByRole("complementary", { name: "This step" });
+    const rail = screen.getByRole("tabpanel", { name: "Step" });
     expect(await within(rail).findByText("Adds the Options type.")).toBeTruthy();
     expect(within(rail).getByText("Is retries optional?")).toBeTruthy();
   });
@@ -193,6 +201,31 @@ describe("ReviewLoader", () => {
     );
   });
 
+  it("collapses the review panel and opens it again from any tab", async () => {
+    const { user } = await renderReview();
+    const panel = screen.getByRole("complementary", { name: "Review panel" });
+    expect(within(panel).getByRole("tab", { name: "Step" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    await user.click(within(panel).getByRole("button", { name: "Hide panel" }));
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+    await user.click(within(panel).getByRole("tab", { name: "Path" }));
+    expect(screen.getByRole("tabpanel", { name: "Path" })).toBeTruthy();
+    await user.keyboard("\\");
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+    await user.keyboard("\\");
+    expect(screen.getByRole("tabpanel", { name: "Path" })).toBeTruthy();
+  });
+
+  it("opens the hidden panel when a chat starts", async () => {
+    const { user } = await renderReview(reviewPayload(), MODEL_ON);
+    await user.click(screen.getByRole("button", { name: "Hide panel" }));
+    selectFirstLine("src/types.ts");
+    const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
+    await user.click(within(toolbar).getByRole("button", { name: /Explain/ }));
+    expect(await screen.findByRole("region", { name: "Ask the model" })).toBeTruthy();
+  });
+
   it("keeps a compact orientation pinned after the review starts", async () => {
     const { user } = await renderReview();
     expect(screen.getByText(/Retries failed loads/)).toBeTruthy();
@@ -223,22 +256,24 @@ describe("ReviewLoader", () => {
     const { api, user } = await renderReview(
       reviewPayload(emptySession({ currentStepId: "core:src/client.ts:0" })),
     );
+    await user.click(screen.getByRole("button", { name: "Hide panel" }));
     await user.click(screen.getAllByRole("button", { name: "Options" })[0]);
-    const peek = await screen.findByRole("complementary", { name: "Options" });
+    const contextPanel = await screen.findByRole("tabpanel", { name: /^Context/ });
+    const peek = within(contextPanel).getByRole("region", { name: "Options" });
     expect(await within(peek).findByTitle("src/types.ts")).toBeTruthy();
     expect(within(peek).getByText("type", { selector: "[data-slot=badge]" })).toBeTruthy();
     expect(within(peek).getByText("export type").closest(".code-token")).toBeTruthy();
     expect(document.querySelector(".grid-cols-workspace")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /In this PR/ }));
     expect(await screen.findByText(/1 jump deep from/)).toBeTruthy();
-    expect(screen.getByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
+    expect(screen.getByText("1/3")).toBeTruthy();
     await user.click(screen.getByRole("tab", { name: /References/ }));
     const reference = await screen.findByText("load(options: Options) {");
     expect(reference.closest("button")?.disabled).toBe(false);
     expect(screen.getByText("in this PR")).toBeTruthy();
     expect(screen.getByText("src/client.ts:10")).toBeTruthy();
     await user.keyboard("b");
-    expect(await screen.findByText("Step 2 of 3 · core · 2 lines")).toBeTruthy();
+    expect(await screen.findByText("2/3")).toBeTruthy();
     expect(api.actions()).toEqual(
       expect.arrayContaining([
         { type: "jump-push", name: "Options", path: "src/client.ts", line: 10 },
@@ -246,7 +281,8 @@ describe("ReviewLoader", () => {
       ]),
     );
     await user.keyboard("{Escape}");
-    expect(screen.queryByText("src/types.ts:1 · type")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Options" })).toBeNull();
+    expect(within(contextPanel).getByRole("button", { name: "Open Options" })).toBeTruthy();
   });
 
   it("remembers peeked names in the Context tab and pins them", async () => {
@@ -254,7 +290,7 @@ describe("ReviewLoader", () => {
       reviewPayload(emptySession({ currentStepId: "core:src/client.ts:0" })),
     );
     await user.click(screen.getAllByRole("button", { name: "Options" })[0]);
-    const peek = await screen.findByRole("complementary", { name: "Options" });
+    const peek = await screen.findByRole("region", { name: "Options" });
     await user.click(await within(peek).findByRole("button", { name: "Pin" }));
     expect(within(peek).getByRole("button", { name: "Unpin" })).toBeTruthy();
     await user.keyboard("{Escape}gc");
@@ -301,6 +337,7 @@ describe("ReviewLoader", () => {
     const { api, user } = await renderReview();
     await user.click(screen.getByRole("tab", { name: /Hotspots \(1\)/ }));
     await user.click(screen.getByRole("button", { name: /Debug output left in/ }));
+    await user.click(screen.getByRole("tab", { name: "Step" }));
     expect(await screen.findByText("Step 2 of 3 · core · 2 lines")).toBeTruthy();
     const stepHotspots = screen.getByRole("region", { name: "Hotspots in this step" });
     await user.click(within(stepHotspots).getByTitle("Checked"));

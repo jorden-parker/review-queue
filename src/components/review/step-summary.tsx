@@ -1,8 +1,6 @@
 "use client";
 
 import { Check } from "lucide-react";
-import type { ReactNode } from "react";
-import { cn } from "cn";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReviewPayload } from "@/lib/review/prepare";
@@ -14,13 +12,12 @@ import { StepExplanation } from "./step-explanation";
 import type { OrientationState } from "./use-review";
 import type { Workspace } from "./use-workspace";
 
-type StepRailProps = {
+type StepSummaryProps = {
   review: ReviewPayload;
   session: Session;
   workspace: Workspace;
   orientation: OrientationState;
   fresh: boolean;
-  assist: ReactNode;
 };
 
 function CurrentStep({
@@ -81,32 +78,17 @@ function StepHotspots({ session, workspace }: { session: Session; workspace: Wor
   );
 }
 
-export function StepRail({
-  review,
-  session,
-  workspace,
-  orientation,
-  fresh,
-  assist,
-}: StepRailProps) {
+export function StepSummary({ review, session, workspace, orientation, fresh }: StepSummaryProps) {
   return (
-    <aside aria-label="This step" className="flex min-h-0 flex-col border-l bg-background">
-      <div
-        className={cn(
-          "flex min-h-0 flex-col gap-3 overflow-y-auto p-3 *:min-h-0 *:overflow-y-auto",
-          workspace.assist.thread ? "shrink-0 basis-1/2" : "flex-1",
-        )}
-      >
-        <CurrentStep review={review} session={session} workspace={workspace} />
-        <StepHotspots session={session} workspace={workspace} />
-        <OrientationCard
-          key={fresh ? "fresh" : "started"}
-          review={review}
-          orientation={orientation}
-          fresh={fresh}
-        />
-      </div>
-      {assist}
-    </aside>
+    <div className="flex flex-col gap-3">
+      <CurrentStep review={review} session={session} workspace={workspace} />
+      <StepHotspots session={session} workspace={workspace} />
+      <OrientationCard
+        key={fresh ? "fresh" : "started"}
+        review={review}
+        orientation={orientation}
+        fresh={fresh}
+      />
+    </div>
   );
 }

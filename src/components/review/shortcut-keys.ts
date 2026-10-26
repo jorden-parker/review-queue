@@ -13,6 +13,7 @@ export type ShortcutAction =
   | "ask-model"
   | "park"
   | "toggle-all"
+  | "toggle-panel"
   | "pause"
   | "close"
   | "help";
@@ -29,6 +30,7 @@ const SINGLE_KEYS: Record<string, ShortcutAction> = {
   i: "ask-model",
   P: "park",
   a: "toggle-all",
+  "\\": "toggle-panel",
   ".": "pause",
   Escape: "close",
   "?": "help",

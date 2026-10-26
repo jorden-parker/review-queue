@@ -24,7 +24,7 @@ import { useShortcuts } from "./use-shortcuts";
 import { useStepNavigation } from "./use-step-navigation";
 
 type Dialog = "resume" | "pause" | "finish" | "help" | "start-over" | null;
-export type SidebarTab = "path" | "hotspots" | "notes" | "context" | "chats";
+export type SidebarTab = "step" | "path" | "hotspots" | "notes" | "context" | "chats";
 
 const STALE_SESSION_MS = 30 * 60 * 1000;
 
@@ -41,10 +41,40 @@ function explainSelection(assist: Assist, selection: LineSelection | null) {
   if (selection) assist.open({ kind: "lines", range: selection.range }, "explain");
 }
 
+function withOpenPanel(assist: Assist, showPanel: () => void): Assist {
+  return {
+    ...assist,
+    open: (...args) => {
+      showPanel();
+      assist.open(...args);
+    },
+    reopen: (...args) => {
+      showPanel();
+      assist.reopen(...args);
+    },
+  };
+}
+
+function withContextTab(peek: Peek, showContext: () => void): Peek {
+  return {
+    ...peek,
+    showDefinitions: (position) => {
+      showContext();
+      peek.showDefinitions(position);
+    },
+    showReferences: (position) => {
+      showContext();
+      peek.showReferences(position);
+    },
+  };
+}
+
 function closeTopmost(assist: Assist, closeOthers: () => void) {
   if (assist.thread) assist.close();
   else closeOthers();
 }
+
+type Peek = ReturnType<typeof usePeek>;
 
 type ShortcutDeps = {
   review: ReviewPayload;
@@ -83,6 +113,7 @@ function shortcutHandlers({
     "peek-references": () => hovered && peek.showReferences(hovered),
     "pin-symbol": pins.togglePeekPin,
     "open-context": () => ui.setTab("context"),
+    "toggle-panel": ui.togglePanel,
     back: jumps.back,
     note: () => ui.setComposer(firstNoteLine(review.files, navigation.activeHunkId)),
     "ask-model": () => explainSelection(assist, selection),
@@ -132,9 +163,14 @@ function useRememberedPeek(
   return { peek, context, pins };
 }
 
+function startsWithPanelOpen(): boolean {
+  return window.matchMedia?.("(min-width: 64rem)").matches ?? true;
+}
+
 function useWorkspaceUi(review: ReviewPayload) {
   const [dialog, setDialog] = useState<Dialog>(() => (shouldGreet(review) ? "resume" : null));
-  const [tab, setTab] = useState<SidebarTab>("path");
+  const [tab, selectTab] = useState<SidebarTab>("step");
+  const [panelOpen, setPanelOpen] = useState(startsWithPanelOpen);
   const [composer, setComposer] = useState<LineTarget | null>(null);
   const [breakDue, setBreakDue] = useState(false);
   const [posted, setPosted] = useState(false);
@@ -144,15 +180,24 @@ function useWorkspaceUi(review: ReviewPayload) {
     hovered.current = position;
   }, []);
   const getHovered = useCallback(() => hovered.current, []);
+  const showPanel = useCallback(() => setPanelOpen(true), []);
+  const togglePanel = useCallback(() => setPanelOpen((open) => !open), []);
+  const setTab = useCallback((next: SidebarTab) => {
+    selectTab(next);
+    setPanelOpen(true);
+  }, []);
   const focusParking = useCallback(() => {
     setTab("notes");
     setTimeout(() => parkingInput.current?.focus(), 0);
-  }, []);
+  }, [setTab]);
   return {
     dialog,
     setDialog,
     tab,
     setTab,
+    panelOpen,
+    showPanel,
+    togglePanel,
     composer,
     setComposer,
     breakDue,
@@ -188,14 +233,16 @@ export function useWorkspace(
   const ui = useWorkspaceUi(review);
   const navigation = useStepNavigation(review, session, controls.act);
   const savedChats = useSavedChats(controls.act);
-  const assist = useAssist(ref, review.headSha, savedChats.save);
-  const { peek, context, pins } = useRememberedPeek(
+  const assist = withOpenPanel(useAssist(ref, review.headSha, savedChats.save), ui.showPanel);
+  const remembered = useRememberedPeek(
     ref,
     review.headSha,
     session,
     controls.act,
     navigation.currentStep,
   );
+  const { context, pins } = remembered;
+  const peek = withContextTab(remembered.peek, () => ui.setTab("context"));
   const selection = useLineSelection();
   const jumps = useJumps(session, controls.act, navigation.goTo, peek);
   const edits = useSessionEdits(ref, review.headSha, session, controls.act, controls.setSession);
