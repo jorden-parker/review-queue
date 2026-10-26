@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react";
 import { cn } from "cn";
 import { EmptyState } from "@/components/common/empty-state";
+import { InlineMarkdown } from "@/components/common/markdown-text";
 import { PathLabel } from "@/components/common/path-label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Hotspot, Severity } from "@/lib/types";
@@ -63,11 +64,13 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
                       SEVERITY_STYLES[hotspot.severity],
                     )}
                   />
-                  {hotspot.title}
+                  <InlineMarkdown text={hotspot.title} />
                   {hotspot.suggested && <Sparkles size={12} className="text-primary" />}
                 </span>
                 <PathLabel path={hotspot.path} line={hotspot.line} wrap />
-                <span className="text-xs text-muted-foreground">{hotspot.note ?? hotspot.why}</span>
+                <span className="text-xs text-muted-foreground">
+                  <InlineMarkdown text={hotspot.note ?? hotspot.why} />
+                </span>
               </button>
             </li>
           );

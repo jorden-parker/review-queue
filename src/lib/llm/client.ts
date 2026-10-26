@@ -8,6 +8,9 @@ export type Message = { role: "user" | "assistant"; content: string };
 
 export type ModelRequest = { system: string; maxTokens: number; messages: Message[] };
 
+export const CODE_NAME_RULE =
+  "Write markdown, and wrap every function, method, variable, type, file and other identifier name in backticks, like `loadReview`.";
+
 const DEFAULT_TIMEOUT_MS = 180_000;
 
 export function llmConfigFromEnv(env: Record<string, string | undefined> = process.env): LlmConfig {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FileDiff, Step } from "@/lib/types";
 import { addedHunk, fileDiff, lines } from "@/test/diff-builders";
+import { CODE_NAME_RULE } from "./client";
 import { buildStepPrompt, explainStep, type StepExplanationInput } from "./step-explanation";
 
 const STEP: Step = {
@@ -81,6 +82,12 @@ describe("explainStep", () => {
       checks: ["Is the key stable?", "Is eviction bounded?", "Is it thread safe?"],
       model: "m",
     });
+  });
+
+  it("asks for markdown with code names in backticks", async () => {
+    const { fetchImpl, bodies } = scriptedFetch([JSON.stringify(GOOD)]);
+    await explainStep(INPUT, CONFIG, fetchImpl);
+    expect(bodies[0]).toMatchObject({ system: expect.stringContaining(CODE_NAME_RULE) });
   });
 
   it("retries once when the first reply is not valid JSON", async () => {

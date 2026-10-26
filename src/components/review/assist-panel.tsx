@@ -2,6 +2,7 @@
 
 import { Sparkles, Square, X } from "lucide-react";
 import { useState } from "react";
+import { Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { NoteKind } from "@/lib/types";
@@ -25,20 +26,6 @@ type AssistPanelProps = {
   onShowLines: () => void;
 };
 
-function AssistText({ text }: { text: string }) {
-  return text.split("```").map((part, index) =>
-    index % 2 === 1 ? (
-      <pre key={index} className="overflow-x-auto rounded-md bg-muted p-2 font-mono text-code">
-        {part.replace(/^\w*\n/, "")}
-      </pre>
-    ) : (
-      <p key={index} className="whitespace-pre-wrap">
-        {part.trim()}
-      </p>
-    ),
-  );
-}
-
 function Turn({ turn, streaming }: { turn: AssistTurn; streaming: boolean }) {
   if (turn.role === "reviewer") {
     return (
@@ -47,7 +34,7 @@ function Turn({ turn, streaming }: { turn: AssistTurn; streaming: boolean }) {
   }
   return (
     <div className="flex flex-col gap-2">
-      <AssistText text={turn.text} />
+      <Markdown text={turn.text} className="flex flex-col gap-2" />
       {streaming && <span className="h-4 w-1.5 animate-pulse bg-primary" aria-label="Writing" />}
     </div>
   );

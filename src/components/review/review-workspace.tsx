@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
+import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,7 +85,9 @@ function TopBar({
         </Link>
       </HintButton>
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-semibold">{review.pr.title}</span>
+        <span className="truncate text-sm font-semibold">
+          <InlineMarkdown text={review.pr.title} />
+        </span>
         <span className="truncate font-mono text-xs text-muted-foreground">
           {prKey(review.pr.ref)} · {review.pr.author} · {review.headSha.slice(0, 7)}
         </span>

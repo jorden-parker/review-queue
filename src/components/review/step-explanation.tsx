@@ -2,6 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import { useState } from "react";
+import { InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import type { StepExplanation } from "@/lib/llm/step-explanation";
 import type { ExplanationResult } from "@/lib/review/explanation-service";
@@ -22,13 +23,16 @@ function ExplanationPanel({ explanation }: { explanation: StepExplanation }) {
       <p className="text-xs text-muted-foreground">
         The model&apos;s guess, unverified. The PR author can sway it.
       </p>
-      <p className="flex items-center gap-1.5 font-medium">
-        <Sparkles size={14} className="text-primary" /> {explanation.what}
-      </p>
+      <div className="flex items-start gap-1.5 font-medium">
+        <Sparkles size={14} className="mt-0.5 shrink-0 text-primary" />
+        <Markdown text={explanation.what} className="flex flex-col gap-1.5" />
+      </div>
       {explanation.checks.length > 0 && (
         <ul className="list-disc pl-5">
           {explanation.checks.map((check) => (
-            <li key={check}>{check}</li>
+            <li key={check}>
+              <InlineMarkdown text={check} />
+            </li>
           ))}
         </ul>
       )}

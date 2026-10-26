@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp, Compass, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { PrDescription } from "@/components/common/pr-description";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,11 +39,12 @@ function AiSummary({ orientation }: { orientation: OrientationState }) {
       <p className="text-xs text-muted-foreground">
         The model&apos;s guess, unverified. The PR author can sway it.
       </p>
-      <p className="flex items-center gap-1.5 font-medium">
-        <Sparkles size={14} className="text-primary" /> {summary}
-      </p>
+      <div className="flex items-start gap-1.5 font-medium">
+        <Sparkles size={14} className="mt-0.5 shrink-0 text-primary" />
+        <Markdown text={summary} className="flex flex-col gap-1.5" />
+      </div>
       <p>
-        <span className="text-muted-foreground">Why:</span> {intent}
+        <span className="text-muted-foreground">Why:</span> <InlineMarkdown text={intent} />
       </p>
       <p>
         <span className="text-muted-foreground">Risk:</span>{" "}
@@ -58,7 +60,9 @@ function AiSummaryLine({ orientation }: { orientation: OrientationState }) {
   return (
     <p className="flex items-center gap-1.5 text-sm">
       <Sparkles size={14} className="shrink-0 text-primary" />
-      <span className="truncate">{summary}</span>
+      <span className="truncate">
+        <InlineMarkdown text={summary} />
+      </span>
       <span className={`shrink-0 font-medium ${RISK_STYLES[risk]}`}>· {risk} risk</span>
     </p>
   );
@@ -110,7 +114,7 @@ export function OrientationCard({ review, orientation, fresh }: OrientationCardP
         <CardTitle
           className={expanded ? "text-xl font-semibold tracking-tight" : "truncate font-semibold"}
         >
-          {review.pr.title}
+          <InlineMarkdown text={review.pr.title} />
         </CardTitle>
       </CardHeader>
       <CardContent
