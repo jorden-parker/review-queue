@@ -22,9 +22,9 @@ import type { OrientationState, useReview } from "./use-review";
 import { useSessionEdits } from "./use-session-edits";
 import { useShortcuts } from "./use-shortcuts";
 import { useStepNavigation } from "./use-step-navigation";
+import { usePanes } from "./use-panes";
 
 type Dialog = "resume" | "pause" | "finish" | "help" | "start-over" | null;
-export type SidebarTab = "step" | "path" | "hotspots" | "notes" | "context" | "chats";
 
 const STALE_SESSION_MS = 30 * 60 * 1000;
 
@@ -41,16 +41,20 @@ function explainSelection(assist: Assist, selection: LineSelection | null) {
   if (selection) assist.open({ kind: "lines", range: selection.range }, "explain");
 }
 
-function withOpenPanel(assist: Assist, showPanel: () => void): Assist {
+function withChatPane(assist: Assist, panes: Panes): Assist {
   return {
     ...assist,
     open: (...args) => {
-      showPanel();
+      panes.showPane("chat");
       assist.open(...args);
     },
     reopen: (...args) => {
-      showPanel();
+      panes.showPane("chat");
       assist.reopen(...args);
+    },
+    close: () => {
+      panes.closePane("chat");
+      assist.close();
     },
   };
 }
@@ -75,6 +79,7 @@ function closeTopmost(assist: Assist, closeOthers: () => void) {
 }
 
 type Peek = ReturnType<typeof usePeek>;
+type Panes = ReturnType<typeof usePanes>;
 
 type ShortcutDeps = {
   review: ReviewPayload;
@@ -112,7 +117,7 @@ function shortcutHandlers({
     "peek-definition": () => hovered && jumps.peekName(hovered),
     "peek-references": () => hovered && peek.showReferences(hovered),
     "pin-symbol": pins.togglePeekPin,
-    "open-context": () => ui.setTab("context"),
+    "open-context": () => ui.showPane("context"),
     "toggle-panel": ui.togglePanel,
     back: jumps.back,
     note: () => ui.setComposer(firstNoteLine(review.files, navigation.activeHunkId)),
@@ -163,14 +168,9 @@ function useRememberedPeek(
   return { peek, context, pins };
 }
 
-function startsWithPanelOpen(): boolean {
-  return window.matchMedia?.("(min-width: 64rem)").matches ?? true;
-}
-
 function useWorkspaceUi(review: ReviewPayload) {
   const [dialog, setDialog] = useState<Dialog>(() => (shouldGreet(review) ? "resume" : null));
-  const [tab, selectTab] = useState<SidebarTab>("step");
-  const [panelOpen, setPanelOpen] = useState(startsWithPanelOpen);
+  const panes = usePanes();
   const [composer, setComposer] = useState<LineTarget | null>(null);
   const [breakDue, setBreakDue] = useState(false);
   const [posted, setPosted] = useState(false);
@@ -180,24 +180,15 @@ function useWorkspaceUi(review: ReviewPayload) {
     hovered.current = position;
   }, []);
   const getHovered = useCallback(() => hovered.current, []);
-  const showPanel = useCallback(() => setPanelOpen(true), []);
-  const togglePanel = useCallback(() => setPanelOpen((open) => !open), []);
-  const setTab = useCallback((next: SidebarTab) => {
-    selectTab(next);
-    setPanelOpen(true);
-  }, []);
+  const { showPane } = panes;
   const focusParking = useCallback(() => {
-    setTab("notes");
+    showPane("notes");
     setTimeout(() => parkingInput.current?.focus(), 0);
-  }, [setTab]);
+  }, [showPane]);
   return {
     dialog,
     setDialog,
-    tab,
-    setTab,
-    panelOpen,
-    showPanel,
-    togglePanel,
+    ...panes,
     composer,
     setComposer,
     breakDue,
@@ -233,7 +224,7 @@ export function useWorkspace(
   const ui = useWorkspaceUi(review);
   const navigation = useStepNavigation(review, session, controls.act);
   const savedChats = useSavedChats(controls.act);
-  const assist = withOpenPanel(useAssist(ref, review.headSha, savedChats.save), ui.showPanel);
+  const assist = withChatPane(useAssist(ref, review.headSha, savedChats.save), ui);
   const remembered = useRememberedPeek(
     ref,
     review.headSha,
@@ -242,7 +233,7 @@ export function useWorkspace(
     navigation.currentStep,
   );
   const { context, pins } = remembered;
-  const peek = withContextTab(remembered.peek, () => ui.setTab("context"));
+  const peek = withContextTab(remembered.peek, () => ui.showPane("context"));
   const selection = useLineSelection();
   const jumps = useJumps(session, controls.act, navigation.goTo, peek);
   const edits = useSessionEdits(ref, review.headSha, session, controls.act, controls.setSession);
