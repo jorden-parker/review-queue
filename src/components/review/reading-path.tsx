@@ -77,7 +77,7 @@ export function ReadingPath(props: ReadingPathProps) {
                 >
                   <span
                     className={cn(
-                      "text-sm",
+                      "text-sm wrap-anywhere",
                       done ? "text-muted-foreground line-through" : "font-medium",
                       current && "text-accent-foreground",
                     )}
