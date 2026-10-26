@@ -17,6 +17,7 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut("g", "d")).toBe("peek-definition");
     expect(resolveShortcut("g", "r")).toBe("peek-references");
     expect(resolveShortcut("g", "c")).toBe("open-context");
+    expect(resolveShortcut("g", "o")).toBe("open-outline");
   });
 
   it("drops unknown chords and keys", () => {

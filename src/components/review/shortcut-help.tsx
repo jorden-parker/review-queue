@@ -11,6 +11,7 @@ const SHORTCUTS: [string[], string][] = [
   [["g", "r"], "References to the hovered name"],
   [["m"], "Pin or unpin the peeked name"],
   [["g", "c"], "Context: names you have peeked"],
+  [["g", "o"], "Outline of this step's files"],
   [["b"], "Back from a jump"],
   [["c"], "Note on the current chunk"],
   [["i"], "Explain the selected lines"],
