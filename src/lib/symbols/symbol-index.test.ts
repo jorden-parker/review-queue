@@ -4,7 +4,13 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Runner } from "@/lib/exec";
 import { ensureCheckout } from "@/lib/git/checkout";
-import { createFixtureRepo, mainOf, removeFixtureRepo, type FixtureRepo } from "@/test/git-fixture";
+import {
+  createFixtureRepo,
+  headOf,
+  mainOf,
+  removeFixtureRepo,
+  type FixtureRepo,
+} from "@/test/git-fixture";
 import { SymbolIndex } from "./symbol-index";
 
 const REF = { owner: "acme", repo: "app", number: 1 };
@@ -25,7 +31,7 @@ describe("SymbolIndex", () => {
     );
     const checkout = await ensureCheckout(
       REF,
-      { branch: "main", sha: mainOf(fixture) },
+      { baseBranch: "main", baseSha: mainOf(fixture), headSha: headOf(fixture, REF.number) },
       {
         cacheRoot: fixture.cacheRoot,
         remoteUrl: fixture.origin,

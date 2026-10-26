@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { runCommand, type Runner } from "@/lib/exec";
+import type { Runner } from "@/lib/exec";
+import { githubRun } from "@/lib/github/github-guard";
 import type { FileDiff, PullRequestRef } from "@/lib/types";
 import { parseUnifiedDiff } from "./diff-parser";
 
@@ -35,7 +36,7 @@ async function ensureBareClone(remoteUrl: string, repoDir: string, run: Runner):
   await run("git", ["clone", "--quiet", "--bare", remoteUrl, repoDir]);
 }
 
-export type BaseCommit = { branch: string; sha: string };
+export type PullCommits = { baseBranch: string; baseSha: string; headSha: string };
 
 async function fetchRefs(
   ref: PullRequestRef,
@@ -57,6 +58,31 @@ async function fetchRefs(
   );
 }
 
+async function hasCommit(repoDir: string, sha: string, run: Runner): Promise<boolean> {
+  return run("git", ["cat-file", "-e", `${sha}^{commit}`], { cwd: repoDir }).then(
+    () => true,
+    () => false,
+  );
+}
+
+async function hasCommits(repoDir: string, commits: PullCommits, run: Runner): Promise<boolean> {
+  return (
+    (await hasCommit(repoDir, commits.headSha, run)) &&
+    (await hasCommit(repoDir, commits.baseSha, run))
+  );
+}
+
+async function resolveHead(
+  ref: PullRequestRef,
+  commits: PullCommits,
+  repoDir: string,
+  run: Runner,
+): Promise<string> {
+  if (await hasCommits(repoDir, commits, run)) return commits.headSha;
+  await fetchRefs(ref, commits.baseBranch, repoDir, run);
+  return revParse(repoDir, `refs/review/pr-${ref.number}`, run);
+}
+
 async function revParse(repoDir: string, name: string, run: Runner): Promise<string> {
   return (await run("git", ["rev-parse", name], { cwd: repoDir })).trim();
 }
@@ -76,17 +102,16 @@ async function ensureWorktree(
 
 export async function ensureCheckout(
   ref: PullRequestRef,
-  base: BaseCommit,
+  commits: PullCommits,
   options: CheckoutOptions = {},
 ): Promise<Checkout> {
-  const run = options.run ?? runCommand;
+  const run = options.run ?? githubRun;
   const cacheRoot = options.cacheRoot ?? defaultCacheRoot();
   const repoDir = path.join(cacheRoot, "repos", ref.owner, `${ref.repo}.git`);
   await ensureBareClone(options.remoteUrl ?? githubUrl(ref), repoDir, run);
-  await fetchRefs(ref, base.branch, repoDir, run);
-  const headSha = await revParse(repoDir, `refs/review/pr-${ref.number}`, run);
+  const headSha = await resolveHead(ref, commits, repoDir, run);
   const mergeBaseSha = (
-    await run("git", ["merge-base", base.sha, headSha], { cwd: repoDir })
+    await run("git", ["merge-base", commits.baseSha, headSha], { cwd: repoDir })
   ).trim();
   const worktreePath = path.join(cacheRoot, "worktrees", ref.owner, ref.repo, headSha);
   await ensureWorktree(repoDir, worktreePath, headSha, run);

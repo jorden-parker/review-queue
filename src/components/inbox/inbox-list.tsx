@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { listReviewRequests, type ReviewRequest } from "@/lib/github/gh";
+import type { ReviewRequest } from "@/lib/github/gh";
 import { prKey, prPath } from "@/lib/pr-ref";
-import { sessionStore } from "@/lib/review/services";
+import { reviewRequests, sessionStore } from "@/lib/review/services";
 import type { ProgressSummary } from "@/lib/session/store";
 
 function relativeTime(iso: string): string {
@@ -49,7 +49,7 @@ type Inbox = {
 
 async function loadInbox(): Promise<Inbox> {
   try {
-    const requests = await listReviewRequests();
+    const requests = await reviewRequests();
     const progress = sessionStore().progressSummaries(
       requests.map((request) => prKey(request.ref)),
     );

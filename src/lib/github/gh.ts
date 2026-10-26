@@ -1,4 +1,5 @@
-import { runCommand, type Runner } from "@/lib/exec";
+import type { Runner } from "@/lib/exec";
+import { githubRun } from "./github-guard";
 import type { PullRequestRef } from "@/lib/types";
 
 export type ReviewRequest = {
@@ -53,7 +54,7 @@ function refFromSearch(result: SearchResult): PullRequestRef {
   return { owner, repo, number: result.number };
 }
 
-export async function listReviewRequests(run: Runner = runCommand): Promise<ReviewRequest[]> {
+export async function listReviewRequests(run: Runner = githubRun): Promise<ReviewRequest[]> {
   const output = await run("gh", [
     "search",
     "prs",
@@ -74,7 +75,7 @@ export async function listReviewRequests(run: Runner = runCommand): Promise<Revi
 
 export async function getPullRequest(
   ref: PullRequestRef,
-  run: Runner = runCommand,
+  run: Runner = githubRun,
 ): Promise<PullRequest> {
   const output = await run("gh", [
     "pr",
@@ -105,7 +106,7 @@ export async function getPullRequest(
 export async function submitReview(
   ref: PullRequestRef,
   review: ReviewSubmission,
-  run: Runner = runCommand,
+  run: Runner = githubRun,
 ): Promise<void> {
   const payload = {
     event: review.event,
