@@ -49,6 +49,17 @@ describe("linkWorkspacePackages", () => {
     expect(fs.existsSync(path.join(root, "outside"))).toBe(false);
   });
 
+  it.each(["node_modules", "node_modules/@acme"])(
+    "never writes through a %s the repository points outside the checkout",
+    async (linked) => {
+      const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "outside-")));
+      fs.mkdirSync(path.dirname(path.join(root, linked)), { recursive: true });
+      fs.symlinkSync(outside, path.join(root, linked));
+      await linkWorkspacePackages(root, runCommand);
+      expect(fs.readdirSync(outside)).toEqual([]);
+    },
+  );
+
   it("can run again over links it already made", async () => {
     await linkWorkspacePackages(root, runCommand);
     await linkWorkspacePackages(root, runCommand);

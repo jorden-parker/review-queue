@@ -22,8 +22,20 @@ async function workspaceManifests(root: string, run: Runner): Promise<string[]> 
     .filter((file) => path.dirname(file) !== "." && !file.split("/").includes("node_modules"));
 }
 
+function isRealDirectoryOrMissing(directory: string): boolean {
+  const stats = fs.lstatSync(directory, { throwIfNoEntry: false });
+  return !stats || stats.isDirectory();
+}
+
+function staysInsideCheckout(root: string, link: string): boolean {
+  const modules = path.join(root, "node_modules");
+  const parents = [modules, path.dirname(link)];
+  return parents.every(isRealDirectoryOrMissing);
+}
+
 function linkPackage(root: string, name: string, directory: string): void {
   const link = path.join(root, "node_modules", name);
+  if (!staysInsideCheckout(root, link)) return;
   if (fs.lstatSync(link, { throwIfNoEntry: false })) return;
   fs.mkdirSync(path.dirname(link), { recursive: true });
   fs.symlinkSync(path.relative(path.dirname(link), path.join(root, directory)), link, "dir");
