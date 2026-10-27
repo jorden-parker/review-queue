@@ -169,7 +169,7 @@ export function FinishReview({
       <NoteChecklist notes={postable} selected={selected} onToggle={toggle} />
       {parkedCount > 0 && (
         <p className="text-sm text-muted-foreground">
-          {plural(parkedCount, "parked note")} stay with you and are not posted.
+          {plural(parkedCount, "parked note")} won’t be posted.
         </p>
       )}
       {onDraftSummary && (
