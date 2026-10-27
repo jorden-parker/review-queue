@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { FileDiff } from "@/lib/types";
+import type { FileDiff, SymbolDefinition } from "@/lib/types";
 import { addedHunk, fileDiff, lines, removedHunk } from "@/test/diff-builders";
 import { findHotspots } from "./find-hotspots";
 import { changedSignatureNames } from "./rules";
 
-const EMPTY = { churn: new Map<string, number>(), callerCounts: new Map<string, number>() };
+const EMPTY = {
+  churn: new Map<string, number>(),
+  callerCounts: new Map<string, number>(),
+  touchedDefinitions: new Map<string, SymbolDefinition[]>(),
+};
 const SPEC = fileDiff("src/thing.test.ts", [addedHunk(["it('works', () => {})"])]);
 
 function rulesFor(diffs: FileDiff[], context = EMPTY): string[] {
@@ -74,6 +78,66 @@ describe("findHotspots", () => {
     });
     expect(hotspot).toMatchObject({ rule: "signature-change", severity: "high" });
     expect(hotspot.why).toContain("9 other places");
+  });
+
+  it("flags body-only changes to functions with many callers", () => {
+    const diff = fileDiff("src/users.ts", [addedHunk(["  return cache.get(id) ?? null;"], 12)]);
+    const load = {
+      name: "loadUser",
+      kind: "function" as const,
+      path: "src/users.ts",
+      line: 10,
+      endLine: 20,
+    };
+    const hotspots = findHotspots([diff, SPEC], {
+      ...EMPTY,
+      callerCounts: new Map([["loadUser", 5]]),
+      touchedDefinitions: new Map([["src/users.ts", [load]]]),
+    });
+    expect(hotspots[0]).toMatchObject({
+      rule: "busy-function-change",
+      severity: "medium",
+      line: 10,
+    });
+    expect(hotspots[0].title).toBe("loadUser is used in 5 other places");
+  });
+
+  it("does not double-flag a busy function whose signature also changed", () => {
+    const diff = fileDiff("src/users.ts", [
+      removedHunk(["export function loadUser(id: string) {"], 10),
+      addedHunk(["export function loadUser(id: string, force: boolean) {"], 10),
+    ]);
+    const load = {
+      name: "loadUser",
+      kind: "function" as const,
+      path: "src/users.ts",
+      line: 10,
+      endLine: 20,
+    };
+    const rules = findHotspots([diff, SPEC], {
+      ...EMPTY,
+      callerCounts: new Map([["loadUser", 5]]),
+      touchedDefinitions: new Map([["src/users.ts", [load]]]),
+    }).map((hotspot) => hotspot.rule);
+    expect(rules).toContain("signature-change");
+    expect(rules).not.toContain("busy-function-change");
+  });
+
+  it("stays quiet for a busy function with few callers", () => {
+    const diff = fileDiff("src/users.ts", [addedHunk(["  return null;"], 12)]);
+    const load = {
+      name: "loadUser",
+      kind: "function" as const,
+      path: "src/users.ts",
+      line: 10,
+      endLine: 20,
+    };
+    const rules = findHotspots([diff, SPEC], {
+      ...EMPTY,
+      callerCounts: new Map([["loadUser", 2]]),
+      touchedDefinitions: new Map([["src/users.ts", [load]]]),
+    }).map((hotspot) => hotspot.rule);
+    expect(rules).not.toContain("busy-function-change");
   });
 
   it("flags big hunks and heavy branching", () => {
