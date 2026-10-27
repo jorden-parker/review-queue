@@ -33,6 +33,21 @@ describe("applySessionAction", () => {
     expect(run(store, { type: "jump-clear" }).jumps).toEqual([]);
   });
 
+  it("edits a note's kind and body", () => {
+    const store = new SessionStore(":memory:");
+    const added = run(store, {
+      type: "note-add",
+      path: null,
+      line: null,
+      kind: "nit",
+      body: "typo",
+    });
+    const id = added.notes[0].id;
+    const session = run(store, { type: "note-edit", id, kind: "blocker", body: " leaks " });
+    expect(session.notes[0]).toMatchObject({ id, kind: "blocker", body: "leaks" });
+    expect(() => run(store, { type: "note-edit", id, kind: "nit", body: "  " })).toThrow();
+  });
+
   it("saves, updates and deletes model chats", () => {
     const store = new SessionStore(":memory:");
     const thread = {
