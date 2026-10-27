@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PullRequest } from "@/lib/github/gh";
 import { SessionStore } from "@/lib/session/store";
-import { orientationFor } from "./orientation-service";
+import { orientationFor, storedOrientation } from "./orientation-service";
 import type { ReviewData } from "./prepare";
 
 const DATA: ReviewData = {
@@ -71,5 +71,20 @@ describe("orientationFor", () => {
     const store = new SessionStore(":memory:");
     const failing = (async () => new Response("down", { status: 503 })) as unknown as typeof fetch;
     expect(await orientationFor(DATA, store, CONFIG, failing)).toMatchObject({ status: "error" });
+  });
+});
+
+describe("storedOrientation", () => {
+  it("is null until the orientation has been generated", () => {
+    const store = new SessionStore(":memory:");
+    expect(storedOrientation(DATA, store, CONFIG)).toBeNull();
+  });
+
+  it("returns the cached orientation without asking again", async () => {
+    const store = new SessionStore(":memory:");
+    const { fetchImpl, calls } = countingFetch();
+    await orientationFor(DATA, store, CONFIG, fetchImpl);
+    expect(storedOrientation(DATA, store, CONFIG)).toMatchObject({ summary: "S" });
+    expect(calls()).toBe(1);
   });
 });
