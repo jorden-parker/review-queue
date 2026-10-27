@@ -652,7 +652,7 @@ export function ReviewWorkspace({
               <NoSteps review={payload} orientation={orientation} />
             </div>
           </main>
-          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3">
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
             <JumpTrail
               jumps={session.jumps}
               onBack={workspace.back}

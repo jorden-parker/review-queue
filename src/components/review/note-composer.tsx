@@ -20,7 +20,7 @@ export function NoteKindPicker({
   onChange: (kind: NoteKind) => void;
 }) {
   return (
-    <div className="flex gap-1">
+    <div className="flex items-center gap-1">
       {LINE_NOTE_KINDS.map((option) => (
         <Button
           key={option}
