@@ -47,3 +47,31 @@ describe("InlineMarkdown", () => {
     expect(container.innerHTML).toBe("Fix the cache");
   });
 });
+
+describe("Markdown citations", () => {
+  const citations = {
+    indexOf: (code: string) => (code === "src/a.ts:3" ? 0 : null),
+    render: (index: number, code: string) => (
+      <button>
+        cite {index} {code}
+      </button>
+    ),
+  };
+
+  it("renders a cited code span through the citation renderer", () => {
+    render(<Markdown text="See `src/a.ts:3`." citations={citations} />);
+    expect(screen.getByRole("button", { name: "cite 0 src/a.ts:3" })).toBeTruthy();
+  });
+
+  it("keeps other inline code as code", () => {
+    render(<Markdown text="Call `loadReview`." citations={citations} />);
+    expect(screen.getByText("loadReview").tagName).toBe("CODE");
+  });
+
+  it("keeps ordinary links as links that open in a new tab", () => {
+    render(<Markdown text="[docs](https://example.com)" citations={citations} />);
+    const link = screen.getByRole("link", { name: "docs" });
+    expect(link.getAttribute("href")).toBe("https://example.com");
+    expect(link.getAttribute("target")).toBe("_blank");
+  });
+});

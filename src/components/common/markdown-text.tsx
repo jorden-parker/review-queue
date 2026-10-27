@@ -1,16 +1,47 @@
+import type { ReactNode } from "react";
+import type { Components } from "hast-util-to-jsx-runtime";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { gfmFromMarkdown } from "mdast-util-gfm";
-import { toHast } from "mdast-util-to-hast";
+import { defaultHandlers, toHast, type Handler } from "mdast-util-to-hast";
 import { gfm } from "micromark-extension-gfm";
-import { renderHast } from "./rich-text-elements";
+import { renderHast, RichLink } from "./rich-text-elements";
 
 type MarkdownTree = ReturnType<typeof fromMarkdown>;
 type MarkdownNode = Parameters<typeof toHast>[0];
 
-const WITHOUT_IMAGES = { handlers: { image: () => undefined, imageReference: () => undefined } };
+export type CitationRenderer = {
+  indexOf: (code: string) => number | null;
+  render: (index: number, code: string) => ReactNode;
+};
 
-function toSafeHast(node: MarkdownNode) {
-  return toHast(node, WITHOUT_IMAGES);
+const WITHOUT_IMAGES = { handlers: { image: () => undefined, imageReference: () => undefined } };
+const CITATION_HREF_PREFIX = "#cite-";
+
+function citationHandler(indexOf: CitationRenderer["indexOf"]): Handler {
+  return (state, node) => {
+    const index = indexOf(node.value);
+    if (index === null) return defaultHandlers.inlineCode(state, node);
+    return {
+      type: "element",
+      tagName: "a",
+      properties: { href: `${CITATION_HREF_PREFIX}${index}` },
+      children: [{ type: "text", value: node.value }],
+    };
+  };
+}
+
+function safeOptions(citations?: CitationRenderer) {
+  if (!citations) return WITHOUT_IMAGES;
+  return {
+    handlers: {
+      ...WITHOUT_IMAGES.handlers,
+      inlineCode: citationHandler(citations.indexOf),
+    },
+  };
+}
+
+function toSafeHast(node: MarkdownNode, citations?: CitationRenderer) {
+  return toHast(node, safeOptions(citations));
 }
 
 function parseMarkdown(text: string): MarkdownTree {
@@ -26,8 +57,34 @@ function inlineHast(tree: MarkdownTree) {
     : paragraph;
 }
 
-export function Markdown({ text, className }: { text: string; className?: string }) {
-  return <div className={className}>{renderHast(toSafeHast(parseMarkdown(text)))}</div>;
+function citationIndex(href: string | undefined): number | null {
+  if (!href?.startsWith(CITATION_HREF_PREFIX)) return null;
+  const index = Number(href.slice(CITATION_HREF_PREFIX.length));
+  return Number.isInteger(index) ? index : null;
+}
+
+function citationComponents(citations: CitationRenderer): Partial<Components> {
+  return {
+    a: (props) => {
+      const index = citationIndex(props.href);
+      if (index === null) return <RichLink {...props} />;
+      return <>{citations.render(index, String(props.children))}</>;
+    },
+  };
+}
+
+export function Markdown({
+  text,
+  className,
+  citations,
+}: {
+  text: string;
+  className?: string;
+  citations?: CitationRenderer;
+}) {
+  const tree = toSafeHast(parseMarkdown(text), citations);
+  const components = citations && citationComponents(citations);
+  return <div className={className}>{renderHast(tree, components)}</div>;
 }
 
 export function InlineMarkdown({ text }: { text: string }) {
