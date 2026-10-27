@@ -65,7 +65,7 @@ function FileHeader({
         {onAskFile && !file.binary && (
           <FileAskButton onAsk={(action) => onAskFile(file.path, action)} />
         )}
-        <span className="flex gap-1.5 font-semibold">
+        <span className="flex gap-1.5 font-medium">
           <span className="text-add-foreground">+{file.additions}</span>
           <span className="text-del-foreground">−{file.deletions}</span>
         </span>

@@ -19,8 +19,8 @@ export function RichLink({ children, href }: ComponentProps<"a">) {
 }
 
 const RICH_TEXT_ELEMENTS: Partial<Components> = {
-  h1: ({ children }) => <h3 className="font-semibold text-foreground">{children}</h3>,
-  h2: ({ children }) => <h3 className="font-semibold text-foreground">{children}</h3>,
+  h1: ({ children }) => <h3 className="font-bold text-foreground">{children}</h3>,
+  h2: ({ children }) => <h3 className="font-bold text-foreground">{children}</h3>,
   h3: ({ children }) => <h4 className="font-medium text-foreground">{children}</h4>,
   ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 pl-5">{children}</ol>,
