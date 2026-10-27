@@ -23,9 +23,9 @@ type ReadingPathProps = {
 };
 
 function StepIcon({ done, reopened }: { done: boolean; reopened: boolean }) {
-  if (done) return <Check size={16} className="animate-pop text-add-foreground" />;
-  if (reopened) return <RotateCcw size={16} className="text-severity-medium" />;
-  return <Circle size={16} className="text-muted-foreground" />;
+  if (done) return <Check className="size-4 animate-pop text-add-foreground" />;
+  if (reopened) return <RotateCcw className="size-4 text-severity-medium" />;
+  return <Circle className="size-4 text-muted-foreground" />;
 }
 
 function ProgressSummary({ doneCount, total }: { doneCount: number; total: number }) {
@@ -101,11 +101,13 @@ function StepItem({ step, index, path }: StepItemProps) {
     <li>
       <div
         className={cn(
-          "flex items-start gap-2 rounded-lg p-2 transition-colors duration-150",
+          "flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors duration-150",
           current ? "bg-accent" : "hover:bg-muted",
         )}
       >
-        <DoneToggle done={done} reopened={reopened} onToggle={() => path.onToggleDone(step.id)} />
+        <span className="flex h-5 shrink-0 items-center">
+          <DoneToggle done={done} reopened={reopened} onToggle={() => path.onToggleDone(step.id)} />
+        </span>
         <button
           onClick={() => path.onSelect(step.id)}
           className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"

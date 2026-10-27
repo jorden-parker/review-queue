@@ -30,7 +30,7 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
   const remaining = hotspots.filter((hotspot) => !checked.includes(hotspot.id)).length;
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">
+      <p className="px-2 text-sm text-muted-foreground">
         {remaining === 0
           ? "✨ All checked. Lovely."
           : `${remaining} still to look at. Tick them off as you check.`}
@@ -42,17 +42,19 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
             <li
               key={hotspot.id}
               className={cn(
-                "flex gap-3 rounded-lg p-2 transition-[background-color,opacity] duration-150 hover:bg-muted",
+                "flex items-start gap-2 rounded-lg px-2 py-1.5 transition-[background-color,opacity] duration-150 hover:bg-muted",
                 isChecked && "opacity-50",
               )}
             >
-              <Checkbox
-                checked={isChecked}
-                onCheckedChange={() => onToggleChecked(hotspot.id)}
-                className={cn("mt-0.5", SEVERITY_CHECKBOX[hotspot.severity])}
-                title="Checked"
-                aria-label={`Checked: ${hotspot.title}`}
-              />
+              <span className="flex h-5 shrink-0 items-center">
+                <Checkbox
+                  checked={isChecked}
+                  onCheckedChange={() => onToggleChecked(hotspot.id)}
+                  className={SEVERITY_CHECKBOX[hotspot.severity]}
+                  title="Checked"
+                  aria-label={`Checked: ${hotspot.title}`}
+                />
+              </span>
               <button
                 onClick={() => onOpen(hotspot)}
                 className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
@@ -60,7 +62,9 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
                 <span className="flex items-start gap-2 text-sm font-medium wrap-anywhere">
                   <InlineMarkdown text={hotspot.title} />
                   {hotspot.suggested && (
-                    <Sparkles size={12} className="mt-1 shrink-0 text-primary" />
+                    <span className="flex h-5 shrink-0 items-center">
+                      <Sparkles className="size-3.5 text-primary" />
+                    </span>
                   )}
                 </span>
                 <PathLabel path={hotspot.path} line={hotspot.line} wrap />

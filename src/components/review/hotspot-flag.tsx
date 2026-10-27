@@ -1,6 +1,14 @@
 "use client";
 
-import { Check, Flag, MessageSquarePlus, Sparkles } from "lucide-react";
+import {
+  CircleCheck,
+  CircleX,
+  Info,
+  type LucideIcon,
+  MessageSquarePlus,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
 import { useState } from "react";
 import { cn } from "cn";
 import { InlineMarkdown } from "@/components/common/markdown-text";
@@ -22,17 +30,29 @@ export type HotspotFlagProps = {
 
 const SEVERITY_RANK: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
 
-const CHIP_STYLES: Record<Severity, string> = {
-  high: "border-severity-high/40 bg-severity-high/10 text-severity-high hover:bg-severity-high/20",
-  medium:
-    "border-severity-medium/40 bg-severity-medium/10 text-severity-medium hover:bg-severity-medium/20",
-  low: "border-severity-low/40 bg-severity-low/10 text-severity-low hover:bg-severity-low/20",
+type Diagnostic = { icon: LucideIcon; name: string; text: string };
+
+const DIAGNOSTICS: Record<Severity, Diagnostic> = {
+  high: { icon: CircleX, name: "error", text: "text-severity-high" },
+  medium: { icon: TriangleAlert, name: "warning", text: "text-severity-medium" },
+  low: { icon: Info, name: "info", text: "text-severity-low" },
 };
 
-const DONE_CHIP = "border-border bg-muted/60 text-muted-foreground hover:bg-muted";
+const LINE_TINTS: Record<Severity, string> = {
+  high: "bg-severity-high/10",
+  medium: "bg-severity-medium/10",
+  low: "bg-severity-low/10",
+};
+
+const CHECKED: Diagnostic = { icon: CircleCheck, name: "checked", text: "text-muted-foreground" };
 
 function bySeverity(hotspots: DisplayHotspot[]): DisplayHotspot[] {
   return [...hotspots].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
+}
+
+export function flagLineTint(hotspots: DisplayHotspot[], checked: string[]): string {
+  const [worst] = bySeverity(hotspots.filter((hotspot) => !checked.includes(hotspot.id)));
+  return worst ? LINE_TINTS[worst.severity] : "";
 }
 
 function FlagDetails({
@@ -47,19 +67,25 @@ function FlagDetails({
   const checks = checksFor(hotspot.rule);
   return (
     <section
-      className={cn("flex gap-3 transition-opacity duration-150", isChecked && "opacity-50")}
+      className={cn("flex gap-2 transition-opacity duration-150", isChecked && "opacity-50")}
     >
-      <Checkbox
-        checked={isChecked}
-        onCheckedChange={() => onToggleChecked(hotspot.id)}
-        className={cn("mt-0.5", SEVERITY_CHECKBOX[hotspot.severity])}
-        title="Checked"
-        aria-label={`Checked: ${hotspot.title}`}
-      />
+      <span className="flex h-5 shrink-0 items-center">
+        <Checkbox
+          checked={isChecked}
+          onCheckedChange={() => onToggleChecked(hotspot.id)}
+          className={SEVERITY_CHECKBOX[hotspot.severity]}
+          title="Checked"
+          aria-label={`Checked: ${hotspot.title}`}
+        />
+      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="flex items-start gap-2 font-medium wrap-anywhere">
           <InlineMarkdown text={hotspot.title} />
-          {hotspot.suggested && <Sparkles size={12} className="mt-1 shrink-0 text-primary" />}
+          {hotspot.suggested && (
+            <span className="flex h-5 shrink-0 items-center">
+              <Sparkles className="size-3.5 text-primary" />
+            </span>
+          )}
         </span>
         <p className="text-muted-foreground">
           <InlineMarkdown text={hotspot.note ?? hotspot.why} />
@@ -80,18 +106,22 @@ function FlagDetails({
 }
 
 function FlagChip({ hotspot, isChecked }: { hotspot: DisplayHotspot; isChecked: boolean }) {
+  const diagnostic = isChecked ? CHECKED : DIAGNOSTICS[hotspot.severity];
+  const Icon = diagnostic.icon;
   return (
     <span
       data-checked={isChecked}
-      className={cn(
-        "inline-flex min-w-0 items-start gap-1 rounded-sm border px-1.5 py-px leading-4 font-medium wrap-anywhere transition-colors duration-150",
-        isChecked ? DONE_CHIP : CHIP_STYLES[hotspot.severity],
-      )}
+      className={cn("inline-flex min-w-0 items-center gap-1.5 wrap-anywhere", diagnostic.text)}
     >
-      <span className="flex h-4 shrink-0 items-center">
-        {isChecked ? <Check size={11} /> : <Flag size={11} />}
+      <Icon data-icon={diagnostic.name} className="size-3.5 shrink-0" />
+      <span
+        className={cn(
+          "decoration-current/50 underline-offset-2 group-hover/flag:underline",
+          isChecked && "line-through",
+        )}
+      >
+        <InlineMarkdown text={hotspot.title} />
       </span>
-      <InlineMarkdown text={hotspot.title} />
     </span>
   );
 }
@@ -110,7 +140,7 @@ function FlagTrigger({
       aria-label={label}
       className={cn(
         className,
-        "flex max-w-full flex-wrap items-start gap-1 rounded-sm text-left font-sans text-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        "group/flag flex max-w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-sm text-left font-mono text-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
       )}
     >
       {ordered.map((hotspot) => (

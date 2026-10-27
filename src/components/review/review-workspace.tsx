@@ -5,6 +5,7 @@ import {
   ArrowRight,
   CircleHelp,
   Coffee,
+  Compass,
   Flame,
   Layers,
   ListTree,
@@ -45,6 +46,7 @@ import { contextCount } from "./context-symbols";
 import { HotspotList } from "./hotspot-list";
 import { JumpTrail } from "./jump-trail";
 import { NotesPanel } from "./notes-panel";
+import { OrientationCard } from "./orientation-card";
 import { PauseDialog } from "./pause-dialog";
 import { PeekPanel } from "./peek-panel";
 import { PostedToast } from "./posted-toast";
@@ -73,6 +75,7 @@ type WorkspaceProps = {
 };
 
 const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
+  { id: "about", label: "About", icon: Compass },
   { id: "step", label: "Step", icon: MapPin },
   { id: "path", label: "Path", icon: Route },
   { id: "hotspots", label: "Hotspots", icon: Flame },
@@ -163,6 +166,7 @@ function paneEntries({ session, workspace }: PaneProps): PaneEntry[] {
     (hotspot) => !session.checkedHotspots.includes(hotspot.id),
   ).length;
   const counts: Record<PaneId, number | null> = {
+    about: null,
     step: null,
     path: null,
     hotspots: openHotspots,
@@ -183,126 +187,120 @@ function WorkspacePanel(props: PaneProps) {
     <ReviewPanel
       entries={paneEntries(props)}
       controls={props.workspace}
-      renderPane={(id) => paneContent(id, props)}
+      renderPane={(id) => PANE_CONTENT[id](props)}
     />
   );
 }
 
-function paneContent(id: PaneId, props: PaneProps): PaneContent {
-  const { review, session, workspace, orientation, fresh } = props;
-  switch (id) {
-    case "step":
-      return {
-        body: (
-          <StepSummary
-            review={review}
-            session={session}
-            workspace={workspace}
-            orientation={orientation}
-            fresh={fresh}
-          />
-        ),
-      };
-    case "path":
-      return {
-        body: (
-          <ReadingPath
-            steps={review.steps}
-            startStepId={workspace.startStepId}
-            currentStepId={workspace.currentStep?.id ?? null}
-            doneSteps={session.doneSteps}
-            reopenedStepIds={review.reopenedStepIds}
-            reasons={stepReasons(orientation)}
-            ordering={orientation.status === "loading"}
-            fallback={orientation.status === "error"}
-            onSelect={(stepId) => workspace.selectStep(stepId)}
-            onToggleDone={(stepId) =>
-              workspace.setStepDone(stepId, !session.doneSteps.includes(stepId))
-            }
-          />
-        ),
-      };
-    case "hotspots":
-      return {
-        body: (
-          <HotspotList
-            hotspots={workspace.hotspots}
-            checked={session.checkedHotspots}
-            onOpen={(hotspot) => workspace.goTo({ path: hotspot.path, line: hotspot.line ?? 1 })}
-            onToggleChecked={workspace.toggleHotspot}
-          />
-        ),
-      };
-    case "notes":
-      return {
-        body: (
-          <NotesPanel
-            notes={session.notes}
-            parkingRef={workspace.parkingInput}
-            onPark={(body) => workspace.saveNote(null, "parked", body)}
-            onOpen={(note) =>
-              note.path && workspace.goTo({ path: note.path, line: note.line ?? 1 })
-            }
-            onDelete={workspace.deleteNote}
-          />
-        ),
-      };
-    case "chat":
-      return workspace.assist.thread
-        ? { body: <WorkspaceAssist workspace={workspace} />, ownHeader: true }
-        : {
-            body: (
-              <EmptyState emoji="💬">
-                No chat open. Select lines and press <Kbd>i</Kbd>, or open a saved chat.
-              </EmptyState>
-            ),
-          };
-    case "chats":
-      return {
-        body: (
-          <SavedChatsPanel
-            chats={session.assistThreads}
-            headSha={review.headSha}
-            labelOf={(chat) => labelFor(workspace, chat.target)}
-            onOpen={workspace.assist.reopen}
-            onDelete={(chatId) => {
-              if (workspace.assist.thread?.id === chatId) workspace.assist.close();
-              workspace.deleteSavedChat(chatId);
-            }}
-          />
-        ),
-      };
-    case "context":
-      return {
-        body: workspace.peek.peek ? (
-          <WorkspacePeek workspace={workspace} />
-        ) : (
-          <ContextList
-            symbols={session.contextSymbols}
-            stepId={workspace.currentStep?.id ?? null}
-            jumps={session.jumps}
-            onOpen={(symbol) => workspace.peekName(symbol.origin)}
-            onTogglePin={(symbol) => workspace.setSymbolPinned(symbol, !symbol.pinned)}
-            onBack={workspace.back}
-            onClearTrail={workspace.clearJumps}
-          />
-        ),
-      };
-    case "outline":
-      return {
-        body: (
-          <WorkspaceOutline
-            pullRequest={workspace.pullRequest}
-            headSha={review.headSha}
-            step={workspace.currentStep ?? null}
-            files={workspace.files}
-            onGoTo={workspace.goTo}
-            onPeek={workspace.peekName}
-          />
-        ),
-      };
-  }
+function PathPane({ review, session, workspace, orientation }: PaneProps) {
+  return (
+    <ReadingPath
+      steps={review.steps}
+      startStepId={workspace.startStepId}
+      currentStepId={workspace.currentStep?.id ?? null}
+      doneSteps={session.doneSteps}
+      reopenedStepIds={review.reopenedStepIds}
+      reasons={stepReasons(orientation)}
+      ordering={orientation.status === "loading"}
+      fallback={orientation.status === "error"}
+      onSelect={(stepId) => workspace.selectStep(stepId)}
+      onToggleDone={(stepId) => workspace.setStepDone(stepId, !session.doneSteps.includes(stepId))}
+    />
+  );
 }
+
+function HotspotsPane({ session, workspace }: PaneProps) {
+  return (
+    <HotspotList
+      hotspots={workspace.hotspots}
+      checked={session.checkedHotspots}
+      onOpen={(hotspot) => workspace.goTo({ path: hotspot.path, line: hotspot.line ?? 1 })}
+      onToggleChecked={workspace.toggleHotspot}
+    />
+  );
+}
+
+function NotesPane({ session, workspace }: PaneProps) {
+  return (
+    <NotesPanel
+      notes={session.notes}
+      parkingRef={workspace.parkingInput}
+      onPark={(body) => workspace.saveNote(null, "parked", body)}
+      onOpen={(note) => note.path && workspace.goTo({ path: note.path, line: note.line ?? 1 })}
+      onDelete={workspace.deleteNote}
+    />
+  );
+}
+
+function chatPane({ workspace }: PaneProps): PaneContent {
+  if (workspace.assist.thread) {
+    return { body: <WorkspaceAssist workspace={workspace} />, ownHeader: true };
+  }
+  return {
+    body: (
+      <EmptyState emoji="💬">
+        No chat open. Select lines and press <Kbd>i</Kbd>, or open a saved chat.
+      </EmptyState>
+    ),
+  };
+}
+
+function ChatsPane({ review, session, workspace }: PaneProps) {
+  return (
+    <SavedChatsPanel
+      chats={session.assistThreads}
+      headSha={review.headSha}
+      labelOf={(chat) => labelFor(workspace, chat.target)}
+      onOpen={workspace.assist.reopen}
+      onDelete={(chatId) => {
+        if (workspace.assist.thread?.id === chatId) workspace.assist.close();
+        workspace.deleteSavedChat(chatId);
+      }}
+    />
+  );
+}
+
+function ContextPane({ session, workspace }: PaneProps) {
+  if (workspace.peek.peek) return <WorkspacePeek workspace={workspace} />;
+  return (
+    <ContextList
+      symbols={session.contextSymbols}
+      stepId={workspace.currentStep?.id ?? null}
+      jumps={session.jumps}
+      onOpen={(symbol) => workspace.peekName(symbol.origin)}
+      onTogglePin={(symbol) => workspace.setSymbolPinned(symbol, !symbol.pinned)}
+      onBack={workspace.back}
+      onClearTrail={workspace.clearJumps}
+    />
+  );
+}
+
+function OutlinePane({ review, workspace }: PaneProps) {
+  return (
+    <WorkspaceOutline
+      pullRequest={workspace.pullRequest}
+      headSha={review.headSha}
+      step={workspace.currentStep ?? null}
+      files={workspace.files}
+      onGoTo={workspace.goTo}
+      onPeek={workspace.peekName}
+    />
+  );
+}
+
+const PANE_CONTENT: Record<PaneId, (props: PaneProps) => PaneContent> = {
+  about: (props) => ({
+    body: <OrientationCard key={props.fresh ? "fresh" : "started"} {...props} />,
+  }),
+  step: (props) => ({ body: <StepSummary {...props} /> }),
+  path: (props) => ({ body: <PathPane {...props} /> }),
+  hotspots: (props) => ({ body: <HotspotsPane {...props} /> }),
+  notes: (props) => ({ body: <NotesPane {...props} /> }),
+  chat: chatPane,
+  chats: (props) => ({ body: <ChatsPane {...props} /> }),
+  context: (props) => ({ body: <ContextPane {...props} /> }),
+  outline: (props) => ({ body: <OutlinePane {...props} /> }),
+};
 
 function StepBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
   const step = workspace.currentStep;

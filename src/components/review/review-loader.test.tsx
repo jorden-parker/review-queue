@@ -50,6 +50,12 @@ function paneButton(name: string | RegExp) {
   return within(reviewPanel()).getByRole("button", { name });
 }
 
+async function splitAboutPane(user: ReturnType<typeof userEvent.setup>) {
+  await user.keyboard("{Shift>}");
+  await user.click(paneButton("About"));
+  await user.keyboard("{/Shift}");
+}
+
 function openPanes() {
   return [...reviewPanel().querySelectorAll("[data-pane-index]")].map(
     (pane) => pane.getAttribute("aria-label") ?? pane.querySelector("section")?.ariaLabel,
@@ -73,13 +79,25 @@ function selectFirstLine(path: string) {
 describe("ReviewLoader", () => {
   it("shows a loading message, then the orientation and the first step", async () => {
     installFakeApi(reviewPayload());
+    const user = userEvent.setup();
     render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
     expect(screen.getByText("Getting the PR ready…")).toBeTruthy();
-    expect(await screen.findByText("Before you start")).toBeTruthy();
-    expect(screen.getByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
+    expect(await screen.findByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
+    await splitAboutPane(user);
+    expect(screen.getByText("Before you start")).toBeTruthy();
     expect(screen.getByText("≈")).toBeTruthy();
     await userEvent.click(paneButton("Path"));
     expect(screen.getByText("Start here")).toBeTruthy();
+  });
+
+  it("keeps the orientation in its own About pane, opened in place of the Step pane", async () => {
+    const { user } = await renderReview();
+    const step = screen.getByRole("region", { name: "Step" });
+    expect(within(step).queryByText("Before you start")).toBeNull();
+    await user.click(paneButton("About"));
+    expect(openPanes()).toEqual(["About"]);
+    const about = screen.getByRole("region", { name: "About" });
+    expect(within(about).getByText("Before you start")).toBeTruthy();
   });
 
   it("shows an error when the PR cannot load", async () => {
@@ -92,7 +110,7 @@ describe("ReviewLoader", () => {
   });
 
   it("shows the local model summary when ready", async () => {
-    await renderReview(reviewPayload(), {
+    const { user } = await renderReview(reviewPayload(), {
       status: "ready",
       orientation: {
         model: "m",
@@ -106,6 +124,7 @@ describe("ReviewLoader", () => {
         ],
       },
     });
+    await splitAboutPane(user);
     expect(await screen.findByText("Adds retries to loading.")).toBeTruthy();
     expect(screen.getByText("medium")).toBeTruthy();
     expect(await screen.findAllByText(/unverified/i)).toHaveLength(2);
@@ -156,6 +175,7 @@ describe("ReviewLoader", () => {
       status: "error",
       message: "connection refused",
     });
+    await splitAboutPane(user);
     expect(await screen.findByText(/connection refused/)).toBeTruthy();
     expect(screen.getByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
     await user.click(paneButton("Path"));
@@ -184,10 +204,11 @@ describe("ReviewLoader", () => {
   });
 
   it("keeps the review open when the orientation request fails", async () => {
-    await renderReview(
+    const { user } = await renderReview(
       reviewPayload(),
       Response.json({ error: "Review is not loaded" }, { status: 409 }),
     );
+    await splitAboutPane(user);
     expect(await screen.findByText(/Review is not loaded/)).toBeTruthy();
     expect(screen.getByText(/^Step 1 of 3/)).toBeTruthy();
   });
@@ -200,6 +221,7 @@ describe("ReviewLoader", () => {
       }),
     );
     const { api, user } = await renderReview(payload);
+    await splitAboutPane(user);
     await user.click(screen.getByRole("button", { name: "Start over" }));
     const dialog = screen.getByRole("dialog", { name: "Start this review over?" });
     expect(within(dialog).getByRole("checkbox", { name: /Also delete my 1 note/ })).toBeTruthy();
@@ -314,6 +336,7 @@ describe("ReviewLoader", () => {
 
   it("keeps a compact orientation pinned after the review starts", async () => {
     const { user } = await renderReview();
+    await splitAboutPane(user);
     expect(screen.getByText(/Retries failed loads/)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Done, next step/ }));
     await screen.findByText("Step 2 of 3 · core · 2 lines");

@@ -77,7 +77,7 @@ function PaneButton({
       onClick={onClick}
       className="relative mx-1 h-auto w-auto flex-col gap-1 rounded-md px-1 py-2.5 text-xs text-foreground/60 transition-colors duration-calm ease-calm hover:bg-background/60 hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-xs aria-pressed:after:absolute aria-pressed:after:inset-y-2 aria-pressed:after:-left-1 aria-pressed:after:w-0.5 aria-pressed:after:rounded-full aria-pressed:after:bg-primary"
     >
-      <span className="relative">
+      <span className="relative flex">
         <Icon />
         {pane.count ? (
           <span className="absolute -top-1.5 left-3 min-w-4 rounded-full bg-primary px-1 text-center text-xs/4 font-semibold text-primary-foreground">
