@@ -62,7 +62,7 @@ export async function listReviewRequests(run: Runner = githubRun): Promise<Revie
     "prs",
     "--review-requested=@me",
     "--state=open",
-    "--limit=50",
+    "--limit=100",
     `--json=${SEARCH_FIELDS}`,
   ]);
   return (JSON.parse(output) as SearchResult[]).map((result) => ({

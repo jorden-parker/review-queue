@@ -11,6 +11,8 @@ import { reviewRequests, sessionStore } from "@/lib/review/services";
 import type { PauseState, ProgressSummary } from "@/lib/session/store";
 import { orderQueue, type QueueEntry } from "./queue";
 
+const REVIEW_REQUEST_LIMIT = 100;
+
 function relativeTime(iso: string): string {
   const hours = Math.round((Date.now() - Date.parse(iso)) / 3_600_000);
   if (hours < 1) return "just now";
@@ -146,6 +148,9 @@ export async function InboxList() {
   }
   return (
     <QueueSection count={requests.length}>
+      {requests.length === REVIEW_REQUEST_LIMIT && (
+        <p className="text-sm text-muted-foreground">Showing the first {REVIEW_REQUEST_LIMIT}</p>
+      )}
       <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
         <QueueRows entries={orderQueue(requests, progress)} />
       </ul>
