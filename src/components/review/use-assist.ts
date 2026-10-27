@@ -59,8 +59,8 @@ export function useAssist(
   );
 
   const open = useCallback(
-    (target: AssistTarget, action: AssistAction) => {
-      const next = openThread(target, action, headSha);
+    (target: AssistTarget, action: AssistAction, opener?: string) => {
+      const next = openThread(target, action, headSha, opener);
       if (!awaitsQuestion(next)) return run(next);
       stop();
       setError(null);
