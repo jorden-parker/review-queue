@@ -178,7 +178,7 @@
 }
 
 @utility grid-cols-workspace {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
 @utility max-w-panel-overlay {
@@ -195,6 +195,10 @@
 
 @utility grid-rows-shell {
   grid-template-rows: auto minmax(0, 1fr);
+}
+
+@utility grid-cols-shell {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 @utility max-h-dialog {
