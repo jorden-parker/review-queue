@@ -77,7 +77,7 @@ function NoteRow({
   onDelete: (id: number) => void;
 }) {
   return (
-    <li className="group flex items-start gap-2 rounded-lg p-2 transition-colors duration-150 hover:bg-muted">
+    <li className="group flex items-start gap-2 rounded-lg p-2 transition-colors duration-calm hover:bg-muted">
       <NoteKindBadge kind={note.kind} />
       <button
         onClick={() => onOpen(note)}

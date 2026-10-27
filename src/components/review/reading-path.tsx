@@ -101,7 +101,7 @@ function StepItem({ step, index, path }: StepItemProps) {
     <li>
       <div
         className={cn(
-          "flex items-start gap-2 rounded-lg border-l-3 px-2 py-2 transition-colors duration-150",
+          "flex items-start gap-2 rounded-lg border-l-3 px-2 py-2 transition-colors duration-calm",
           current ? "border-marker bg-accent" : "border-transparent hover:bg-muted",
         )}
       >

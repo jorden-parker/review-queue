@@ -84,7 +84,7 @@ function DefinitionCode({
     <pre className="overflow-x-auto py-2 font-mono text-code">
       <div className="w-max min-w-full">
         {definition.tokens.map((row, index) => (
-          <div key={index} className="flex px-3 transition-colors duration-150 hover:bg-muted/60">
+          <div key={index} className="flex px-3 transition-colors duration-calm hover:bg-muted/60">
             <span className="w-8 shrink-0 pr-3 text-right text-muted-foreground/70 select-none">
               {definition.line + index}
             </span>
@@ -162,7 +162,7 @@ function ReferenceFile({
             <button
               disabled={!group.inPullRequest}
               onClick={() => onGoTo({ path: reference.path, line: reference.line, name })}
-              className="flex w-full gap-3 rounded-md px-2 py-1 text-left font-mono text-code transition-colors duration-150 hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent"
+              className="flex w-full gap-3 rounded-md px-2 py-1 text-left font-mono text-code transition-colors duration-calm hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent"
             >
               <span className="w-8 shrink-0 text-right text-muted-foreground/70 select-none">
                 {reference.line}

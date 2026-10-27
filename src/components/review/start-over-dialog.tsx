@@ -25,7 +25,7 @@ function DeleteNotesOption({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm transition-colors duration-150 hover:bg-muted">
+    <label className="flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm transition-colors duration-calm hover:bg-muted">
       <Checkbox
         checked={checked}
         onCheckedChange={(value) => onChange(value === true)}
