@@ -86,7 +86,7 @@ type NoteChecklistProps = {
 function NoteChecklist({ notes, selected, onToggle }: NoteChecklistProps) {
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">Notes to post ({selected.length})</h3>
+      <h3 className="text-sm font-bold">Notes to post ({selected.length})</h3>
       {notes.length === 0 && <EmptyState emoji="📝">No notes.</EmptyState>}
       {notes.map((note) => (
         <label

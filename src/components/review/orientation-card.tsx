@@ -106,9 +106,7 @@ export function OrientationCard({ review, orientation, fresh }: OrientationCardP
   return (
     <Card size={expanded ? "default" : "sm"}>
       <CardHeader className="flex items-center justify-between gap-2">
-        <CardTitle className="font-semibold tracking-tight">
-          {fresh ? "Before you start" : "About this PR"}
-        </CardTitle>
+        <CardTitle className="font-bold">{fresh ? "Before you start" : "About this PR"}</CardTitle>
         <DetailsToggle expanded={expanded} onToggle={() => setExpanded(!expanded)} />
       </CardHeader>
       <CardContent className={`flex flex-col ${expanded ? "gap-4" : "gap-2"}`}>
