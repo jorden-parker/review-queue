@@ -260,7 +260,17 @@ describe("ReviewLoader", () => {
     const payload = reviewPayload(
       emptySession({
         doneSteps: ["types:src/types.ts:0"],
-        notes: [{ id: 3, path: null, line: null, kind: "parked", body: "later", createdAt: "" }],
+        notes: [
+          {
+            id: 3,
+            path: null,
+            line: null,
+            kind: "parked",
+            decorations: [],
+            body: "later",
+            createdAt: "",
+          },
+        ],
       }),
     );
     const { api, user } = await renderReview(payload);
@@ -524,7 +534,8 @@ describe("ReviewLoader", () => {
   it("adds a line note with the keyboard and parks a thought", async () => {
     const { api, user } = await renderReview();
     await user.keyboard("c");
-    await user.click(screen.getByRole("button", { name: "Blocker" }));
+    await user.click(screen.getByRole("button", { name: "Issue" }));
+    await user.click(screen.getByRole("button", { name: "blocking" }));
     await user.type(screen.getByPlaceholderText(/What did you notice/), "Needs a default");
     await user.click(screen.getByRole("button", { name: "Save note" }));
     expect(await screen.findByText("Needs a default")).toBeTruthy();
@@ -539,12 +550,40 @@ describe("ReviewLoader", () => {
           type: "note-add",
           path: "src/types.ts",
           line: 1,
-          kind: "blocker",
+          kind: "issue",
+          decorations: ["blocking"],
           body: "Needs a default",
         },
-        { type: "note-add", path: null, line: null, kind: "parked", body: "Check logging later" },
+        {
+          type: "note-add",
+          path: null,
+          line: null,
+          kind: "parked",
+          decorations: [],
+          body: "Check logging later",
+        },
       ]),
     );
+  });
+
+  it("offers every label and keeps a non-blocking decoration with its hint", async () => {
+    const { api, user } = await renderReview();
+    await user.keyboard("c");
+    await user.click(screen.getByRole("button", { name: "Suggestion" }));
+    expect(screen.getByText("A proposed improvement. Say what and why.")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "blocking" }));
+    await user.click(screen.getByRole("button", { name: "non-blocking" }));
+    await user.type(screen.getByPlaceholderText(/What did you notice/), "Extract a helper");
+    await user.click(screen.getByRole("button", { name: "Save note" }));
+    expect(await screen.findByText("Extract a helper")).toBeTruthy();
+    expect(api.actions()).toContainEqual({
+      type: "note-add",
+      path: "src/types.ts",
+      line: 1,
+      kind: "suggestion",
+      decorations: ["non-blocking"],
+      body: "Extract a helper",
+    });
   });
 
   it("opens and ticks off hotspots", async () => {
@@ -599,7 +638,15 @@ describe("ReviewLoader", () => {
     const payload = reviewPayload(
       emptySession({
         notes: [
-          { id: 3, path: "src/client.ts", line: 11, kind: "nit", body: "rename", createdAt: "" },
+          {
+            id: 3,
+            path: "src/client.ts",
+            line: 11,
+            kind: "nitpick",
+            decorations: [],
+            body: "rename",
+            createdAt: "",
+          },
         ],
       }),
     );
@@ -624,7 +671,15 @@ describe("ReviewLoader", () => {
     const payload = reviewPayload(
       emptySession({
         notes: [
-          { id: 3, path: "src/client.ts", line: 11, kind: "nit", body: "rename", createdAt: "" },
+          {
+            id: 3,
+            path: "src/client.ts",
+            line: 11,
+            kind: "nitpick",
+            decorations: [],
+            body: "rename",
+            createdAt: "",
+          },
         ],
       }),
     );
@@ -723,13 +778,15 @@ describe("ReviewLoader", () => {
       within(panel).getByPlaceholderText(/What worries you/),
       "retries unbounded{Meta>}{Enter}{/Meta}",
     );
-    await user.click(await within(panel).findByRole("button", { name: "Blocker" }));
+    await user.click(await within(panel).findByRole("button", { name: "Issue" }));
+    await user.click(within(panel).getByRole("button", { name: "blocking" }));
     await user.click(within(panel).getByRole("button", { name: "Save as note on L1" }));
     expect(api.actions()).toContainEqual({
       type: "note-add",
       path: "src/types.ts",
       line: 1,
-      kind: "blocker",
+      kind: "issue",
+      decorations: ["blocking"],
       body: ASSIST_REPLY.join(""),
     });
     expect(within(panel).getByRole("button", { name: "Saved to your notes" })).toBeTruthy();

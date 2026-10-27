@@ -62,7 +62,7 @@ function LineNotes({ notes, onDelete }: { notes: Note[]; onDelete: (id: number) 
     <div className="flex flex-col gap-2 border-y bg-card px-4 py-2 font-sans text-sm sm:px-12">
       {notes.map((note) => (
         <div key={note.id} className="group/note flex items-start gap-2">
-          <NoteKindBadge kind={note.kind} />
+          <NoteKindBadge tag={note} />
           <span className="flex-1 whitespace-pre-wrap">{note.body}</span>
           <Button
             variant="ghost"

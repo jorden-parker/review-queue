@@ -2,10 +2,14 @@ import { z } from "zod";
 import { ASSIST_ACTIONS, MAX_HISTORY_TURNS } from "@/lib/assist-protocol";
 import type { Session, SessionStore } from "@/lib/session/store";
 import { AssistTargetSchema } from "./assist-request";
-import { SYMBOL_KINDS } from "@/lib/types";
+import { NOTE_DECORATIONS, NOTE_LABELS, SYMBOL_KINDS } from "@/lib/types";
+import { hasConsistentDecorations } from "./conventional-comment";
 
 const CommitShaSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
-const NoteKindSchema = z.enum(["blocker", "question", "nit", "praise", "parked"]);
+const NoteKindSchema = z.enum([...NOTE_LABELS, "parked"]);
+const NoteDecorationsSchema = z
+  .array(z.enum(NOTE_DECORATIONS))
+  .refine(hasConsistentDecorations, "blocking and non-blocking cannot both apply");
 const SymbolSchema = z.object({
   name: z.string().min(1),
   kind: z.enum(SYMBOL_KINDS),
@@ -43,12 +47,14 @@ export const SessionActionSchema = z.discriminatedUnion("type", [
     path: z.string().nullable(),
     line: z.number().int().positive().nullable(),
     kind: NoteKindSchema,
+    decorations: NoteDecorationsSchema,
     body: z.string().trim().min(1),
   }),
   z.object({
     type: z.literal("note-edit"),
     id: z.number().int(),
     kind: NoteKindSchema,
+    decorations: NoteDecorationsSchema,
     body: z.string().trim().min(1),
   }),
   z.object({ type: z.literal("note-delete"), id: z.number().int() }),

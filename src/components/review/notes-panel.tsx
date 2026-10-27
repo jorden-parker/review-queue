@@ -8,15 +8,15 @@ import { PathLabel } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { Note, NoteKind } from "@/lib/types";
+import type { Note, NoteTag } from "@/lib/types";
 import { NoteKindBadge } from "./note-kind-badge";
-import { NoteKindPicker } from "./note-composer";
+import { NoteTagPicker } from "./note-composer";
 
 type NotesPanelProps = {
   notes: Note[];
   onPark: (body: string) => void;
   onOpen: (note: Note) => void;
-  onEdit: (id: number, kind: NoteKind, body: string) => void;
+  onEdit: (id: number, tag: NoteTag, body: string) => void;
   onDelete: (id: number) => void;
   parkingRef: React.Ref<HTMLInputElement>;
 };
@@ -98,7 +98,7 @@ function NoteRow({
 }: {
   note: Note;
   onOpen: (note: Note) => void;
-  onEdit: (id: number, kind: NoteKind, body: string) => void;
+  onEdit: (id: number, tag: NoteTag, body: string) => void;
   onDelete: (id: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -108,8 +108,8 @@ function NoteRow({
       <PaneRow>
         <NoteEditor
           note={note}
-          onSave={(kind, body) => {
-            onEdit(note.id, kind, body);
+          onSave={(tag, body) => {
+            onEdit(note.id, tag, body);
             setEditing(false);
           }}
           onCancel={() => setEditing(false)}
@@ -120,7 +120,7 @@ function NoteRow({
 
   return (
     <PaneRow className="group">
-      <NoteKindBadge kind={note.kind} />
+      <NoteKindBadge tag={note} />
       <button
         onClick={() => onOpen(note)}
         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left text-sm"
@@ -160,14 +160,14 @@ function NoteEditor({
   onCancel,
 }: {
   note: Note;
-  onSave: (kind: NoteKind, body: string) => void;
+  onSave: (tag: NoteTag, body: string) => void;
   onCancel: () => void;
 }) {
-  const [kind, setKind] = useState<NoteKind>(note.kind);
+  const [tag, setTag] = useState<NoteTag>({ kind: note.kind, decorations: note.decorations });
   const [body, setBody] = useState(note.body);
 
   function save() {
-    if (body.trim()) onSave(kind, body.trim());
+    if (body.trim()) onSave(tag, body.trim());
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -177,7 +177,7 @@ function NoteEditor({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
-      {note.kind !== "parked" && <NoteKindPicker kind={kind} onChange={setKind} />}
+      {note.kind !== "parked" && <NoteTagPicker tag={tag} onChange={setTag} />}
       <Textarea
         value={body}
         onChange={(event) => setBody(event.target.value)}

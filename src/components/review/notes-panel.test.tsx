@@ -8,7 +8,8 @@ const NIT_NOTE: Note = {
   id: 1,
   path: "a.ts",
   line: 3,
-  kind: "nit",
+  kind: "nitpick",
+  decorations: [],
   body: "typo",
   createdAt: "",
 };
@@ -18,6 +19,7 @@ const PARKED_NOTE: Note = {
   path: null,
   line: null,
   kind: "parked",
+  decorations: [],
   body: "look later",
   createdAt: "",
 };
@@ -43,17 +45,18 @@ describe("NotesPanel editing", () => {
     const textarea = screen.getByDisplayValue("typo");
     await userEvent.clear(textarea);
     await userEvent.type(textarea, "leaks");
-    await userEvent.click(screen.getByRole("button", { name: "Blocker" }));
+    await userEvent.click(screen.getByRole("button", { name: "Issue" }));
+    await userEvent.click(screen.getByRole("button", { name: "blocking" }));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(onEdit).toHaveBeenCalledWith(1, "blocker", "leaks");
+    expect(onEdit).toHaveBeenCalledWith(1, { kind: "issue", decorations: ["blocking"] }, "leaks");
   });
 
   it("keeps a parked note parked", async () => {
     const onEdit = renderPanel([PARKED_NOTE]);
     await userEvent.click(screen.getByRole("button", { name: "Edit note" }));
-    expect(screen.queryByRole("button", { name: "Blocker" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Issue" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(onEdit).toHaveBeenCalledWith(2, "parked", "look later");
+    expect(onEdit).toHaveBeenCalledWith(2, { kind: "parked", decorations: [] }, "look later");
   });
 
   it("cancels without saving", async () => {

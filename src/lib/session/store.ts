@@ -3,7 +3,14 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { AssistThread, SavedAssistThread } from "@/lib/assist-protocol";
 import { dataDirectory } from "@/lib/data-directory";
-import type { DefinitionScope, Note, NoteKind, SymbolKind, SymbolPosition } from "@/lib/types";
+import type {
+  DefinitionScope,
+  Note,
+  NoteDecoration,
+  NoteKind,
+  SymbolKind,
+  SymbolPosition,
+} from "@/lib/types";
 
 export type Jump = { name: string; path: string; line: number };
 
@@ -35,9 +42,15 @@ export type Session = {
   contextSymbols: ContextSymbol[];
 };
 
-export type NewNote = { path: string | null; line: number | null; kind: NoteKind; body: string };
+export type NewNote = {
+  path: string | null;
+  line: number | null;
+  kind: NoteKind;
+  decorations: NoteDecoration[];
+  body: string;
+};
 
-export type NoteChange = Pick<Note, "kind" | "body">;
+export type NoteChange = Pick<Note, "kind" | "decorations" | "body">;
 
 export type ProgressSummary = { doneCount: number; lastHeadSha: string | null; updatedAt: string };
 
@@ -54,6 +67,7 @@ type NoteRow = {
   path: string | null;
   line: number | null;
   kind: NoteKind;
+  decorations: string;
   body: string;
   created_at: string;
 };
@@ -83,6 +97,7 @@ CREATE TABLE IF NOT EXISTS notes (
   path TEXT,
   line INTEGER,
   kind TEXT NOT NULL,
+  decorations TEXT NOT NULL DEFAULT '[]',
   body TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
@@ -183,10 +198,22 @@ export function defaultDatabasePath(): string {
   return path.join(dataDirectory(), "review-queue.db");
 }
 
+function migrateNotes(db: DatabaseSync): void {
+  const columns = db.prepare("PRAGMA table_info(notes)").all() as { name: string }[];
+  if (!columns.some((column) => column.name === "decorations")) {
+    db.exec("ALTER TABLE notes ADD COLUMN decorations TEXT NOT NULL DEFAULT '[]'");
+  }
+  db.exec(
+    `UPDATE notes SET kind = 'issue', decorations = '["blocking"]' WHERE kind = 'blocker';
+     UPDATE notes SET kind = 'nitpick' WHERE kind = 'nit';`,
+  );
+}
+
 function openDatabase(file: string): DatabaseSync {
   if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec(SCHEMA);
+  migrateNotes(db);
   return db;
 }
 
@@ -211,6 +238,7 @@ function toNote(row: NoteRow): Note {
     path: row.path,
     line: row.line,
     kind: row.kind,
+    decorations: JSON.parse(row.decorations) as NoteDecoration[],
     body: row.body,
     createdAt: row.created_at,
   };
@@ -276,17 +304,33 @@ export class SessionStore {
     const createdAt = this.now();
     const result = this.db
       .prepare(
-        "INSERT INTO notes (pr_key, path, line, kind, body, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO notes (pr_key, path, line, kind, decorations, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(key, note.path, note.line, note.kind, note.body, createdAt);
-    return { ...note, id: Number(result.lastInsertRowid), createdAt };
+      .run(
+        key,
+        note.path,
+        note.line,
+        note.kind,
+        JSON.stringify(note.decorations),
+        note.body,
+        createdAt,
+      );
+    return {
+      id: Number(result.lastInsertRowid),
+      path: note.path,
+      line: note.line,
+      kind: note.kind,
+      decorations: note.decorations,
+      body: note.body,
+      createdAt,
+    };
   }
 
   updateNote(key: string, id: number, change: NoteChange): void {
     this.touch(key);
     this.db
-      .prepare("UPDATE notes SET kind = ?, body = ? WHERE pr_key = ? AND id = ?")
-      .run(change.kind, change.body, key, id);
+      .prepare("UPDATE notes SET kind = ?, decorations = ?, body = ? WHERE pr_key = ? AND id = ?")
+      .run(change.kind, JSON.stringify(change.decorations), change.body, key, id);
   }
 
   deleteNote(key: string, id: number): void {

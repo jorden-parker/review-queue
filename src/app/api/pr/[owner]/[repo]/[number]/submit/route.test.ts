@@ -42,17 +42,26 @@ describe("POST submit", () => {
     const note = sessionStore().addNote(KEY, {
       path: "a.ts",
       line: 2,
-      kind: "nit",
+      kind: "nitpick",
+      decorations: [],
       body: "rename",
     });
     const response = await POST(request({ ...VALID, noteIds: [note.id] }), context());
     expect(response.status).toBe(200);
-    expect(github.sent[0].comments).toEqual([{ path: "a.ts", line: 2, body: "**Nit:** rename" }]);
+    expect(github.sent[0].comments).toEqual([
+      { path: "a.ts", line: 2, body: "**nitpick:** rename" },
+    ]);
     expect(sessionStore().getSession(KEY).notes).toEqual([]);
   });
 
   it("keeps notes and reports the error when GitHub fails", async () => {
-    sessionStore().addNote(KEY, { path: null, line: null, kind: "question", body: "why?" });
+    sessionStore().addNote(KEY, {
+      path: null,
+      line: null,
+      kind: "question",
+      decorations: [],
+      body: "why?",
+    });
     github.failure = "gh: 422";
     const response = await POST(request(VALID), context());
     expect(response.status).toBe(502);

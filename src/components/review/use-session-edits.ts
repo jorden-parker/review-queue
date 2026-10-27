@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import type { ReviewEvent } from "@/lib/github/gh";
 import type { Session } from "@/lib/session/store";
-import type { Note, NoteKind, PullRequestRef } from "@/lib/types";
+import type { Note, NoteTag, PullRequestRef } from "@/lib/types";
 import { requestSummaryDraft, submitReviewRequest } from "./api";
 import type { LineTarget } from "./locate";
 import { toggled, type Act } from "./use-step-navigation";
@@ -31,8 +31,14 @@ export function useSessionEdits(
   );
 
   const saveNote = useCallback(
-    (target: LineTarget | null, kind: NoteKind, body: string) => {
-      const note = { path: target?.path ?? null, line: target?.line ?? null, kind, body };
+    (target: LineTarget | null, tag: NoteTag, body: string) => {
+      const note = {
+        path: target?.path ?? null,
+        line: target?.line ?? null,
+        kind: tag.kind,
+        decorations: tag.decorations,
+        body,
+      };
       act({ type: "note-add", ...note }, (current) => withNote(current, note));
     },
     [act],
@@ -48,11 +54,13 @@ export function useSessionEdits(
   );
 
   const editNote = useCallback(
-    (id: number, kind: NoteKind, body: string) =>
-      act({ type: "note-edit", id, kind, body }, (current) => ({
+    (id: number, tag: NoteTag, body: string) => {
+      const change = { kind: tag.kind, decorations: tag.decorations, body };
+      act({ type: "note-edit", id, ...change }, (current) => ({
         ...current,
-        notes: current.notes.map((note) => (note.id === id ? { ...note, kind, body } : note)),
-      })),
+        notes: current.notes.map((note) => (note.id === id ? { ...note, ...change } : note)),
+      }));
+    },
     [act],
   );
 

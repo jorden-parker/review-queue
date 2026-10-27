@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { AssistAction } from "@/lib/assist-protocol";
 import type { PreparedFile } from "@/lib/review/prepare";
-import type { Note, NoteKind, ReferenceCount, Step, StepFile, SymbolPosition } from "@/lib/types";
+import type { Note, NoteTag, ReferenceCount, Step, StepFile, SymbolPosition } from "@/lib/types";
 import { CodeLine, type LineHandlers } from "./code-line";
 import { FileAskButton } from "./file-ask-button";
 import type { DisplayHotspot } from "./hotspot-list";
@@ -31,7 +31,7 @@ export type StepViewContext = {
   referenceCounts: ReadonlyMap<string, ReferenceCount[]>;
   onAskFile: ((path: string, action: AssistAction) => void) | null;
   handlers: LineHandlers & {
-    onSaveNote: (target: LineTarget, kind: NoteKind, body: string) => void;
+    onSaveNote: (target: LineTarget, tag: NoteTag, body: string) => void;
     onCancelNote: () => void;
     onShowReferences: (position: SymbolPosition) => void;
   };
@@ -137,7 +137,7 @@ function HunkBlock({
             />
             {composing && target && (
               <NoteComposer
-                onSave={(kind, body) => context.handlers.onSaveNote(target, kind, body)}
+                onSave={(tag, body) => context.handlers.onSaveNote(target, tag, body)}
                 onCancel={context.handlers.onCancelNote}
               />
             )}
