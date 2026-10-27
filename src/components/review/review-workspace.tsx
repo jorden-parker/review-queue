@@ -54,6 +54,7 @@ import { ORDERING_MESSAGE, ReadingPath } from "./reading-path";
 import { ResumeCard } from "./resume-card";
 import { ShortcutHelp } from "./shortcut-help";
 import { StartOverDialog } from "./start-over-dialog";
+import { occurrencesOf } from "./occurrences";
 import { orderedSteps, stepReasons } from "./step-order";
 import { SavedChatsPanel } from "./saved-chats-panel";
 import { SelectionToolbar } from "./selection-toolbar";
@@ -530,6 +531,7 @@ export function ReviewWorkspace({
       notes: session.notes,
       composer: workspace.composer,
       landed: workspace.landed,
+      occurrences: occurrencesOf(workspace.peek.peek),
       activeHunkId: workspace.activeHunkId,
       referenceCounts,
       onAskFile: workspace.aiEnabled

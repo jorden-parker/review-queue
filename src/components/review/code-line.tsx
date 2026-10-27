@@ -11,6 +11,7 @@ import { flagLineTint, HotspotFlag } from "./hotspot-flag";
 import type { DisplayHotspot } from "./hotspot-list";
 import type { LineTarget } from "./locate";
 import { NoteKindBadge } from "./note-kind-badge";
+import type { OccurrenceKind } from "./occurrences";
 
 export type LineHandlers = {
   onIdentifier: (position: SymbolPosition) => void;
@@ -33,6 +34,8 @@ type CodeLineProps = {
   notes: Note[];
   elementId: string | undefined;
   landed: LineTarget | null;
+  occurrence?: OccurrenceKind | null;
+  occurrenceName?: string | null;
   handlers: LineHandlers;
 };
 
@@ -76,6 +79,28 @@ function LineNotes({ notes, onDelete }: { notes: Note[]; onDelete: (id: number) 
   );
 }
 
+function rowClassName(kind: DiffLine["kind"], landed: LineTarget | null) {
+  return cn(
+    "flex scroll-mt-32 transition-colors duration-150",
+    ROW_STYLES[kind],
+    landed && LANDED_LINE,
+  );
+}
+
+function noteActionOf(path: string, lineNumber: number | null, handlers: LineHandlers) {
+  return lineNumber === null ? null : () => handlers.onAddNote(path, lineNumber);
+}
+
+function emphasisOf(
+  landed: LineTarget | null,
+  occurrence?: OccurrenceKind | null,
+  occurrenceName?: string | null,
+) {
+  if (landed?.name) return { emphasis: landed.name, emphasisKind: "landed" as const };
+  if (occurrence && occurrenceName) return { emphasis: occurrenceName, emphasisKind: occurrence };
+  return {};
+}
+
 function symbolPosition(path: string, line: DiffLine, target: IdentifierTarget): SymbolPosition {
   const onNewSide = line.newLine !== null;
   return {
@@ -84,6 +109,40 @@ function symbolPosition(path: string, line: DiffLine, target: IdentifierTarget):
     line: line.newLine ?? line.oldLine ?? 1,
     side: onNewSide ? "new" : "old",
   };
+}
+
+type LineCodeProps = {
+  path: string;
+  line: DiffLine;
+  tokens: Token[];
+  linked: boolean;
+  landed: LineTarget | null;
+  occurrence?: OccurrenceKind | null;
+  occurrenceName?: string | null;
+  handlers: LineHandlers;
+};
+
+function LineCode({
+  path,
+  line,
+  tokens,
+  linked,
+  landed,
+  occurrence,
+  occurrenceName,
+  handlers,
+}: LineCodeProps) {
+  const positionOf = (target: IdentifierTarget) => symbolPosition(path, line, target);
+  return (
+    <code className="flex-1 pr-4 break-words whitespace-pre-wrap max-sm:tab-2 max-sm:pr-2">
+      <CodeTokens
+        tokens={tokens}
+        onIdentifier={linked ? (target) => handlers.onIdentifier(positionOf(target)) : undefined}
+        onHover={(target) => handlers.onHoverIdentifier(target && positionOf(target))}
+        {...emphasisOf(landed, occurrence, occurrenceName)}
+      />
+    </code>
+  );
 }
 
 function LineNumber({ value }: { value: number | null }) {
@@ -163,11 +222,12 @@ export function CodeLine({
   notes,
   elementId,
   landed,
+  occurrence,
+  occurrenceName,
   handlers,
 }: CodeLineProps) {
   const lineNumber = line.newLine;
-  const addNote = lineNumber === null ? null : () => handlers.onAddNote(path, lineNumber);
-  const positionOf = (target: IdentifierTarget) => symbolPosition(path, line, target);
+  const addNote = noteActionOf(path, lineNumber, handlers);
   const here = { hunk: hunkIndex, line: lineIndex };
   return (
     <>
@@ -178,11 +238,7 @@ export function CodeLine({
           data-hunk={hunkIndex}
           data-line={lineIndex}
           aria-current={landed ? "location" : undefined}
-          className={cn(
-            "flex scroll-mt-32 transition-colors duration-150",
-            ROW_STYLES[line.kind],
-            landed && LANDED_LINE,
-          )}
+          className={rowClassName(line.kind, landed)}
         >
           <LineNumber value={line.oldLine} />
           <LineNumber value={lineNumber} />
@@ -192,16 +248,16 @@ export function CodeLine({
           <span className={cn(MARKER_WIDTH, "select-none", MARKER_STYLES[line.kind])}>
             {MARKERS[line.kind]}
           </span>
-          <code className="flex-1 pr-4 break-words whitespace-pre-wrap max-sm:tab-2 max-sm:pr-2">
-            <CodeTokens
-              tokens={tokens}
-              onIdentifier={
-                linked ? (target) => handlers.onIdentifier(positionOf(target)) : undefined
-              }
-              onHover={(target) => handlers.onHoverIdentifier(target && positionOf(target))}
-              emphasis={landed?.name}
-            />
-          </code>
+          <LineCode
+            path={path}
+            line={line}
+            tokens={tokens}
+            linked={linked}
+            landed={landed}
+            occurrence={occurrence}
+            occurrenceName={occurrenceName}
+            handlers={handlers}
+          />
         </div>
         {hotspots.length > 0 && (
           <LineFlagRow
