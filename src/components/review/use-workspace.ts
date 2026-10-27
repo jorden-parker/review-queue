@@ -25,6 +25,7 @@ import { useShortcuts } from "./use-shortcuts";
 import { useStepNavigation } from "./use-step-navigation";
 import { usePanes } from "./use-panes";
 import { useConversation } from "./use-conversation";
+import { focusCurrentStop } from "./change-map-list";
 
 type Dialog = "resume" | "pause" | "finish" | "help" | "start-over" | null;
 
@@ -121,7 +122,7 @@ function shortcutHandlers({
     "pin-symbol": pins.togglePeekPin,
     "open-context": () => ui.showPane("context"),
     "open-outline": () => ui.showPane("outline"),
-    "open-map": () => ui.showPane("map"),
+    "open-map": ui.focusMap,
     "toggle-left-panel": () => ui.togglePanel("left"),
     "toggle-right-panel": () => ui.togglePanel("right"),
     "toggle-panel": ui.toggleAllPanels,
@@ -185,6 +186,7 @@ function useWorkspaceUi(review: ReviewPayload) {
   const [newHead, setNewHead] = useState<string | null>(null);
   const hovered = useRef<SymbolPosition | null>(null);
   const parkingInput = useRef<HTMLInputElement>(null);
+  const mapList = useRef<HTMLDivElement>(null);
   const setHovered = useCallback((position: SymbolPosition | null) => {
     hovered.current = position;
   }, []);
@@ -193,6 +195,10 @@ function useWorkspaceUi(review: ReviewPayload) {
   const focusParking = useCallback(() => {
     showPane("notes");
     setTimeout(() => parkingInput.current?.focus(), 0);
+  }, [showPane]);
+  const focusMap = useCallback(() => {
+    showPane("map");
+    setTimeout(() => focusCurrentStop(mapList.current), 0);
   }, [showPane]);
   return {
     dialog,
@@ -213,6 +219,8 @@ function useWorkspaceUi(review: ReviewPayload) {
     setHovered,
     parkingInput,
     focusParking,
+    mapList,
+    focusMap,
   };
 }
 
