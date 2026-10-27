@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { fitsBothSides } from "./panel-width";
 import {
   closePane,
   dropPane,
@@ -58,7 +59,7 @@ export function usePanes() {
 
   const openPane = useCallback(
     (id: PaneId, change: PaneChange) =>
-      setPanes((layouts) => openPaneOnSide(layouts, id, change, isWideScreen())),
+      setPanes((layouts) => openPaneOnSide(layouts, id, change, fitsBothSides(window.innerWidth))),
     [],
   );
 

@@ -57,10 +57,10 @@ export function openPaneOnSide(
   layouts: SideLayouts,
   id: PaneId,
   change: (layout: PaneLayout, id: PaneId) => PaneLayout,
-  wideScreen: boolean,
+  bothSidesFit: boolean,
 ): SideLayouts {
   const next = onPaneSide(layouts, id, change);
   const side = PANE_SIDES[id];
   const opened = next[side].includes(id);
-  return !wideScreen && opened ? withOnlySide(next, side) : next;
+  return !bothSidesFit && opened ? withOnlySide(next, side) : next;
 }
