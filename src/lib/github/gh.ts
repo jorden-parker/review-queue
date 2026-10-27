@@ -105,14 +105,14 @@ export async function submitReview(
   ref: PullRequestRef,
   review: ReviewSubmission,
   run: Runner = githubRun,
-): Promise<void> {
+): Promise<{ id: number; url: string }> {
   const payload = {
     event: review.event,
     body: review.body,
     commit_id: review.commitId,
     comments: review.comments.map((comment) => ({ ...comment, side: "RIGHT" })),
   };
-  await run(
+  const output = await run(
     "gh",
     [
       "api",
@@ -124,6 +124,8 @@ export async function submitReview(
     ],
     { input: JSON.stringify(payload) },
   );
+  const created = JSON.parse(output) as { id: number; html_url: string };
+  return { id: created.id, url: created.html_url };
 }
 
 export type ReviewComment = {
@@ -172,7 +174,7 @@ type RawReview = {
   commit_id: string;
 };
 
-export const CONVERSATION_PAGE_SIZE = 100;
+const CONVERSATION_PAGE_SIZE = 100;
 
 function pullPath(ref: PullRequestRef): string {
   return `repos/${ref.owner}/${ref.repo}/pulls/${ref.number}`;

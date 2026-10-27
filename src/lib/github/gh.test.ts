@@ -91,8 +91,9 @@ describe("github", () => {
   });
 
   it("submits a review with line comments through the API", async () => {
-    const { run, calls } = fakeRunner("{}");
-    await submitReview(
+    const created = { id: 42, html_url: "https://github.com/acme/app/pull/7#pullrequestreview-42" };
+    const { run, calls } = fakeRunner(JSON.stringify(created));
+    const posted = await submitReview(
       REF,
       {
         event: "COMMENT",
@@ -102,6 +103,7 @@ describe("github", () => {
       },
       run,
     );
+    expect(posted).toEqual({ id: 42, url: created.html_url });
     expect(calls[0].args).toEqual([
       "api",
       "--method",
