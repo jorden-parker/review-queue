@@ -62,7 +62,7 @@ export function ResumeCard({
         <div>
           <dt className="text-muted-foreground">Progress</dt>
           <dd>
-            {session.doneSteps.length} of {steps.length} steps done ·{" "}
+            {session.doneSteps.length} of {steps.length} steps done,{" "}
             {plural(session.notes.length, "note")}
           </dd>
         </div>
@@ -81,7 +81,7 @@ export function ResumeCard({
         {pinned.length > 0 && (
           <div>
             <dt className="text-muted-foreground">You pinned</dt>
-            <dd className="font-mono">{pinned.map((symbol) => symbol.name).join(" · ")}</dd>
+            <dd className="font-mono">{pinned.map((symbol) => symbol.name).join(", ")}</dd>
           </div>
         )}
         {reopenedCount > 0 && (

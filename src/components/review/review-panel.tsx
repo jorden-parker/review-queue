@@ -212,7 +212,7 @@ function PanelResizeHandle({ sizing, handleSide }: { sizing: PanelSizing; handle
       aria-valuemin={PANEL_WIDTH.min}
       aria-valuemax={maxWidth}
       tabIndex={0}
-      title="Drag to resize · double-click to fit the content"
+      title="Drag to resize. Double-click to fit the content"
       data-dragging={dragging || undefined}
       className={`group/resize absolute inset-y-0 ${handleSide} z-10 flex w-2 cursor-col-resize touch-none justify-center outline-none`}
       {...handlers}
