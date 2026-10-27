@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PreparedFile } from "@/lib/review/prepare";
 import { addedHunk, fileDiff } from "@/test/diff-builders";
-import { parseCitation } from "./citations";
+import { citationsInText, parseCitation } from "./citations";
 
 function preparedFile(path: string, newStart: number, count: number): PreparedFile {
   return {
@@ -26,11 +26,18 @@ function cite(code: string, knownPaths = KNOWN, defaultPath = DEFAULT) {
 
 describe("parseCitation accepted forms", () => {
   it("reads path:LINE", () => {
-    expect(cite("src/a.ts:11")).toEqual({ path: "src/a.ts", line: 11, endLine: 11, inDiff: true });
+    expect(cite("src/a.ts:11")).toEqual({
+      code: "src/a.ts:11",
+      path: "src/a.ts",
+      line: 11,
+      endLine: 11,
+      inDiff: true,
+    });
   });
 
   it("reads path:START-END", () => {
     expect(cite("src/a.ts:10-12")).toEqual({
+      code: "src/a.ts:10-12",
       path: "src/a.ts",
       line: 10,
       endLine: 12,
@@ -44,7 +51,13 @@ describe("parseCitation accepted forms", () => {
   });
 
   it("uses the default path for bare line forms", () => {
-    expect(cite("L10")).toEqual({ path: "src/a.ts", line: 10, endLine: 10, inDiff: true });
+    expect(cite("L10")).toEqual({
+      code: "L10",
+      path: "src/a.ts",
+      line: 10,
+      endLine: 10,
+      inDiff: true,
+    });
     expect(cite("L10-12")?.endLine).toBe(12);
     expect(cite("L10-L12")?.endLine).toBe(12);
   });
@@ -95,5 +108,32 @@ describe("parseCitation ranges", () => {
 
   it("reports inDiff false for a line outside every hunk", () => {
     expect(cite("src/a.ts:50")?.inDiff).toBe(false);
+  });
+});
+
+describe("citationsInText", () => {
+  const parse = (code: string) => cite(code);
+
+  it("lists the citations in the order they appear", () => {
+    const text = "See `src/a.ts:11` then `src/a.ts:10-12`.";
+    expect(citationsInText(text, parse).map((citation) => citation.code)).toEqual([
+      "src/a.ts:11",
+      "src/a.ts:10-12",
+    ]);
+  });
+
+  it("skips inline code that is not a citation", () => {
+    const text = "Call `loadReview` and `src/a.ts:11`.";
+    expect(citationsInText(text, parse).map((citation) => citation.code)).toEqual(["src/a.ts:11"]);
+  });
+
+  it("ignores code inside fenced blocks", () => {
+    const text = "```ts\nconst x = `src/a.ts:11`;\n```";
+    expect(citationsInText(text, parse)).toEqual([]);
+  });
+
+  it("keeps only the first occurrence of a repeated citation", () => {
+    const text = "`src/a.ts:11` and again `src/a.ts:11`";
+    expect(citationsInText(text, parse)).toHaveLength(1);
   });
 });

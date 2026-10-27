@@ -44,7 +44,7 @@ function toSafeHast(node: MarkdownNode, citations?: CitationRenderer) {
   return toHast(node, safeOptions(citations));
 }
 
-function parseMarkdown(text: string): MarkdownTree {
+export function parseMarkdown(text: string): MarkdownTree {
   return fromMarkdown(text, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] });
 }
 

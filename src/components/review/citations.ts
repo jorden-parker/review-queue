@@ -1,6 +1,15 @@
+import { parseMarkdown } from "@/components/common/markdown-text";
 import type { PreparedFile } from "@/lib/review/prepare";
 
-export type Citation = { path: string; line: number; endLine: number; inDiff: boolean };
+export type Citation = {
+  code: string;
+  path: string;
+  line: number;
+  endLine: number;
+  inDiff: boolean;
+};
+
+type MarkdownNode = { type: string; value?: string; children?: MarkdownNode[] };
 
 type Span = { path: string | undefined; start: number; end: number };
 
@@ -52,5 +61,25 @@ export function parseCitation(
   if (path === null) return null;
   const { line, endLine } = orderedRange(span.start, span.end);
   if (line < 1) return null;
-  return { path, line, endLine, inDiff: lineInDiff(files, path, line) };
+  return { code, path, line, endLine, inDiff: lineInDiff(files, path, line) };
+}
+
+function inlineCodeValues(node: MarkdownNode): string[] {
+  if (node.type === "inlineCode") return [node.value ?? ""];
+  return (node.children ?? []).flatMap(inlineCodeValues);
+}
+
+export function citationsInText(
+  text: string,
+  parse: (code: string) => Citation | null,
+): Citation[] {
+  const seenCodes = new Set<string>();
+  const citations: Citation[] = [];
+  for (const code of inlineCodeValues(parseMarkdown(text))) {
+    if (seenCodes.has(code)) continue;
+    seenCodes.add(code);
+    const citation = parse(code);
+    if (citation) citations.push(citation);
+  }
+  return citations;
 }
