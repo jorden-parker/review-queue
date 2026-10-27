@@ -10,6 +10,7 @@ export function emptySession(overrides: Partial<Session> = {}): Session {
   return {
     currentStepId: null,
     lastHeadSha: HEAD_SHA,
+    baselineHeadSha: null,
     updatedAt: null,
     pause: null,
     doneSteps: [],
