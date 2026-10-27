@@ -55,6 +55,49 @@ describe("SessionStore", () => {
     expect(store.getSession(KEY).lastHeadSha).toBe("sha9");
   });
 
+  it("keeps the head you had seen as the baseline when a push arrives", () => {
+    store.markSeen(KEY, "sha1");
+    store.markSeen(KEY, "sha2");
+    expect(store.getSession(KEY)).toMatchObject({ baselineHeadSha: "sha1", lastHeadSha: "sha2" });
+  });
+
+  it("does not move the baseline on a second push", () => {
+    store.markSeen(KEY, "sha1");
+    store.markSeen(KEY, "sha2");
+    store.markSeen(KEY, "sha3");
+    expect(store.getSession(KEY)).toMatchObject({ baselineHeadSha: "sha1", lastHeadSha: "sha3" });
+  });
+
+  it("forgets the baseline on catch-up", () => {
+    store.markSeen(KEY, "sha1");
+    store.markSeen(KEY, "sha2");
+    store.catchUp(KEY);
+    expect(store.getSession(KEY).baselineHeadSha).toBeNull();
+  });
+
+  it("first load sets no baseline", () => {
+    store.markSeen(KEY, "sha1");
+    expect(store.getSession(KEY).baselineHeadSha).toBeNull();
+  });
+
+  it("clears the baseline when start over runs", () => {
+    store.markSeen(KEY, "sha1");
+    store.markSeen(KEY, "sha2");
+    store.startOver(KEY, true);
+    expect(store.getSession(KEY).baselineHeadSha).toBeNull();
+  });
+
+  it("reopens a finished review when the head moves", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.markSeen(KEY, "sha1");
+    store.addNote(KEY, { path: null, line: null, kind: "nit", body: "x" });
+    store.markFinished(KEY);
+    store.markSeen(KEY, "sha1");
+    expect(store.inProgress()).toEqual([]);
+    store.markSeen(KEY, "sha2");
+    expect(store.inProgress()).toEqual([expect.objectContaining({ key: KEY, title: "Add retry" })]);
+  });
+
   it("marks steps done and undone", () => {
     store.setStepDone(KEY, "s1", true);
     store.setStepDone(KEY, "s2", true);

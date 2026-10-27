@@ -32,6 +32,7 @@ export type PauseState = { note: string; at: string };
 export type Session = {
   currentStepId: string | null;
   lastHeadSha: string | null;
+  baselineHeadSha: string | null;
   updatedAt: string | null;
   pause: PauseState | null;
   doneSteps: string[];
@@ -107,6 +108,10 @@ CREATE TABLE IF NOT EXISTS sessions (
   title TEXT,
   finished_at TEXT
 );
+CREATE TABLE IF NOT EXISTS review_baselines (
+  pr_key TEXT PRIMARY KEY,
+  head_sha TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS done_steps (
   pr_key TEXT NOT NULL,
   step_id TEXT NOT NULL,
@@ -169,7 +174,14 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `;
 
-const PROGRESS_TABLES = ["sessions", "done_steps", "checked_hotspots", "jumps", "context_symbols"];
+const PROGRESS_TABLES = [
+  "sessions",
+  "review_baselines",
+  "done_steps",
+  "checked_hotspots",
+  "jumps",
+  "context_symbols",
+];
 const MAX_UNPINNED_SYMBOLS = 50;
 
 type AssistThreadRow = {
@@ -228,6 +240,10 @@ FROM sessions s
 WHERE s.finished_at IS NULL
   AND (done_count > 0 OR note_count > 0 OR s.pause_note IS NOT NULL)
 ORDER BY s.updated_at DESC`;
+
+function pauseOf(row: SessionRow | undefined): PauseState | null {
+  return row?.pause_note != null ? { note: row.pause_note, at: row.paused_at ?? "" } : null;
+}
 
 function toInProgress(row: InProgressRow): InProgressSession {
   return {
@@ -313,8 +329,9 @@ export class SessionStore {
     return {
       currentStepId: row?.current_step ?? null,
       lastHeadSha: row?.head_sha ?? null,
+      baselineHeadSha: this.headFrom("SELECT head_sha FROM review_baselines WHERE pr_key = ?", key),
       updatedAt: row?.updated_at ?? null,
-      pause: row?.pause_note != null ? { note: row.pause_note, at: row.paused_at ?? "" } : null,
+      pause: pauseOf(row),
       doneSteps: this.column(
         "SELECT step_id AS v FROM done_steps WHERE pr_key = ? ORDER BY rowid",
         key,
@@ -339,7 +356,13 @@ export class SessionStore {
 
   markSeen(key: string, headSha: string): void {
     this.touch(key);
+    const previousHead = this.headFrom("SELECT head_sha FROM sessions WHERE pr_key = ?", key);
+    if (previousHead && previousHead !== headSha) this.recordPush(key, previousHead);
     this.db.prepare("UPDATE sessions SET head_sha = ? WHERE pr_key = ?").run(headSha, key);
+  }
+
+  catchUp(key: string): void {
+    this.db.prepare("DELETE FROM review_baselines WHERE pr_key = ?").run(key);
   }
 
   setStepDone(key: string, stepId: string, done: boolean): void {
@@ -538,6 +561,18 @@ export class SessionStore {
       ? `INSERT OR IGNORE INTO ${table} (pr_key, ${column}) VALUES (?, ?)`
       : `DELETE FROM ${table} WHERE pr_key = ? AND ${column} = ?`;
     this.db.prepare(statement).run(key, value);
+  }
+
+  private headFrom(sql: string, key: string): string | null {
+    const row = this.db.prepare(sql).get(key) as { head_sha: string | null } | undefined;
+    return row?.head_sha ?? null;
+  }
+
+  private recordPush(key: string, previousHead: string): void {
+    this.db
+      .prepare("INSERT OR IGNORE INTO review_baselines (pr_key, head_sha) VALUES (?, ?)")
+      .run(key, previousHead);
+    this.db.prepare("UPDATE sessions SET finished_at = NULL WHERE pr_key = ?").run(key);
   }
 
   private column(sql: string, key: string): string[] {
