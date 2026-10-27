@@ -300,11 +300,7 @@ function MapPane({ review, session, workspace }: PaneProps) {
     <>
       <PartsStatus state={parts} enabled={workspace.aiEnabled} />
       <ChangeMapList
-        sections={mapSections(
-          review.changeMap,
-          session.doneSteps,
-          workspace.currentStep?.id ?? null,
-        )}
+        sections={mapSections(review.changeMap, session.doneSteps, workspace.activeHunkId)}
         onOpen={(node) => workspace.goTo({ path: node.path, line: node.line })}
         parts={partsByNode(parts)}
         listRef={workspace.mapList}

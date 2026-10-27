@@ -92,31 +92,50 @@ describe("mapSections", () => {
     expect(mapSections(map, [], null).map((section) => section.id)).toEqual(["a"]);
   });
 
-  it("marks rows done when their step is done and current when it is the current step", () => {
+  it("marks rows done when their step is done", () => {
     const map = mapOf({
-      nodes: [
-        node("a", { stepId: "s1" }),
-        node("b", { stepId: "s2" }),
-        node("c", { stepId: "s3" }),
-      ],
-      edges: chain(["a", "b", "c"]),
-      threads: [{ id: "a", entryId: "a", nodeIds: ["a", "b", "c"], testIds: [] }],
+      nodes: [node("a", { stepId: "s1" }), node("b", { stepId: "s2" })],
+      edges: chain(["a", "b"]),
+      threads: [{ id: "a", entryId: "a", nodeIds: ["a", "b"], testIds: [] }],
     });
 
-    const rows = mapSections(map, ["s1"], "s2")[0].rows;
+    const rows = mapSections(map, ["s1"], null)[0].rows;
 
-    expect(rows.map((row) => [row.node.id, row.done, row.current])).toEqual([
-      ["a", true, false],
-      ["b", false, true],
-      ["c", false, false],
+    expect(rows.map((row) => [row.node.id, row.done])).toEqual([
+      ["a", true],
+      ["b", false],
     ]);
   });
 
-  it("does not mark a node with no step as current when there is no current step", () => {
+  it("marks only the node holding the active hunk as current, not its whole step", () => {
     const map = mapOf({
-      nodes: [node("a", { stepId: null })],
-      orphanIds: ["a"],
+      nodes: [node("a", { stepId: "s1" }), node("b", { stepId: "s1" })],
+      edges: chain(["a", "b"]),
+      threads: [{ id: "a", entryId: "a", nodeIds: ["a", "b"], testIds: [] }],
     });
+
+    const rows = mapSections(map, [], "hunk-src/b.ts-0")[0].rows;
+
+    expect(rows.map((row) => [row.node.id, row.current])).toEqual([
+      ["a", false],
+      ["b", true],
+    ]);
+  });
+
+  it("marks only the first node when two share the active hunk", () => {
+    const map = mapOf({
+      nodes: [node("a", { path: "src/one.ts" }), node("b", { path: "src/one.ts" })],
+      edges: chain(["a", "b"]),
+      threads: [{ id: "a", entryId: "a", nodeIds: ["a", "b"], testIds: [] }],
+    });
+
+    const rows = mapSections(map, [], "hunk-src/one.ts-0")[0].rows;
+
+    expect(rows.map((row) => row.current)).toEqual([true, false]);
+  });
+
+  it("marks nothing current when there is no active hunk", () => {
+    const map = mapOf({ nodes: [node("a")], orphanIds: ["a"] });
 
     expect(mapSections(map, [], null)[0].rows[0].current).toBe(false);
   });
@@ -214,7 +233,7 @@ describe("visibleRows", () => {
   });
 
   it("drops read rows and incidental rows but never the current one", () => {
-    const rows = mapSections(map, ["s1"], "s3")[0].rows;
+    const rows = mapSections(map, ["s1"], "hunk-src/c.ts-0")[0].rows;
 
     const ids = visibleRows(rows, { hideRead: true, hideIncidental: true }, weights).map(
       (row) => row.node.id,
@@ -239,7 +258,7 @@ describe("initiallyCollapsed", () => {
       ],
     });
 
-    const sections = mapSections(map, ["s1", "s2"], "s2");
+    const sections = mapSections(map, ["s1", "s2"], "hunk-src/b.ts-0");
 
     expect([...initiallyCollapsed(sections)]).toEqual(["a"]);
   });

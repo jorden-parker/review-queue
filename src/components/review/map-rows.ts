@@ -1,4 +1,5 @@
 import type { ChangeMap, ChangeNode, ChangeThread } from "@/lib/types";
+import { hunkElementId } from "./hunk-index";
 
 export type MapRow = {
   key: string;
@@ -32,7 +33,7 @@ type Context = {
   outgoing: Map<string, string[]>;
   incoming: Map<string, string[]>;
   doneSteps: readonly string[];
-  currentStepId: string | null;
+  currentNodeId: string | null;
 };
 
 const MAX_DEPTH = 4;
@@ -41,14 +42,14 @@ const ORPHAN_SECTION_ID = "orphans";
 export function mapSections(
   map: ChangeMap,
   doneSteps: readonly string[],
-  currentStepId: string | null,
+  activeHunkId: string | null,
 ): MapSection[] {
   const context: Context = {
     nodeById: new Map(map.nodes.map((node) => [node.id, node])),
     outgoing: edgesBy(map, "from", "to"),
     incoming: edgesBy(map, "to", "from"),
     doneSteps,
-    currentStepId,
+    currentNodeId: currentNodeId(map.nodes, activeHunkId),
   };
   const threadSections = map.threads.map((thread) => threadSection(thread, context));
   return map.orphanIds.length > 0
@@ -78,6 +79,13 @@ export function initiallyCollapsed(sections: MapSection[]): Set<string> {
       .filter((section) => !section.rows.some((row) => row.current))
       .map((section) => section.id),
   );
+}
+
+function currentNodeId(nodes: ChangeNode[], activeHunkId: string | null): string | null {
+  const holder = nodes.find((node) =>
+    node.hunkIndexes.some((index) => hunkElementId(node.path, index) === activeHunkId),
+  );
+  return holder?.id ?? null;
 }
 
 function edgesBy(map: ChangeMap, key: "from" | "to", value: "from" | "to"): Map<string, string[]> {
@@ -165,7 +173,7 @@ function rowFor(
     depth,
     kind,
     done: node.stepId !== null && context.doneSteps.includes(node.stepId),
-    current: context.currentStepId !== null && node.stepId === context.currentStepId,
+    current: node.id === context.currentNodeId,
     linkedIds: [...(context.outgoing.get(node.id) ?? []), ...(context.incoming.get(node.id) ?? [])],
   };
 }
