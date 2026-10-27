@@ -25,7 +25,7 @@ const RICH_TEXT_ELEMENTS: Partial<Components> = {
   ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 pl-5">{children}</ol>,
   code: ({ children }) => (
-    <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-foreground">
+    <code className="rounded bg-muted px-1 py-0.5 font-mono text-code leading-none text-foreground">
       {children}
     </code>
   ),
