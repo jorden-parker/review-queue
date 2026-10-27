@@ -9,6 +9,7 @@ import type { AssistThread, AssistTurn } from "@/lib/assist-protocol";
 import type { NoteKind } from "@/lib/types";
 import { actionLabel, awaitsQuestion, canFollowUp, questionPrompt } from "./assist-thread";
 import { NoteKindPicker } from "./note-composer";
+import { useStickToBottom } from "./use-stick-to-bottom";
 import type { Assist } from "./use-assist";
 
 type AssistPanelProps = {
@@ -126,6 +127,14 @@ export function AssistPanel({
   const last = thread.turns.at(-1);
   const draftReady =
     thread.action === "comment" && !assist.streaming && last?.role === "model" && last.text.trim();
+  const scrollKey = [thread.turns.length, last?.text.length, assist.streaming, assist.error].join(
+    "|",
+  );
+  const { ref: listRef, onScroll, pin } = useStickToBottom(scrollKey);
+  const send = (text: string) => {
+    pin();
+    assist.send(text);
+  };
   return (
     <section
       aria-label="Ask the model"
@@ -147,7 +156,12 @@ export function AssistPanel({
           <X />
         </Button>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 *:shrink-0">
+      <div
+        ref={listRef}
+        onScroll={onScroll}
+        data-testid="chat-messages"
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 *:shrink-0"
+      >
         <p className="text-xs text-muted-foreground">
           The model&apos;s guess, unverified. The PR author can sway it.
         </p>
@@ -185,7 +199,7 @@ export function AssistPanel({
             key={thread.turns.length}
             thread={thread}
             readOnly={assist.readOnly}
-            onSend={assist.send}
+            onSend={send}
           />
         )}
       </footer>
