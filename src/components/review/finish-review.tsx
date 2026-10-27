@@ -147,7 +147,7 @@ export function FinishReview({
   const unfinished = unfinishedMessage(stepsLeft, hotspotsLeft);
 
   return (
-    <AppDialog title="Finish review" onClose={onCancel} className="sm:max-w-2xl">
+    <AppDialog title="Finish review" onClose={onCancel} wide>
       {unfinished && <Callout>{unfinished}</Callout>}
       <NoteChecklist notes={notes} selected={selected} onToggle={toggle} />
       {onDraftSummary && (
