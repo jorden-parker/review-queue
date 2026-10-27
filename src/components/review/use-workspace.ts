@@ -6,7 +6,7 @@ import type { ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
 import { isPinned, peekedSymbol } from "./context-symbols";
 import { useContextSymbols } from "./use-context-symbols";
-import type { PullRequestRef, SymbolPosition } from "@/lib/types";
+import type { NoteTag, PullRequestRef, SymbolPosition } from "@/lib/types";
 import { displayHotspots } from "./display-hotspots";
 import { firstNoteLine } from "./hunk-index";
 import { nextOpenStep, type LineTarget } from "./locate";
@@ -284,12 +284,8 @@ export function useWorkspace(
     files,
     nextStep,
     resume,
-    saveNote: (
-      target: LineTarget | null,
-      kind: Parameters<typeof edits.saveNote>[1],
-      body: string,
-    ) => {
-      edits.saveNote(target, kind, body);
+    saveNote: (target: LineTarget | null, tag: NoteTag, body: string) => {
+      edits.saveNote(target, tag, body);
       setComposer(null);
     },
     startOver: async (keepNotes: boolean) => {
