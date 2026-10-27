@@ -117,14 +117,14 @@ function SymbolRow({
         onClick={() => onOpen(symbol)}
         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
       >
-        <span className="flex items-center gap-1.5 text-sm">
+        <span className="flex flex-wrap items-center gap-1.5 text-sm">
           <Icon className="size-3.5 shrink-0 text-primary" aria-hidden />
-          <span className="truncate font-mono font-medium">{symbol.name}</span>
+          <span className="wrap-anywhere font-mono font-medium">{symbol.name}</span>
           <span className="text-xs text-muted-foreground">{symbol.kind}</span>
         </span>
         <PathLabel path={symbol.path} line={symbol.scope === "external" ? null : symbol.line} />
         {symbol.signature && (
-          <code className="truncate font-mono text-xs text-muted-foreground">
+          <code className="wrap-anywhere font-mono text-xs text-muted-foreground">
             {symbol.signature}
           </code>
         )}

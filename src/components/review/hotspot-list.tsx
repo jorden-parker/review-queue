@@ -61,7 +61,7 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
                     </span>
                   )}
                 </span>
-                <PathLabel path={hotspot.path} line={hotspot.line} wrap />
+                <PathLabel path={hotspot.path} line={hotspot.line} />
                 <span className="text-xs text-muted-foreground">
                   <InlineMarkdown text={hotspot.note ?? hotspot.why} />
                 </span>

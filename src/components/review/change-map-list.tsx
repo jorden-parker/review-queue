@@ -79,13 +79,15 @@ function mutedClass(row: MapRow, part: NodePart | undefined): string | undefined
 
 function RowHeading({ row }: { row: MapRow }) {
   return (
-    <span className="flex max-w-full items-center gap-2">
+    <span className="flex max-w-full flex-wrap items-center gap-2">
       {row.done ? <Check aria-hidden className="size-3.5 shrink-0" /> : null}
       {row.kind === "test" ? (
         <span className="text-xs text-muted-foreground">tested by</span>
       ) : null}
-      <span className="min-w-0 truncate font-mono text-sm">{row.node.name ?? "file changes"}</span>
-      <Badge variant="outline">{row.node.role}</Badge>
+      <span className="wrap-anywhere font-mono text-sm">{row.node.name ?? "file changes"}</span>
+      <Badge variant="outline" className="h-auto whitespace-normal wrap-anywhere">
+        {row.node.role}
+      </Badge>
     </span>
   );
 }

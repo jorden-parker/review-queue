@@ -218,7 +218,7 @@ export function AssistPanel({
           <span className="font-medium">{actionLabel(thread.action, thread.target)}</span>
           <button
             onClick={onShowLines}
-            className="truncate text-left font-mono text-xs text-muted-foreground hover:text-foreground"
+            className="text-left font-mono text-xs wrap-anywhere text-muted-foreground hover:text-foreground"
           >
             {label}
           </button>
