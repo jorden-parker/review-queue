@@ -134,3 +134,25 @@ export type Note = {
   body: string;
   createdAt: string;
 };
+
+export type ChangeNode = {
+  id: string;
+  path: string;
+  name: string | null;
+  kind: SymbolKind | "file";
+  role: FileRole;
+  line: number;
+  hunkIndexes: number[];
+  stepId: string | null;
+};
+
+export type ChangeEdge = { from: string; to: string };
+
+export type ChangeThread = { id: string; entryId: string; nodeIds: string[]; testIds: string[] };
+
+export type ChangeMap = {
+  nodes: ChangeNode[];
+  edges: ChangeEdge[];
+  threads: ChangeThread[];
+  orphanIds: string[];
+};

@@ -121,6 +121,7 @@ function shortcutHandlers({
     "pin-symbol": pins.togglePeekPin,
     "open-context": () => ui.showPane("context"),
     "open-outline": () => ui.showPane("outline"),
+    "open-map": () => ui.showPane("map"),
     "toggle-left-panel": () => ui.togglePanel("left"),
     "toggle-right-panel": () => ui.togglePanel("right"),
     "toggle-panel": ui.toggleAllPanels,

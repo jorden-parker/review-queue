@@ -4,6 +4,7 @@ import type { ReviewEvent } from "@/lib/github/gh";
 import { json } from "@/lib/json-response";
 import { prPath } from "@/lib/pr-ref";
 import type { AssistRequest } from "@/lib/review/assist-request";
+import type { ChangePartsResult } from "@/lib/review/change-parts-service";
 import type { ExplanationResult } from "@/lib/review/explanation-service";
 import type { Interdiff } from "@/lib/review/interdiff";
 import type { OrientationResult } from "@/lib/review/orientation-service";
@@ -57,6 +58,10 @@ export function fetchStepExplanation(
   return fetch(apiPath(ref, `/explanation${query({ sha, step: stepId })}`)).then(
     json<ExplanationResult>,
   );
+}
+
+export function fetchChangeParts(ref: PullRequestRef, sha: string): Promise<ChangePartsResult> {
+  return fetch(apiPath(ref, `/map-parts${query({ sha })}`)).then(json<ChangePartsResult>);
 }
 
 function positionQuery(sha: string, position: SymbolPosition): string {

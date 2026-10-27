@@ -2,6 +2,7 @@ export type PaneId =
   | "about"
   | "step"
   | "path"
+  | "map"
   | "hotspots"
   | "notes"
   | "github"
@@ -43,6 +44,7 @@ export const PANE_SIDES: Record<PaneId, PanelSide> = {
   about: "right",
   step: "right",
   path: "right",
+  map: "right",
   hotspots: "right",
   notes: "right",
   github: "right",

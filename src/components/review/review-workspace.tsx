@@ -13,6 +13,7 @@ import {
   type LucideIcon,
   MapPin,
   MessagesSquare,
+  Network,
   RotateCcw,
   Route,
   Send,
@@ -21,7 +22,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
@@ -37,6 +38,7 @@ import {
 } from "@/lib/assist-protocol";
 import { prKey } from "@/lib/pr-ref";
 import { cn } from "cn";
+import type { ChangePartsResult } from "@/lib/review/change-parts-service";
 import type { PreparedFile, ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
 import type { PullRequestRef, Step } from "@/lib/types";
@@ -45,6 +47,8 @@ import { citationsInText, parseCitation } from "./citations";
 import { ChangesView } from "./changes-view";
 import { FinishReview } from "./finish-review";
 import { FocusTimer } from "./focus-timer";
+import { fetchChangeParts } from "./api";
+import { ChangeMapList } from "./change-map-list";
 import { ContextList } from "./context-list";
 import { contextCount } from "./context-symbols";
 import { HotspotList } from "./hotspot-list";
@@ -55,6 +59,7 @@ import { OrientationCard } from "./orientation-card";
 import { PauseDialog } from "./pause-dialog";
 import { PeekPanel } from "./peek-panel";
 import { PostedToast } from "./posted-toast";
+import { mapSections } from "./map-rows";
 import { ORDERING_MESSAGE, ReadingPath } from "./reading-path";
 import { ResumeCard } from "./resume-card";
 import { ShortcutHelp } from "./shortcut-help";
@@ -85,6 +90,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
   { id: "about", label: "About", icon: Compass },
   { id: "step", label: "Step", icon: MapPin },
   { id: "path", label: "Path", icon: Route },
+  { id: "map", label: "Map", icon: Network },
   { id: "hotspots", label: "Hotspots", icon: Flame },
   { id: "notes", label: "Notes", icon: StickyNote },
   { id: "github", label: "On GitHub", icon: GitPullRequest },
@@ -174,6 +180,7 @@ function paneEntries({ session, workspace }: PaneProps, side: PanelSide): PaneEn
     about: null,
     step: null,
     path: null,
+    map: null,
     hotspots: openHotspots,
     notes: session.notes.length,
     github: null,
@@ -239,6 +246,68 @@ function HotspotsPane({ session, workspace }: PaneProps) {
       onOpen={(hotspot) => workspace.goTo({ path: hotspot.path, line: hotspot.line ?? 1 })}
       onToggleChecked={workspace.toggleHotspot}
     />
+  );
+}
+
+type ChangePartsState = { status: "loading" } | ChangePartsResult;
+
+function useChangeParts(review: ReviewPayload, enabled: boolean): ChangePartsState {
+  const [state, setState] = useState<ChangePartsState>({ status: "loading" });
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    const load = async () => {
+      try {
+        const result = await fetchChangeParts(review.pr.ref, review.headSha);
+        if (live) setState(result);
+      } catch (error) {
+        if (live) setState({ status: "error", message: String(error) });
+      }
+    };
+    void load();
+    return () => {
+      live = false;
+    };
+  }, [review.pr.ref, review.headSha, enabled]);
+  return state;
+}
+
+function partsByNode(
+  state: ChangePartsState,
+): ReadonlyMap<string, { part: string; weight: string }> | undefined {
+  if (state.status !== "ready") return undefined;
+  return new Map(state.parts.parts.map((item) => [item.id, item]));
+}
+
+function PartsStatus({ state, enabled }: { state: ChangePartsState; enabled: boolean }) {
+  if (state.status === "ready") {
+    return (
+      <span className="block text-xs text-muted-foreground">
+        The model&apos;s guess, unverified. The PR author can sway it.
+      </span>
+    );
+  }
+  if (state.status === "loading" && enabled) {
+    return <p className="text-sm text-muted-foreground">Asking the model how the changes fit…</p>;
+  }
+  return null;
+}
+
+function MapPane({ review, session, workspace }: PaneProps) {
+  const parts = useChangeParts(review, workspace.aiEnabled);
+  return (
+    <>
+      <PartsStatus state={parts} enabled={workspace.aiEnabled} />
+      <ChangeMapList
+        sections={mapSections(
+          review.changeMap,
+          session.doneSteps,
+          workspace.currentStep?.id ?? null,
+        )}
+        onOpen={(node) => workspace.goTo({ path: node.path, line: node.line })}
+        parts={partsByNode(parts)}
+      />
+    </>
   );
 }
 
@@ -333,6 +402,7 @@ const PANE_CONTENT: Record<PaneId, (props: PaneProps) => PaneContent> = {
   }),
   step: (props) => ({ body: <StepSummary {...props} /> }),
   path: (props) => ({ body: <PathPane {...props} /> }),
+  map: (props) => ({ body: <MapPane {...props} /> }),
   hotspots: (props) => ({ body: <HotspotsPane {...props} /> }),
   notes: (props) => ({ body: <NotesPane {...props} /> }),
   github: (props) => ({ body: <ConversationPane {...props} /> }),
