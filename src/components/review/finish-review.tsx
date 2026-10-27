@@ -33,6 +33,18 @@ const EVENTS: { value: ReviewEvent; label: string }[] = [
   { value: "REQUEST_CHANGES", label: "Request changes" },
 ];
 
+const POST_LABELS: Record<ReviewEvent, string> = {
+  COMMENT: "Post comment to GitHub",
+  APPROVE: "Approve on GitHub",
+  REQUEST_CHANGES: "Request changes on GitHub",
+};
+
+function defaultEvent(notes: Note[], unfinished: string | null): ReviewEvent {
+  if (notes.some((note) => note.kind === "blocker")) return "REQUEST_CHANGES";
+  if (unfinished === null && !notes.some((note) => note.kind === "question")) return "APPROVE";
+  return "COMMENT";
+}
+
 type DraftSummaryButtonProps = {
   draftSummary: DraftSummary;
   event: ReviewEvent;
@@ -121,8 +133,8 @@ export function FinishReview({
 }: FinishReviewProps) {
   const postable = notes.filter((note) => note.kind !== "parked");
   const parkedCount = notes.length - postable.length;
-  const hasBlocker = notes.some((note) => note.kind === "blocker");
-  const [event, setEvent] = useState<ReviewEvent>(hasBlocker ? "REQUEST_CHANGES" : "COMMENT");
+  const unfinished = unfinishedMessage(stepsLeft, hotspotsLeft);
+  const [event, setEvent] = useState<ReviewEvent>(defaultEvent(postable, unfinished));
   const [summary, setSummary] = useState("");
   const [selected, setSelected] = useState(postable.map((note) => note.id));
   const [sending, setSending] = useState(false);
@@ -145,11 +157,15 @@ export function FinishReview({
     }
   }
 
-  const unfinished = unfinishedMessage(stepsLeft, hotspotsLeft);
-
   return (
     <AppDialog title="Finish review" onClose={onCancel} wide>
-      {unfinished && <Callout>{unfinished}</Callout>}
+      {unfinished ? (
+        <Callout>{unfinished}</Callout>
+      ) : (
+        <p className="rounded-lg bg-add px-3 py-2 text-sm text-add-foreground">
+          Every step and hotspot is ticked off.
+        </p>
+      )}
       <NoteChecklist notes={postable} selected={selected} onToggle={toggle} />
       {parkedCount > 0 && (
         <p className="text-sm text-muted-foreground">
@@ -189,7 +205,7 @@ export function FinishReview({
           Not yet
         </Button>
         <Button onClick={send} disabled={sending}>
-          {sending ? "Posting…" : "Post review to GitHub"}
+          {sending ? "Posting…" : POST_LABELS[event]}
         </Button>
       </div>
     </AppDialog>
