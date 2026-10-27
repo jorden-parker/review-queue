@@ -39,7 +39,7 @@ type CodeLineProps = {
 const ROW_STYLES = {
   add: "bg-add",
   del: "bg-del",
-  context: "hover:bg-muted/60",
+  context: "group-hover:bg-muted/60",
 };
 const MARKER_STYLES = {
   add: "text-add-foreground",
@@ -132,7 +132,7 @@ function LineFlagRow({
 }) {
   const { onCheckFlag } = handlers;
   return (
-    <div className={cn("flex pt-0.5 pb-1.5", ROW_STYLES[kind])}>
+    <div className={cn("flex py-1 transition-colors duration-150", ROW_STYLES[kind])}>
       <GutterSpacer />
       <div className="min-w-0 flex-1 pr-4 max-sm:pr-2">
         <HotspotFlag
@@ -167,47 +167,49 @@ export function CodeLine({
   const here = { hunk: hunkIndex, line: lineIndex };
   return (
     <>
-      <div
-        id={elementId}
-        data-path={path}
-        data-hunk={hunkIndex}
-        data-line={lineIndex}
-        aria-current={landed ? "location" : undefined}
-        className={cn(
-          "group flex scroll-mt-32 transition-colors duration-150",
-          ROW_STYLES[line.kind],
-          landed && "ring-2 ring-primary ring-inset",
-        )}
-      >
-        <LineNumber value={line.oldLine} />
-        <LineNumber value={lineNumber} />
-        <span className={cn(NOTE_BUTTON_WIDTH, "flex justify-center select-none")}>
-          {addNote && <NoteButton onClick={addNote} />}
-        </span>
-        <span className={cn(MARKER_WIDTH, "select-none", MARKER_STYLES[line.kind])}>
-          {MARKERS[line.kind]}
-        </span>
-        <code className="flex-1 pr-4 break-words whitespace-pre-wrap max-sm:tab-2 max-sm:pr-2">
-          <CodeTokens
-            tokens={tokens}
-            onIdentifier={
-              linked ? (target) => handlers.onIdentifier(positionOf(target)) : undefined
-            }
-            onHover={(target) => handlers.onHoverIdentifier(target && positionOf(target))}
-            emphasis={landed?.name}
+      <div className="group">
+        <div
+          id={elementId}
+          data-path={path}
+          data-hunk={hunkIndex}
+          data-line={lineIndex}
+          aria-current={landed ? "location" : undefined}
+          className={cn(
+            "flex scroll-mt-32 transition-colors duration-150",
+            ROW_STYLES[line.kind],
+            landed && "ring-2 ring-primary ring-inset",
+          )}
+        >
+          <LineNumber value={line.oldLine} />
+          <LineNumber value={lineNumber} />
+          <span className={cn(NOTE_BUTTON_WIDTH, "flex justify-center select-none")}>
+            {addNote && <NoteButton onClick={addNote} />}
+          </span>
+          <span className={cn(MARKER_WIDTH, "select-none", MARKER_STYLES[line.kind])}>
+            {MARKERS[line.kind]}
+          </span>
+          <code className="flex-1 pr-4 break-words whitespace-pre-wrap max-sm:tab-2 max-sm:pr-2">
+            <CodeTokens
+              tokens={tokens}
+              onIdentifier={
+                linked ? (target) => handlers.onIdentifier(positionOf(target)) : undefined
+              }
+              onHover={(target) => handlers.onHoverIdentifier(target && positionOf(target))}
+              emphasis={landed?.name}
+            />
+          </code>
+        </div>
+        {hotspots.length > 0 && (
+          <LineFlagRow
+            kind={line.kind}
+            range={{ path, from: here, to: here }}
+            hotspots={hotspots}
+            checked={checkedHotspots}
+            onAddNote={addNote}
+            handlers={handlers}
           />
-        </code>
+        )}
       </div>
-      {hotspots.length > 0 && (
-        <LineFlagRow
-          kind={line.kind}
-          range={{ path, from: here, to: here }}
-          hotspots={hotspots}
-          checked={checkedHotspots}
-          onAddNote={addNote}
-          handlers={handlers}
-        />
-      )}
       {notes.length > 0 && <LineNotes notes={notes} onDelete={handlers.onDeleteNote} />}
     </>
   );
