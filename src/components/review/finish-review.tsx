@@ -7,6 +7,7 @@ import { AppDialog } from "@/components/common/app-dialog";
 import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { PathLabel } from "@/components/common/path-label";
+import { plural } from "@/lib/plural";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -118,12 +119,12 @@ export function FinishReview({
   onDraftSummary,
   onCancel,
 }: FinishReviewProps) {
+  const postable = notes.filter((note) => note.kind !== "parked");
+  const parkedCount = notes.length - postable.length;
   const hasBlocker = notes.some((note) => note.kind === "blocker");
   const [event, setEvent] = useState<ReviewEvent>(hasBlocker ? "REQUEST_CHANGES" : "COMMENT");
   const [summary, setSummary] = useState("");
-  const [selected, setSelected] = useState(
-    notes.filter((note) => note.kind !== "parked").map((note) => note.id),
-  );
+  const [selected, setSelected] = useState(postable.map((note) => note.id));
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -149,7 +150,12 @@ export function FinishReview({
   return (
     <AppDialog title="Finish review" onClose={onCancel} wide>
       {unfinished && <Callout>{unfinished}</Callout>}
-      <NoteChecklist notes={notes} selected={selected} onToggle={toggle} />
+      <NoteChecklist notes={postable} selected={selected} onToggle={toggle} />
+      {parkedCount > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {plural(parkedCount, "parked note")} stay with you and are not posted.
+        </p>
+      )}
       {onDraftSummary && (
         <DraftSummaryButton
           draftSummary={onDraftSummary}
