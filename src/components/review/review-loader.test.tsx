@@ -609,7 +609,7 @@ describe("ReviewLoader", () => {
     expect(within(dialog).getByText(/3 steps and 1 hotspot are not/)).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "Approve" }));
     await user.type(within(dialog).getByPlaceholderText(/Overall summary/), "Nice work");
-    await user.click(within(dialog).getByRole("button", { name: /Post review/ }));
+    await user.click(within(dialog).getByRole("button", { name: /Approve on GitHub/ }));
     await waitFor(() => expect(screen.queryByText("Finish review")).toBeNull());
     expect(screen.getByRole("status").textContent).toMatch(/Review posted/);
     expect(api.calls.find((call) => call.url.endsWith("/submit"))?.body).toEqual({
