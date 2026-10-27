@@ -20,7 +20,7 @@ function ProgressBadge({ progress }: { progress?: ProgressSummary }) {
   if (!progress) return <Badge variant="outline">Not started</Badge>;
   return (
     <Badge className="bg-accent text-accent-foreground">
-      Resume · {progress.doneCount} steps done
+      Resume, {progress.doneCount} steps done
     </Badge>
   );
 }
@@ -28,19 +28,22 @@ function ProgressBadge({ progress }: { progress?: ProgressSummary }) {
 function InboxRow({ request, progress }: { request: ReviewRequest; progress?: ProgressSummary }) {
   return (
     <li>
-      <Link href={prPath(request.ref)} className="group block rounded-xl focus-visible:outline-2">
-        <Card className="gap-1.5 px-4 transition-[box-shadow,transform] duration-200 ease-spring group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:ring-primary/40">
-          <span className="flex items-center justify-between gap-4">
-            <span className="font-medium">
-              <InlineMarkdown text={request.title} />
-            </span>
-            <ProgressBadge progress={progress} />
+      <Link
+        href={prPath(request.ref)}
+        className="flex items-center gap-4 px-5 py-4 transition-colors duration-calm hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none"
+      >
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="font-bold">
+            <InlineMarkdown text={request.title} />
           </span>
-          <span className="font-mono text-xs text-muted-foreground">
-            {prKey(request.ref)} · {request.author} · updated {relativeTime(request.updatedAt)}
-            {request.isDraft && " · draft"}
+          <span className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
+            <span>{prKey(request.ref)}</span>
+            <span>by {request.author}</span>
+            <span>updated {relativeTime(request.updatedAt)}</span>
+            {request.isDraft && <span>draft</span>}
           </span>
-        </Card>
+        </span>
+        <ProgressBadge progress={progress} />
       </Link>
     </li>
   );
@@ -73,7 +76,7 @@ export async function InboxList() {
   const { requests, progress, error } = await loadInbox();
   if (error) {
     return (
-      <Card className="gap-1 px-4 text-sm ring-destructive/40">
+      <Card className="gap-2 px-5 text-sm ring-destructive/40">
         <p>
           🔌 Couldn&apos;t reach GitHub through <code className="font-mono">gh</code>. Is it
           installed and logged in?
@@ -87,10 +90,10 @@ export async function InboxList() {
   }
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-muted-foreground">
-        Waiting for you ({requests.length})
+      <h2 className="text-sm font-bold">
+        Waiting for you <span className="text-muted-foreground">({requests.length})</span>
       </h2>
-      <ul className="flex flex-col gap-3">
+      <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
         {requests.map((request) => (
           <InboxRow
             key={prKey(request.ref)}

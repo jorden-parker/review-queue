@@ -4,28 +4,28 @@ import { Suspense } from "react";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
 import { OpenPullRequestForm } from "@/components/inbox/open-pull-request-form";
+import { Button } from "@/components/ui/button";
 
 export default function InboxPage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10">
-      <header className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-12 sm:px-6 sm:py-16">
+      <header className="flex items-start justify-between gap-6">
+        <div className="flex flex-col gap-3">
+          <h1 className="flex items-center gap-3 text-4xl font-bold">
             <span aria-hidden className="animate-float">
               🦦
             </span>
             Review queue
           </h1>
-          <Link
-            href="/settings"
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <Settings size={16} /> Settings
-          </Link>
+          <p className="max-w-prose text-lg text-muted-foreground">
+            One PR at a time. Pick one, follow the path, take breaks.
+          </p>
         </div>
-        <p className="text-muted-foreground">
-          One PR at a time. Pick one, follow the path, take breaks.
-        </p>
+        <Button variant="ghost" asChild className="text-muted-foreground">
+          <Link href="/settings">
+            <Settings /> Settings
+          </Link>
+        </Button>
       </header>
       <OpenPullRequestForm />
       <Suspense fallback={<InboxSkeleton />}>

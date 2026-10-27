@@ -422,7 +422,7 @@ describe("ReviewLoader", () => {
     expect(await screen.findByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
     await user.keyboard("jk");
     await user.keyboard("a");
-    expect(screen.getByText("Back to one step at a time (a)")).toBeTruthy();
+    expect(screen.getByText("Back to one step at a time")).toBeTruthy();
     expect(screen.getByText("Collapsed: usually safe to skim. Show anyway")).toBeTruthy();
     await user.click(screen.getByText("Collapsed: usually safe to skim. Show anyway"));
     expect(screen.getByText("lock: 1")).toBeTruthy();
@@ -442,7 +442,7 @@ describe("ReviewLoader", () => {
     expect(document.querySelector(".grid-cols-workspace")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /In this PR/ }));
     expect(await screen.findByRole("button", { name: /Back to Options/ })).toBeTruthy();
-    expect(screen.getByText("1/3")).toBeTruthy();
+    expect(screen.getByText("1 of 3")).toBeTruthy();
     await user.click(screen.getByRole("tab", { name: /References/ }));
     const reference = await screen.findByText("load(options: Options) {");
     expect(reference.closest("button")?.disabled).toBe(false);
@@ -450,7 +450,7 @@ describe("ReviewLoader", () => {
     await user.hover(screen.getByRole("button", { name: /Back to Options/ }));
     expect(await screen.findAllByText("src/client.ts:10")).toBeTruthy();
     await user.keyboard("b");
-    expect(await screen.findByText("2/3")).toBeTruthy();
+    expect(await screen.findByText("2 of 3")).toBeTruthy();
     expect(api.actions()).toEqual(
       expect.arrayContaining([
         { type: "jump-push", name: "Options", path: "src/client.ts", line: 10 },

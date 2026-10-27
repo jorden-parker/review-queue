@@ -31,11 +31,11 @@ function CurrentStep({
   return (
     <Card>
       <CardHeader>
-        <CardDescription className="font-mono text-xs">
+        <CardDescription className="text-xs">
           Step {workspace.currentIndex + 1} of {review.steps.length} · {step.role} ·{" "}
           {step.changedLines} lines
         </CardDescription>
-        <CardTitle className="text-lg font-semibold tracking-tight">{step.title}</CardTitle>
+        <CardTitle className="text-lg font-bold">{step.title}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">{step.reason}</p>

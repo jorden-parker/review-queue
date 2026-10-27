@@ -134,12 +134,12 @@ function PaneButton({
       draggable
       onDragStart={(event) => startPaneDrag(event, pane.id, side)}
       onClick={onClick}
-      className="relative mx-1 h-auto w-auto flex-col gap-1 rounded-md px-1 py-2.5 text-xs text-foreground/60 transition-colors duration-calm ease-calm hover:bg-background/60 hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-xs aria-pressed:after:absolute aria-pressed:after:inset-y-2 aria-pressed:after:-left-1 aria-pressed:after:w-0.5 aria-pressed:after:rounded-full aria-pressed:after:bg-primary"
+      className="relative mx-2 h-auto w-auto flex-col gap-1 rounded-lg px-1 py-2 text-xs font-medium text-muted-foreground transition-colors duration-calm ease-calm hover:bg-foreground/5 hover:text-foreground aria-pressed:bg-accent aria-pressed:text-accent-foreground max-sm:mx-1"
     >
       <span className="relative flex">
         <Icon />
         {pane.count ? (
-          <span className="absolute -top-1.5 left-3 min-w-4 rounded-full bg-primary px-1 text-center text-xs/4 font-semibold text-primary-foreground">
+          <span className="absolute -top-1.5 left-3 min-w-4 rounded-full bg-marker px-1 text-center text-xs/4 font-bold text-foreground ring-2 ring-rail tabular-nums dark:text-background">
             {pane.count}
           </span>
         ) : null}
@@ -179,22 +179,22 @@ function PaneFrame({
       <header
         draggable
         onDragStart={(event) => startPaneDrag(event, pane.id, side)}
-        className="group/pane-header flex shrink-0 cursor-grab items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground active:cursor-grabbing"
+        className="group/pane-header flex h-11 shrink-0 cursor-grab items-center gap-2 border-b px-4 text-sm font-medium text-muted-foreground active:cursor-grabbing"
       >
-        <PaneIcon className="size-3.5 shrink-0" />
-        <span className="flex-1 truncate text-foreground/80">{pane.label}</span>
+        <PaneIcon className="size-4 shrink-0" />
+        <span className="flex-1 truncate text-foreground">{pane.label}</span>
         <GripVertical className="size-3.5 opacity-0 transition-opacity duration-calm group-hover/pane-header:opacity-60" />
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           aria-label={`Close ${pane.label}`}
-          className="text-muted-foreground/70 hover:text-foreground"
+          className="-mr-2 text-muted-foreground hover:text-foreground"
           onClick={onClose}
         >
           <X />
         </Button>
       </header>
-      <div className="flex min-h-0 flex-1 animate-step-enter flex-col overflow-y-auto p-3 [scrollbar-gutter:stable]">
+      <div className="flex min-h-0 flex-1 animate-step-enter flex-col overflow-y-auto p-4 [scrollbar-gutter:stable]">
         {content.body}
       </div>
     </section>
@@ -268,7 +268,7 @@ export function ReviewPanel({
       onDrop={onDrop}
     >
       <div
-        className={`flex w-panel-strip shrink-0 flex-col max-sm:w-panel-strip-compact items-center gap-2 overflow-y-auto ${style.stripEdge} bg-muted py-2`}
+        className={`flex w-panel-strip shrink-0 flex-col max-sm:w-panel-strip-compact items-center gap-3 overflow-y-auto ${style.stripEdge} bg-rail py-3`}
       >
         <PanelToggle side={side} open={panes.length > 0} onToggle={controls.togglePanel} />
         <div className="flex w-full flex-col gap-1">
