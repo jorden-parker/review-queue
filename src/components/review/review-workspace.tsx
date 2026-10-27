@@ -21,11 +21,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
 import {
   type AssistTarget,
@@ -405,9 +405,10 @@ function StepBar({
 function BreakBanner({ workspace }: { workspace: Workspace }) {
   if (!workspace.breakDue) return null;
   return (
-    <Card className="animate-step-enter flex-row flex-wrap items-center justify-between gap-3 bg-callout px-4 py-3 text-callout-foreground ring-0">
-      <span className="text-sm">
-        ☕ 25 minutes of focus. Nice. Take five? Leave yourself a note first.
+    <Callout className="animate-step-enter flex flex-wrap items-center justify-between gap-3">
+      <span className="flex items-center gap-2">
+        <Coffee className="size-4 shrink-0" />
+        25 minutes of focus. Nice. Take five? Leave yourself a note first.
       </span>
       <span className="flex gap-2">
         <Button size="sm" variant="secondary" onClick={() => workspace.setDialog("pause")}>
@@ -417,7 +418,7 @@ function BreakBanner({ workspace }: { workspace: Workspace }) {
           Keep going
         </Button>
       </span>
-    </Card>
+    </Callout>
   );
 }
 
@@ -630,9 +631,7 @@ export function ReviewWorkspace({
             <div className="mx-auto flex max-w-5xl flex-col gap-3">
               <StepBar review={review} session={session} workspace={workspace} />
               {controls.actionError && (
-                <p className="rounded-lg bg-del px-3 py-2 text-sm text-del-foreground">
-                  Couldn&apos;t save: {controls.actionError}
-                </p>
+                <Callout tone="error">Couldn&apos;t save: {controls.actionError}</Callout>
               )}
               <BreakBanner workspace={workspace} />
             </div>
