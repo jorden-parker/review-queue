@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronRight, FileCode2 } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight, FileCode2, FoldVertical, UnfoldVertical } from "lucide-react";
+import { useEffect, useState } from "react";
 import { cn } from "cn";
 import { PathLabel } from "@/components/common/path-label";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,8 @@ import type { AssistAction } from "@/lib/assist-protocol";
 import type { PreparedFile } from "@/lib/review/prepare";
 import type { Note, NoteTag, ReferenceCount, Step, StepFile, SymbolPosition } from "@/lib/types";
 import { CodeLine, type LineHandlers } from "./code-line";
+import { ContextGapView } from "./context-gap-view";
+import { fileLayout, type LayoutItem } from "./context-gaps";
 import { FileAskButton } from "./file-ask-button";
 import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
@@ -19,6 +21,7 @@ import { isInTarget, isSameLine, lineElementId, type LineTarget } from "./locate
 import { NoteComposer } from "./note-composer";
 import { occurrenceAt, type Occurrences } from "./occurrences";
 import { ReferenceLens } from "./reference-lens";
+import { useFileLines, type FileLoad, type LoadFile } from "./use-file-lines";
 
 export type StepViewContext = {
   files: Map<string, PreparedFile>;
@@ -32,6 +35,7 @@ export type StepViewContext = {
   activeHunkId: string | null;
   referenceCounts: ReadonlyMap<string, ReferenceCount[]>;
   onAskFile: ((path: string, action: AssistAction) => void) | null;
+  loadFile: LoadFile;
   handlers: LineHandlers & {
     onSaveNote: (target: LineTarget, tag: NoteTag, body: string) => void;
     onCancelNote: () => void;
@@ -69,12 +73,25 @@ function lensesOf(context: StepViewContext, path: string): Map<number, Reference
   return new Map(counts.map((count) => [count.line, count]));
 }
 
+type WholeFileToggle = { wholeFile: boolean; onToggle: () => void } | null;
+
+function WholeFileButton({ toggle }: { toggle: NonNullable<WholeFileToggle> }) {
+  return (
+    <Button variant="ghost" size="xs" onClick={toggle.onToggle} aria-pressed={toggle.wholeFile}>
+      {toggle.wholeFile ? <FoldVertical /> : <UnfoldVertical />}
+      {toggle.wholeFile ? "Show changes only" : "Show whole file"}
+    </Button>
+  );
+}
+
 function FileHeader({
   file,
   onAskFile,
+  wholeFileToggle,
 }: {
   file: PreparedFile;
   onAskFile: StepViewContext["onAskFile"];
+  wholeFileToggle: WholeFileToggle;
 }) {
   return (
     <div className="sticky top-0 z-10 flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-4 py-2 font-sans">
@@ -89,6 +106,7 @@ function FileHeader({
         <PathLabel path={file.path} className="text-sm" />
       </span>
       <span className="flex shrink-0 items-center gap-3 text-sm tabular-nums">
+        {wholeFileToggle && <WholeFileButton toggle={wholeFileToggle} />}
         {onAskFile && !file.binary && (
           <FileAskButton onAsk={(action) => onAskFile(file.path, action)} />
         )}
@@ -105,22 +123,24 @@ function FileHeader({
 function HunkBlock({
   file,
   hunkIndex,
+  anchored,
   context,
 }: {
   file: PreparedFile;
   hunkIndex: number;
+  anchored: boolean;
   context: StepViewContext;
 }) {
   const hunk = file.hunks[hunkIndex];
   const highlighted = file.highlighted[hunkIndex] ?? [];
   const id = hunkElementId(file.path, hunkIndex);
-  const active = context.activeHunkId === id;
+  const active = anchored && context.activeHunkId === id;
   const lenses = lensesOf(context, file.path);
   const showReferences = ({ name, line, character }: ReferenceCount) =>
     context.handlers.onShowReferences({ name, path: file.path, line, character, side: "new" });
   return (
     <div
-      id={id}
+      id={anchored ? id : undefined}
       className={cn(
         "scroll-mt-24 border-l-2 transition-colors duration-calm",
         active ? "border-primary" : "border-transparent",
@@ -158,7 +178,7 @@ function HunkBlock({
               )}
               threadCount={threadCountAt(context.threads, file.path, lineNumber)}
               onOpenThreads={context.handlers.onOpenConversation}
-              elementId={target ? lineElementId(target) : undefined}
+              elementId={anchored && target ? lineElementId(target) : undefined}
               landed={landed ? context.landed : null}
               occurrence={occurrenceAt(context.occurrences, file.path, lineNumber)}
               occurrenceName={context.occurrences?.name ?? null}
@@ -177,6 +197,75 @@ function HunkBlock({
   );
 }
 
+function canExpand(file: PreparedFile): boolean {
+  return !file.binary && (file.status === "modified" || file.status === "renamed");
+}
+
+function layoutOf(
+  file: PreparedFile,
+  stepFile: StepFile,
+  wholeFile: boolean,
+  load: FileLoad,
+): LayoutItem[] {
+  if (!canExpand(file)) return stepFile.hunkIndexes.map((index) => ({ kind: "hunk", index }));
+  const shown = wholeFile ? file.hunks.map((_, index) => index) : stepFile.hunkIndexes;
+  return fileLayout(file.hunks, shown, load.lines?.tokens.length ?? null);
+}
+
+function FileBody({
+  file,
+  stepFile,
+  context,
+  wholeFile,
+}: {
+  file: PreparedFile;
+  stepFile: StepFile;
+  context: StepViewContext;
+  wholeFile: boolean;
+}) {
+  const { load, request } = useFileLines(context.loadFile, file.path);
+  const [openGaps, setOpenGaps] = useState<ReadonlySet<number>>(new Set());
+  const anyOpen = wholeFile || openGaps.size > 0;
+  useEffect(() => {
+    if (wholeFile) request();
+  }, [wholeFile, request]);
+  const expand = (from: number) => {
+    setOpenGaps((current) => new Set(current).add(from));
+    request();
+  };
+  return (
+    <div className="animate-step-enter font-mono text-code">
+      {layoutOf(file, stepFile, wholeFile, load).map((item) =>
+        item.kind === "hunk" ? (
+          <HunkBlock
+            key={`hunk:${item.index}`}
+            file={file}
+            hunkIndex={item.index}
+            anchored={stepFile.hunkIndexes.includes(item.index)}
+            context={context}
+          />
+        ) : (
+          <ContextGapView
+            key={`gap:${item.gap.from}`}
+            gap={item.gap}
+            open={wholeFile || openGaps.has(item.gap.from)}
+            load={load}
+            onExpand={() => expand(item.gap.from)}
+            path={file.path}
+            linked={file.navigable}
+            handlers={context.handlers}
+          />
+        ),
+      )}
+      {anyOpen && load.lines?.truncated && (
+        <p className="px-4 py-2 font-sans text-sm text-muted-foreground">
+          The file is cut at 300 KB.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function FileBlock({
   stepFile,
   context,
@@ -187,12 +276,17 @@ function FileBlock({
   collapsed: boolean;
 }) {
   const [expanded, setExpanded] = useState(!collapsed);
+  const [wholeFile, setWholeFile] = useState(false);
   const file = context.files.get(stepFile.path);
   if (!file) return null;
   const empty = file.binary || stepFile.hunkIndexes.length === 0;
+  const wholeFileToggle =
+    expanded && !empty && canExpand(file)
+      ? { wholeFile, onToggle: () => setWholeFile(!wholeFile) }
+      : null;
   return (
     <Card className="gap-0 overflow-clip py-0">
-      <FileHeader file={file} onAskFile={context.onAskFile} />
+      <FileHeader file={file} onAskFile={context.onAskFile} wholeFileToggle={wholeFileToggle} />
       {!expanded ? (
         <Button
           variant="ghost"
@@ -206,11 +300,7 @@ function FileBlock({
           {file.binary ? "Binary file." : "No content changes (rename or mode change)."}
         </p>
       ) : (
-        <div className="animate-step-enter font-mono text-code">
-          {stepFile.hunkIndexes.map((hunkIndex) => (
-            <HunkBlock key={hunkIndex} file={file} hunkIndex={hunkIndex} context={context} />
-          ))}
-        </div>
+        <FileBody file={file} stepFile={stepFile} context={context} wholeFile={wholeFile} />
       )}
     </Card>
   );

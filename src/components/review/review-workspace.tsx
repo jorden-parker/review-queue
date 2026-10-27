@@ -615,6 +615,7 @@ function WorkspacePeek({ workspace }: { workspace: Workspace }) {
         else workspace.peek.showDefinitions(peek.position);
       }}
       onClose={workspace.peek.close}
+      loadFile={workspace.loadFile}
     />
   );
 }
@@ -719,6 +720,7 @@ export function ReviewWorkspace({
       occurrences: occurrencesOf(workspace.peek.peek),
       activeHunkId: workspace.activeHunkId,
       referenceCounts,
+      loadFile: workspace.loadFile,
       onAskFile: workspace.aiEnabled
         ? (path, action) => workspace.assist.open({ kind: "file", path }, action)
         : null,

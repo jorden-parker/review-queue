@@ -66,7 +66,10 @@ that SHA is no longer in memory. `outline` and `reference-counts` take
 `?sha=&path=` (`fileLookupRoute` in `lib/review/symbol-query.ts`). They return a
 file's symbol tree and the per-declaration reference counts shown above changed
 declarations (`lib/review/reference-counts.ts`, which uses the LSP and falls
-back to the index). `session` applies zod-validated `SessionAction`s
+back to the index). `file` takes `?sha=&path=` for any file in the head worktree
+and returns its highlighted lines (`lib/review/file-lines.ts`); the diff's
+"Expand N lines" bars, "Show whole file" and the peek's "Whole file" use it.
+`session` applies zod-validated `SessionAction`s
 (`lib/review/session-actions.ts`). `submit` posts the review through `gh`.
 `assist` (POST `?sha=`, `lib/review/assist-service.ts`) streams plain text from
 the model about a range of diff lines. The client sends hunk and line indexes,

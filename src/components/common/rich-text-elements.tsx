@@ -30,7 +30,9 @@ const RICH_TEXT_ELEMENTS: Partial<Components> = {
     </code>
   ),
   pre: ({ children }) => (
-    <pre className="overflow-x-auto rounded-lg bg-muted p-3 [&_code]:p-0">{children}</pre>
+    <pre className="rounded-lg bg-muted p-3 tab-2 break-words whitespace-pre-wrap wrap-anywhere [&_code]:p-0 [&_code]:leading-normal">
+      {children}
+    </pre>
   ),
   a: RichLink,
 };
