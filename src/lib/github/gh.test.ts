@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { RunOptions } from "@/lib/exec";
-import { getPullRequest, listReviewRequests, submitReview } from "./gh";
+import {
+  getPullRequest,
+  listReviewComments,
+  listReviewRequests,
+  listReviews,
+  submitReview,
+} from "./gh";
 
 type Call = { command: string; args: string[]; options?: RunOptions };
 
@@ -110,5 +116,108 @@ describe("github", () => {
       commit_id: "abc",
       comments: [{ path: "a.ts", line: 3, side: "RIGHT", body: "nit: rename" }],
     });
+  });
+
+  it("lists inline review comments, including replies and outdated ones", async () => {
+    const { run, calls } = fakeRunner(
+      `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify([
+        {
+          id: 1,
+          in_reply_to_id: null,
+          path: "a.ts",
+          line: 3,
+          side: "RIGHT",
+          user: { login: "sam" },
+          body: "Rename this",
+          html_url: "https://github.com/acme/app/pull/7#discussion_r1",
+          created_at: "2026-10-01T10:00:00Z",
+          pull_request_review_id: 9,
+        },
+        {
+          id: 2,
+          in_reply_to_id: 1,
+          path: "a.ts",
+          line: null,
+          original_line: 3,
+          side: "LEFT",
+          user: null,
+          body: "Done",
+          html_url: "https://github.com/acme/app/pull/7#discussion_r2",
+          created_at: "2026-10-02T10:00:00Z",
+          pull_request_review_id: 10,
+        },
+      ])}`,
+    );
+    expect(await listReviewComments(REF, noCache, run)).toEqual([
+      {
+        id: 1,
+        inReplyTo: null,
+        path: "a.ts",
+        line: 3,
+        side: "RIGHT",
+        author: "sam",
+        body: "Rename this",
+        url: "https://github.com/acme/app/pull/7#discussion_r1",
+        createdAt: "2026-10-01T10:00:00Z",
+      },
+      {
+        id: 2,
+        inReplyTo: 1,
+        path: "a.ts",
+        line: null,
+        side: "LEFT",
+        author: "",
+        body: "Done",
+        url: "https://github.com/acme/app/pull/7#discussion_r2",
+        createdAt: "2026-10-02T10:00:00Z",
+      },
+    ]);
+    expect(calls[0].args).toEqual(["api", "-i", "repos/acme/app/pulls/7/comments?per_page=100"]);
+  });
+
+  it("lists reviews with their state and submission time", async () => {
+    const { run, calls } = fakeRunner(
+      `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify([
+        {
+          id: 9,
+          user: { login: "sam" },
+          state: "CHANGES_REQUESTED",
+          body: "Please split this",
+          html_url: "https://github.com/acme/app/pull/7#pullrequestreview-9",
+          submitted_at: "2026-10-01T11:00:00Z",
+          commit_id: "abc",
+        },
+        {
+          id: 10,
+          user: { login: "kim" },
+          state: "PENDING",
+          body: "",
+          html_url: "https://github.com/acme/app/pull/7#pullrequestreview-10",
+          submitted_at: null,
+          commit_id: "def",
+        },
+      ])}`,
+    );
+    expect(await listReviews(REF, noCache, run)).toEqual([
+      {
+        id: 9,
+        author: "sam",
+        state: "CHANGES_REQUESTED",
+        body: "Please split this",
+        url: "https://github.com/acme/app/pull/7#pullrequestreview-9",
+        submittedAt: "2026-10-01T11:00:00Z",
+        commitId: "abc",
+      },
+      {
+        id: 10,
+        author: "kim",
+        state: "PENDING",
+        body: "",
+        url: "https://github.com/acme/app/pull/7#pullrequestreview-10",
+        submittedAt: null,
+        commitId: "def",
+      },
+    ]);
+    expect(calls[0].args).toEqual(["api", "-i", "repos/acme/app/pulls/7/reviews?per_page=100"]);
   });
 });
