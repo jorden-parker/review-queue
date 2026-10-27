@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChangeEdge, ChangeMap, ChangeNode } from "@/lib/types";
-import { mapSections } from "./map-rows";
+import { initiallyCollapsed, mapSections, visibleRows } from "./map-rows";
 
 function node(id: string, overrides: Partial<ChangeNode> = {}): ChangeNode {
   return {
@@ -35,6 +35,7 @@ describe("mapSections", () => {
     const [section] = mapSections(map, [], null);
 
     expect(section.id).toBe("a");
+    expect(section.connected).toBe(true);
     expect(section.title).toBe("a");
     expect(section.rows.map((row) => [row.node.id, row.depth, row.kind])).toEqual([
       ["a", 0, "entry"],
@@ -75,7 +76,7 @@ describe("mapSections", () => {
     const sections = mapSections(map, [], null);
 
     expect(sections).toHaveLength(1);
-    expect(sections[0]).toMatchObject({ id: "orphans", title: "Not connected" });
+    expect(sections[0]).toMatchObject({ id: "orphans", title: "Not connected", connected: false });
     expect(sections[0].rows.map((row) => [row.node.id, row.depth, row.kind])).toEqual([
       ["z", 0, "uses"],
     ]);
@@ -138,5 +139,108 @@ describe("mapSections", () => {
     );
 
     expect(keys).toEqual(["a|a", "a|c", "b|b", "b|c"]);
+  });
+
+  it("counts how many rows of each section are read", () => {
+    const map = mapOf({
+      nodes: [node("a", { stepId: "s1" }), node("b", { stepId: "s2" }), node("c")],
+      edges: chain(["a", "b", "c"]),
+      threads: [{ id: "a", entryId: "a", nodeIds: ["a", "b", "c"], testIds: [] }],
+    });
+
+    expect(mapSections(map, ["s1"], null)[0]).toMatchObject({ readCount: 1, total: 3 });
+  });
+
+  it("shows a row's path only when it differs from the row above", () => {
+    const map = mapOf({
+      nodes: [
+        node("a", { path: "src/one.ts" }),
+        node("b", { path: "src/one.ts" }),
+        node("c", { path: "src/two.ts" }),
+      ],
+      edges: chain(["a", "b", "c"]),
+      threads: [{ id: "a", entryId: "a", nodeIds: ["a", "b", "c"], testIds: [] }],
+    });
+
+    const rows = mapSections(map, [], null)[0].rows;
+
+    expect(rows.map((row) => row.showPath)).toEqual([true, false, true]);
+  });
+
+  it("shows a row's role only on the entry and where it differs from the entry's", () => {
+    const map = mapOf({
+      nodes: [node("a"), node("b"), node("c", { role: "config" })],
+      edges: chain(["a", "b", "c"]),
+      threads: [{ id: "a", entryId: "a", nodeIds: ["a", "b", "c"], testIds: [] }],
+    });
+
+    const rows = mapSections(map, [], null)[0].rows;
+
+    expect(rows.map((row) => row.showRole)).toEqual([true, false, true]);
+  });
+
+  it("links each row to the nodes it calls and the nodes that call it", () => {
+    const map = mapOf({
+      nodes: [node("a"), node("b"), node("c")],
+      edges: chain(["a", "b", "c"]),
+      threads: [{ id: "a", entryId: "a", nodeIds: ["a", "b", "c"], testIds: [] }],
+    });
+
+    const rows = mapSections(map, [], null)[0].rows;
+
+    expect(rows.map((row) => [row.node.id, row.linkedIds])).toEqual([
+      ["a", ["b"]],
+      ["b", ["c", "a"]],
+      ["c", ["b"]],
+    ]);
+  });
+});
+
+describe("visibleRows", () => {
+  const map = mapOf({
+    nodes: [node("a", { stepId: "s1" }), node("b", { stepId: "s2" }), node("c", { stepId: "s3" })],
+    edges: chain(["a", "b", "c"]),
+    threads: [{ id: "a", entryId: "a", nodeIds: ["a", "b", "c"], testIds: [] }],
+  });
+  const weights = new Map([
+    ["b", { part: "", weight: "incidental" }],
+    ["c", { part: "", weight: "incidental" }],
+  ]);
+
+  it("keeps every row when no filter is on", () => {
+    const rows = mapSections(map, ["s1"], null)[0].rows;
+
+    expect(visibleRows(rows, { hideRead: false, hideIncidental: false }, weights)).toEqual(rows);
+  });
+
+  it("drops read rows and incidental rows but never the current one", () => {
+    const rows = mapSections(map, ["s1"], "s3")[0].rows;
+
+    const ids = visibleRows(rows, { hideRead: true, hideIncidental: true }, weights).map(
+      (row) => row.node.id,
+    );
+
+    expect(ids).toEqual(["c"]);
+  });
+});
+
+describe("initiallyCollapsed", () => {
+  it("collapses fully read sections unless they hold the current row", () => {
+    const map = mapOf({
+      nodes: [
+        node("a", { stepId: "s1" }),
+        node("b", { stepId: "s2" }),
+        node("c", { stepId: "s3" }),
+      ],
+      threads: [
+        { id: "a", entryId: "a", nodeIds: ["a"], testIds: [] },
+        { id: "b", entryId: "b", nodeIds: ["b"], testIds: [] },
+        { id: "c", entryId: "c", nodeIds: ["c"], testIds: [] },
+      ],
+    });
+
+    const sections = mapSections(map, ["s1", "s2"], "s2");
+
+    expect([...initiallyCollapsed(sections)]).toEqual(["a"]);
   });
 });

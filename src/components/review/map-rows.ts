@@ -7,13 +7,30 @@ export type MapRow = {
   kind: "entry" | "uses" | "test";
   done: boolean;
   current: boolean;
+  showPath: boolean;
+  showRole: boolean;
+  linkedIds: string[];
 };
 
-export type MapSection = { id: string; title: string; rows: MapRow[] };
+export type MapSection = {
+  id: string;
+  title: string;
+  rows: MapRow[];
+  readCount: number;
+  total: number;
+  connected: boolean;
+};
+
+export type NodePart = { part: string; weight: string };
+
+export type MapFilters = { hideRead: boolean; hideIncidental: boolean };
+
+type PlacedRow = Omit<MapRow, "showPath" | "showRole">;
 
 type Context = {
   nodeById: Map<string, ChangeNode>;
   outgoing: Map<string, string[]>;
+  incoming: Map<string, string[]>;
   doneSteps: readonly string[];
   currentStepId: string | null;
 };
@@ -28,7 +45,8 @@ export function mapSections(
 ): MapSection[] {
   const context: Context = {
     nodeById: new Map(map.nodes.map((node) => [node.id, node])),
-    outgoing: outgoingEdges(map),
+    outgoing: edgesBy(map, "from", "to"),
+    incoming: edgesBy(map, "to", "from"),
     doneSteps,
     currentStepId,
   };
@@ -38,12 +56,52 @@ export function mapSections(
     : threadSections;
 }
 
-function outgoingEdges(map: ChangeMap): Map<string, string[]> {
-  const outgoing = new Map<string, string[]>();
+export function visibleRows(
+  rows: MapRow[],
+  filters: MapFilters,
+  parts: ReadonlyMap<string, NodePart> | undefined,
+): MapRow[] {
+  return rows.filter(
+    (row) =>
+      row.current ||
+      !(
+        (filters.hideRead && row.done) ||
+        (filters.hideIncidental && parts?.get(row.node.id)?.weight === "incidental")
+      ),
+  );
+}
+
+export function initiallyCollapsed(sections: MapSection[]): Set<string> {
+  return new Set(
+    sections
+      .filter((section) => section.readCount === section.total)
+      .filter((section) => !section.rows.some((row) => row.current))
+      .map((section) => section.id),
+  );
+}
+
+function edgesBy(map: ChangeMap, key: "from" | "to", value: "from" | "to"): Map<string, string[]> {
+  const edges = new Map<string, string[]>();
   for (const edge of map.edges) {
-    outgoing.set(edge.from, [...(outgoing.get(edge.from) ?? []), edge.to]);
+    edges.set(edge[key], [...(edges.get(edge[key]) ?? []), edge[value]]);
   }
-  return outgoing;
+  return edges;
+}
+
+function sectionOf(id: string, title: string, placed: PlacedRow[], connected: boolean): MapSection {
+  const rows = placed.map((row, index) => ({
+    ...row,
+    showPath: index === 0 || placed[index - 1].node.path !== row.node.path,
+    showRole: index === 0 || placed[0].node.role !== row.node.role,
+  }));
+  return {
+    id,
+    title,
+    rows,
+    readCount: rows.filter((row) => row.done).length,
+    total: rows.length,
+    connected,
+  };
 }
 
 function threadSection(thread: ChangeThread, context: Context): MapSection {
@@ -62,14 +120,14 @@ function threadSection(thread: ChangeThread, context: Context): MapSection {
     ...tests.map((node) => rowFor(thread.id, node, 1, "test", context)),
   ];
   const title = entry[0] ? (entry[0].name ?? baseName(entry[0].path)) : thread.entryId;
-  return { id: thread.id, title, rows };
+  return sectionOf(thread.id, title, rows, true);
 }
 
 function orphanSection(orphanIds: string[], context: Context): MapSection {
   const rows = nodesFor(orphanIds, context).map((node) =>
     rowFor(ORPHAN_SECTION_ID, node, 0, "uses", context),
   );
-  return { id: ORPHAN_SECTION_ID, title: "Not connected", rows };
+  return sectionOf(ORPHAN_SECTION_ID, "Not connected", rows, false);
 }
 
 function distancesFrom(entryId: string, outgoing: Map<string, string[]>): Map<string, number> {
@@ -100,7 +158,7 @@ function rowFor(
   depth: number,
   kind: MapRow["kind"],
   context: Context,
-): MapRow {
+): PlacedRow {
   return {
     key: `${sectionId}|${node.id}`,
     node,
@@ -108,6 +166,7 @@ function rowFor(
     kind,
     done: node.stepId !== null && context.doneSteps.includes(node.stepId),
     current: context.currentStepId !== null && node.stepId === context.currentStepId,
+    linkedIds: [...(context.outgoing.get(node.id) ?? []), ...(context.incoming.get(node.id) ?? [])],
   };
 }
 

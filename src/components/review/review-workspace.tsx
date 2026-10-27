@@ -307,6 +307,7 @@ function MapPane({ review, session, workspace }: PaneProps) {
         )}
         onOpen={(node) => workspace.goTo({ path: node.path, line: node.line })}
         parts={partsByNode(parts)}
+        listRef={workspace.mapList}
       />
     </>
   );
