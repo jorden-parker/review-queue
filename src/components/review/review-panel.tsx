@@ -1,18 +1,25 @@
 "use client";
 
-import { GripVertical, type LucideIcon, PanelRightClose, PanelRightOpen, X } from "lucide-react";
+import {
+  GripVertical,
+  type LucideIcon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  X,
+} from "lucide-react";
 import { type DragEvent, Fragment, type MouseEvent, type ReactNode, useState } from "react";
 import { HintButton } from "@/components/common/hint-button";
 import { Button } from "@/components/ui/button";
-import type { PaneId, PaneLayout } from "./pane-layout";
-import { PANEL_WIDTH, maxPanelWidth } from "./panel-width";
-import { usePanelWidth } from "./use-panel-width";
+import type { PaneId, PaneLayout, PanelSide } from "./pane-layout";
+import { PANEL_WIDTH } from "./panel-width";
+import type { usePanelWidth } from "./use-panel-width";
 
 export type PaneEntry = { id: PaneId; label: string; icon: LucideIcon; count: number | null };
 export type PaneContent = { body: ReactNode; ownHeader?: boolean };
 
-type PaneControls = {
-  panes: PaneLayout;
+export type SideControls = {
   togglePanel: () => void;
   pickPane: (id: PaneId) => void;
   splitPane: (id: PaneId) => void;
@@ -20,15 +27,56 @@ type PaneControls = {
   dropPane: (id: PaneId, index: number) => void;
 };
 
-const PANE_DRAG_TYPE = "application/x-review-pane";
+type PanelSizing = ReturnType<typeof usePanelWidth>;
 
-function startPaneDrag(event: DragEvent, id: PaneId) {
-  event.dataTransfer.setData(PANE_DRAG_TYPE, id);
+type SideStyle = {
+  label: string;
+  toggleName: string;
+  shortcut: string;
+  asideEdge: string;
+  stripEdge: string;
+  columnEdge: string;
+  handleSide: string;
+  OpenIcon: LucideIcon;
+  CloseIcon: LucideIcon;
+};
+
+const SIDE_STYLES: Record<PanelSide, SideStyle> = {
+  right: {
+    label: "Review panel",
+    toggleName: "panel",
+    shortcut: "]",
+    asideEdge: "border-l",
+    stripEdge: "border-r",
+    columnEdge: "max-lg:right-full max-lg:border-l",
+    handleSide: "-left-1",
+    OpenIcon: PanelRightOpen,
+    CloseIcon: PanelRightClose,
+  },
+  left: {
+    label: "Discuss panel",
+    toggleName: "chat side",
+    shortcut: "[",
+    asideEdge: "flex-row-reverse border-r",
+    stripEdge: "border-l",
+    columnEdge: "max-lg:left-full max-lg:border-r",
+    handleSide: "-right-1",
+    OpenIcon: PanelLeftOpen,
+    CloseIcon: PanelLeftClose,
+  },
+};
+
+function paneDragType(side: PanelSide): string {
+  return `application/x-review-pane-${side}`;
+}
+
+function startPaneDrag(event: DragEvent, id: PaneId, side: PanelSide) {
+  event.dataTransfer.setData(paneDragType(side), id);
   event.dataTransfer.effectAllowed = "move";
 }
 
-function isPaneDrag(event: DragEvent): boolean {
-  return event.dataTransfer.types.includes(PANE_DRAG_TYPE);
+function isPaneDrag(event: DragEvent, side: PanelSide): boolean {
+  return event.dataTransfer.types.includes(paneDragType(side));
 }
 
 function dropIndexAt(event: DragEvent, paneCount: number): number {
@@ -39,15 +87,24 @@ function dropIndexAt(event: DragEvent, paneCount: number): number {
   return event.clientY < top + height / 2 ? index : index + 1;
 }
 
-function PanelToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const label = open ? "Hide panel" : "Show panel";
-  const Icon = open ? PanelRightClose : PanelRightOpen;
+function PanelToggle({
+  side,
+  open,
+  onToggle,
+}: {
+  side: PanelSide;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const { toggleName, shortcut, OpenIcon, CloseIcon } = SIDE_STYLES[side];
+  const label = `${open ? "Hide" : "Show"} ${toggleName}`;
+  const Icon = open ? CloseIcon : OpenIcon;
   return (
     <HintButton
       variant="ghost"
       size="icon"
       hint={label}
-      shortcut="\"
+      shortcut={shortcut}
       aria-label={label}
       onClick={onToggle}
     >
@@ -58,10 +115,12 @@ function PanelToggle({ open, onToggle }: { open: boolean; onToggle: () => void }
 
 function PaneButton({
   pane,
+  side,
   open,
   onClick,
 }: {
   pane: PaneEntry;
+  side: PanelSide;
   open: boolean;
   onClick: (event: MouseEvent) => void;
 }) {
@@ -73,7 +132,7 @@ function PaneButton({
       aria-label={pane.count ? `${pane.label} (${pane.count})` : pane.label}
       aria-pressed={open}
       draggable
-      onDragStart={(event) => startPaneDrag(event, pane.id)}
+      onDragStart={(event) => startPaneDrag(event, pane.id, side)}
       onClick={onClick}
       className="relative mx-1 h-auto w-auto flex-col gap-1 rounded-md px-1 py-2.5 text-xs text-foreground/60 transition-colors duration-calm ease-calm hover:bg-background/60 hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-xs aria-pressed:after:absolute aria-pressed:after:inset-y-2 aria-pressed:after:-left-1 aria-pressed:after:w-0.5 aria-pressed:after:rounded-full aria-pressed:after:bg-primary"
     >
@@ -92,11 +151,13 @@ function PaneButton({
 
 function PaneFrame({
   pane,
+  side,
   index,
   content,
   onClose,
 }: {
   pane: PaneEntry;
+  side: PanelSide;
   index: number;
   content: PaneContent;
   onClose: () => void;
@@ -117,7 +178,7 @@ function PaneFrame({
     >
       <header
         draggable
-        onDragStart={(event) => startPaneDrag(event, pane.id)}
+        onDragStart={(event) => startPaneDrag(event, pane.id, side)}
         className="group/pane-header flex shrink-0 cursor-grab items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground active:cursor-grabbing"
       >
         <PaneIcon className="size-3.5 shrink-0" />
@@ -140,11 +201,8 @@ function PaneFrame({
   );
 }
 
-function PanelResizeHandle({
-  width,
-  dragging,
-  handlers,
-}: Pick<ReturnType<typeof usePanelWidth>, "width" | "dragging" | "handlers">) {
+function PanelResizeHandle({ sizing, handleSide }: { sizing: PanelSizing; handleSide: string }) {
+  const { width, dragging, maxWidth, handlers } = sizing;
   return (
     <div
       role="separator"
@@ -152,11 +210,11 @@ function PanelResizeHandle({
       aria-label="Resize panel"
       aria-valuenow={width}
       aria-valuemin={PANEL_WIDTH.min}
-      aria-valuemax={maxPanelWidth(window.innerWidth)}
+      aria-valuemax={maxWidth}
       tabIndex={0}
       title="Drag to resize · double-click to fit the content"
       data-dragging={dragging || undefined}
-      className="group/resize absolute inset-y-0 -left-1 z-10 flex w-2 cursor-col-resize touch-none justify-center outline-none"
+      className={`group/resize absolute inset-y-0 ${handleSide} z-10 flex w-2 cursor-col-resize touch-none justify-center outline-none`}
       {...handlers}
     >
       <span className="h-full w-px bg-transparent transition-colors duration-calm group-hover/resize:bg-primary/60 group-focus-visible/resize:bg-primary group-data-dragging/resize:bg-primary" />
@@ -170,45 +228,55 @@ function DropLine() {
 }
 
 export function ReviewPanel({
+  side,
   entries,
+  panes,
   controls,
+  sizing,
   renderPane,
 }: {
+  side: PanelSide;
   entries: PaneEntry[];
-  controls: PaneControls;
+  panes: PaneLayout;
+  controls: SideControls;
+  sizing: PanelSizing;
   renderPane: (id: PaneId) => PaneContent;
 }) {
-  const { panes } = controls;
+  const style = SIDE_STYLES[side];
   const [dropIndex, setDropIndex] = useState<number | null>(null);
-  const { width, dragging, contentRef, handlers } = usePanelWidth();
+  const { width, dragging, contentRef } = sizing;
   const entryOf = (id: PaneId) => entries.find((entry) => entry.id === id);
   const onDragOver = (event: DragEvent) => {
-    if (!isPaneDrag(event)) return;
+    if (!isPaneDrag(event, side)) return;
     event.preventDefault();
     setDropIndex(dropIndexAt(event, panes.length));
   };
   const onDrop = (event: DragEvent) => {
-    const id = event.dataTransfer.getData(PANE_DRAG_TYPE) as PaneId;
+    const id = event.dataTransfer.getData(paneDragType(side)) as PaneId;
     setDropIndex(null);
     if (id) controls.dropPane(id, dropIndexAt(event, panes.length));
   };
   return (
     <aside
-      aria-label="Review panel"
-      className="relative flex min-h-0 border-l"
+      aria-label={style.label}
+      data-side={side}
+      className={`relative flex min-h-0 ${style.asideEdge}`}
       onDragOver={onDragOver}
       onDragLeave={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropIndex(null);
       }}
       onDrop={onDrop}
     >
-      <div className="flex w-panel-strip shrink-0 flex-col max-sm:w-panel-strip-compact items-center gap-2 overflow-y-auto border-r bg-muted py-2">
-        <PanelToggle open={panes.length > 0} onToggle={controls.togglePanel} />
+      <div
+        className={`flex w-panel-strip shrink-0 flex-col max-sm:w-panel-strip-compact items-center gap-2 overflow-y-auto ${style.stripEdge} bg-muted py-2`}
+      >
+        <PanelToggle side={side} open={panes.length > 0} onToggle={controls.togglePanel} />
         <div className="flex w-full flex-col gap-1">
           {entries.map((entry) => (
             <PaneButton
               key={entry.id}
               pane={entry}
+              side={side}
               open={panes.includes(entry.id)}
               onClick={(event) =>
                 event.shiftKey ? controls.splitPane(entry.id) : controls.pickPane(entry.id)
@@ -222,9 +290,9 @@ export function ReviewPanel({
           ref={contentRef}
           data-testid="pane-column"
           style={{ width }}
-          className={`relative flex min-h-0 max-w-panel-overlay flex-col bg-card max-lg:absolute max-lg:inset-y-0 max-lg:right-full max-lg:z-30 max-lg:border-l max-lg:shadow-lg ${dragging ? "" : "transition-[width] duration-calm ease-calm"}`}
+          className={`relative flex min-h-0 max-w-panel-overlay flex-col bg-card max-lg:absolute max-lg:inset-y-0 max-lg:z-30 max-lg:shadow-lg ${style.columnEdge} ${dragging ? "" : "transition-[width] duration-calm ease-calm"}`}
         >
-          <PanelResizeHandle width={width} dragging={dragging} handlers={handlers} />
+          <PanelResizeHandle sizing={sizing} handleSide={style.handleSide} />
           {panes.map((id, index) => {
             const entry = entryOf(id);
             if (!entry) return null;
@@ -233,6 +301,7 @@ export function ReviewPanel({
                 {dropIndex === index && <DropLine />}
                 <PaneFrame
                   pane={entry}
+                  side={side}
                   index={index}
                   content={renderPane(id)}
                   onClose={() => controls.closePane(id)}

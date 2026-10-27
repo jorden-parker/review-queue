@@ -12,6 +12,11 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(null, "\\")).toBe("toggle-panel");
   });
 
+  it("toggles each side with its own bracket", () => {
+    expect(resolveShortcut(null, "[")).toBe("toggle-left-panel");
+    expect(resolveShortcut(null, "]")).toBe("toggle-right-panel");
+  });
+
   it("waits for the second key of a chord", () => {
     expect(resolveShortcut(null, "g")).toBe("pending");
     expect(resolveShortcut("g", "d")).toBe("peek-definition");

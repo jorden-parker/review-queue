@@ -63,8 +63,9 @@ import { StepSummary } from "./step-summary";
 import { StepView, type StepViewContext } from "./step-view";
 import { useReview, type OrientationState } from "./use-review";
 import { useWorkspace, type Workspace } from "./use-workspace";
-import type { PaneId } from "./pane-layout";
-import { type PaneContent, type PaneEntry, ReviewPanel } from "./review-panel";
+import { PANE_SIDES, type PaneId, type PanelSide } from "./pane-layout";
+import { type PaneContent, type PaneEntry, ReviewPanel, type SideControls } from "./review-panel";
+import { usePanelSizings } from "./use-panel-width";
 
 type WorkspaceProps = {
   pullRequest: PullRequestRef;
@@ -86,15 +87,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
   { id: "outline", label: "Outline", icon: ListTree },
 ];
 
-function TopBar({
-  review,
-  session,
-  workspace,
-}: {
-  review: ReviewPayload;
-  session: Session;
-  workspace: Workspace;
-}) {
+function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/80 px-3 py-2.5 backdrop-blur-md sm:px-4">
       <HintButton
@@ -116,7 +109,6 @@ function TopBar({
           {prKey(review.pr.ref)} · {review.pr.author} · {review.headSha.slice(0, 7)}
         </span>
       </div>
-      <JumpTrail jumps={session.jumps} onBack={workspace.back} onClear={workspace.clearJumps} />
       <FocusTimer onFinished={() => workspace.setBreakDue(true)} />
       <HintButton
         variant="ghost"
@@ -161,7 +153,7 @@ type PaneProps = {
   fresh: boolean;
 };
 
-function paneEntries({ session, workspace }: PaneProps): PaneEntry[] {
+function paneEntries({ session, workspace }: PaneProps, side: PanelSide): PaneEntry[] {
   const openHotspots = workspace.hotspots.filter(
     (hotspot) => !session.checkedHotspots.includes(hotspot.id),
   ).length;
@@ -176,17 +168,33 @@ function paneEntries({ session, workspace }: PaneProps): PaneEntry[] {
     context: contextCount(session.contextSymbols, workspace.currentStep?.id ?? null),
     outline: null,
   };
-  return PANES.filter((pane) => workspace.aiEnabled || pane.id !== "chat").map((pane) => ({
-    ...pane,
-    count: counts[pane.id],
-  }));
+  return PANES.filter(
+    (pane) => PANE_SIDES[pane.id] === side && (workspace.aiEnabled || pane.id !== "chat"),
+  ).map((pane) => ({ ...pane, count: counts[pane.id] }));
 }
 
-function WorkspacePanel(props: PaneProps) {
+function sideControls(workspace: Workspace, side: PanelSide): SideControls {
+  return {
+    togglePanel: () => workspace.togglePanel(side),
+    pickPane: workspace.pickPane,
+    splitPane: workspace.splitPane,
+    closePane: workspace.closePane,
+    dropPane: workspace.dropPane,
+  };
+}
+
+function WorkspacePanel({
+  side,
+  sizing,
+  ...props
+}: PaneProps & { side: PanelSide; sizing: ReturnType<typeof usePanelSizings>["left"] }) {
   return (
     <ReviewPanel
-      entries={paneEntries(props)}
-      controls={props.workspace}
+      side={side}
+      entries={paneEntries(props, side)}
+      panes={props.workspace.panes[side]}
+      controls={sideControls(props.workspace, side)}
+      sizing={sizing}
       renderPane={(id) => PANE_CONTENT[id](props)}
     />
   );
@@ -507,6 +515,7 @@ export function ReviewWorkspace({
     return { ...payload, steps, startStepId: steps[0]?.id ?? null };
   }, [payload, orientation]);
   const workspace = useWorkspace(pullRequest, review, session, orientation, controls);
+  const sizings = usePanelSizings(workspace.panes);
   const fresh = session.doneSteps.length === 0 && workspace.currentIndex <= 0;
   const referenceCounts = useReferenceCounts(
     pullRequest,
@@ -544,10 +553,19 @@ export function ReviewWorkspace({
   );
 
   return (
-    <div className="grid h-screen grid-rows-shell">
-      <TopBar review={review} session={session} workspace={workspace} />
+    <div className="grid h-screen grid-cols-shell grid-rows-shell">
+      <TopBar review={review} workspace={workspace} />
       <div className="grid min-h-0 grid-cols-workspace">
-        <div className="flex min-h-0 min-w-0 flex-col">
+        <WorkspacePanel
+          side="left"
+          sizing={sizings.left}
+          review={review}
+          session={session}
+          workspace={workspace}
+          orientation={orientation}
+          fresh={fresh}
+        />
+        <div className="relative flex min-h-0 min-w-0 flex-col">
           <div className="shrink-0 border-b bg-background px-3 py-2 sm:px-8">
             <div className="mx-auto flex max-w-5xl flex-col gap-2">
               <StepBar review={review} workspace={workspace} />
@@ -559,7 +577,7 @@ export function ReviewWorkspace({
               <BreakBanner workspace={workspace} />
             </div>
           </div>
-          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-5 sm:px-8">
+          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-16 sm:px-8">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-4 pt-5">
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}
@@ -579,8 +597,17 @@ export function ReviewWorkspace({
               <NoSteps review={payload} orientation={orientation} />
             </div>
           </main>
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3">
+            <JumpTrail
+              jumps={session.jumps}
+              onBack={workspace.back}
+              onClear={workspace.clearJumps}
+            />
+          </div>
         </div>
         <WorkspacePanel
+          side="right"
+          sizing={sizings.right}
           review={review}
           session={session}
           workspace={workspace}
