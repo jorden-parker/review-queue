@@ -1,8 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { PageHeader, PageShell } from "@/components/common/page-shell";
 import type { PullRequestRef } from "@/lib/types";
 import { ReviewWorkspace } from "./review-workspace";
 import { useReview } from "./use-review";
@@ -12,7 +10,7 @@ export function ReviewLoader({ pullRequest }: { pullRequest: PullRequestRef }) {
   const { load, session, orientation } = controls;
   if (load.status === "loading") {
     return (
-      <main className="flex h-screen flex-col items-center justify-center gap-3 text-center">
+      <main className="flex h-screen flex-col items-center justify-center gap-3 px-4 text-center sm:px-6">
         <span aria-hidden className="animate-float text-4xl">
           🦦
         </span>
@@ -26,17 +24,12 @@ export function ReviewLoader({ pullRequest }: { pullRequest: PullRequestRef }) {
   }
   if (load.status === "error") {
     return (
-      <main className="mx-auto flex max-w-xl flex-col gap-3 px-4 py-16">
-        <h1 className="text-xl font-bold">🙈 Couldn&apos;t open this PR</h1>
-        <p className="rounded-lg bg-del p-3 font-mono text-sm text-del-foreground">
+      <PageShell>
+        <PageHeader title="Couldn't open this PR" backHref="/" backLabel="Review queue" />
+        <p className="rounded-lg bg-del px-4 py-3 font-mono text-sm text-del-foreground">
           {load.message}
         </p>
-        <Button variant="outline" className="w-fit" asChild>
-          <Link href="/">
-            <ArrowLeft /> Back to inbox
-          </Link>
-        </Button>
-      </main>
+      </PageShell>
     );
   }
   if (!session) return null;
