@@ -244,6 +244,7 @@ function NotesPane({ session, workspace }: PaneProps) {
       parkingRef={workspace.parkingInput}
       onPark={(body) => workspace.saveNote(null, "parked", body)}
       onOpen={(note) => note.path && workspace.goTo({ path: note.path, line: note.line ?? 1 })}
+      onEdit={workspace.editNote}
       onDelete={workspace.deleteNote}
     />
   );
