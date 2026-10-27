@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Note } from "@/lib/types";
+import { HEAD_SHA } from "@/test/review-fixture";
 import { FinishReview } from "./finish-review";
 
 function note(overrides: Partial<Note>): Note {
@@ -32,6 +33,7 @@ function renderDialog({
       notes={notes}
       stepsLeft={stepsLeft}
       hotspotsLeft={hotspotsLeft}
+      headSha={HEAD_SHA}
       onSubmit={onSubmit}
       onCancel={vi.fn()}
     />,
