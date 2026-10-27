@@ -91,7 +91,7 @@ function NoteChecklist({ notes, selected, onToggle }: NoteChecklistProps) {
       {notes.map((note) => (
         <label
           key={note.id}
-          className="flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm transition-colors duration-150 hover:bg-muted"
+          className="flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm transition-colors duration-calm hover:bg-muted"
         >
           <Checkbox
             checked={selected.includes(note.id)}

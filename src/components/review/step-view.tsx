@@ -95,7 +95,7 @@ function HunkBlock({
     <div
       id={id}
       className={cn(
-        "scroll-mt-24 border-l-2 transition-colors duration-150",
+        "scroll-mt-24 border-l-2 transition-colors duration-calm",
         active ? "border-primary" : "border-transparent",
       )}
     >

@@ -31,7 +31,7 @@ export function ReferenceLens({
           type="button"
           aria-label={`${countLabel(reference.count)} to ${reference.name}`}
           onClick={() => onShow(reference)}
-          className="font-sans text-xs transition-colors duration-150 hover:text-foreground hover:underline focus-visible:text-foreground"
+          className="font-sans text-xs transition-colors duration-calm hover:text-foreground hover:underline focus-visible:text-foreground"
         >
           {countLabel(reference.count)}
         </button>

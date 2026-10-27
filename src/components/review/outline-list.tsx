@@ -55,7 +55,7 @@ function SymbolRow({
       aria-expanded={row.hasChildren ? row.expanded : undefined}
       aria-selected={false}
       style={{ paddingInlineStart: `${row.depth}rem` }}
-      className="flex items-center rounded-lg transition-colors duration-150 hover:bg-muted"
+      className="flex items-center rounded-lg transition-colors duration-calm hover:bg-muted"
     >
       <ExpandToggle row={row} onToggle={onToggle} />
       <button

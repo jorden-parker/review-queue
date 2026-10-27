@@ -42,7 +42,7 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
             <li
               key={hotspot.id}
               className={cn(
-                "flex items-start gap-2 rounded-lg px-2 py-1.5 transition-[background-color,opacity] duration-150 hover:bg-muted",
+                "flex items-start gap-2 rounded-lg px-2 py-1.5 transition-[background-color,opacity] duration-calm hover:bg-muted",
                 isChecked && "opacity-50",
               )}
             >

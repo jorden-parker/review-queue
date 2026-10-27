@@ -110,7 +110,7 @@ function SymbolRow({
   const Icon = KIND_ICONS[symbol.kind];
   const pinLabel = `${symbol.pinned ? "Unpin" : "Pin"} ${symbol.name}`;
   return (
-    <li className="group flex items-start gap-1 rounded-lg transition-colors duration-150 hover:bg-muted">
+    <li className="group flex items-start gap-1 rounded-lg transition-colors duration-calm hover:bg-muted">
       <button
         aria-label={`Open ${symbol.name}`}
         onClick={() => onOpen(symbol)}

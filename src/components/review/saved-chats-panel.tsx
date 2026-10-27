@@ -59,7 +59,7 @@ function ChatRow({
   onDelete: (id: string) => void;
 }) {
   return (
-    <li className="group flex items-start gap-2 rounded-lg p-2 transition-colors duration-150 hover:bg-muted">
+    <li className="group flex items-start gap-2 rounded-lg p-2 transition-colors duration-calm hover:bg-muted">
       <button
         onClick={() => onOpen(chat)}
         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left text-sm"
