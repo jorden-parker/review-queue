@@ -87,15 +87,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
   { id: "outline", label: "Outline", icon: ListTree },
 ];
 
-function TopBar({
-  review,
-  session,
-  workspace,
-}: {
-  review: ReviewPayload;
-  session: Session;
-  workspace: Workspace;
-}) {
+function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/80 px-3 py-2.5 backdrop-blur-md sm:px-4">
       <HintButton
@@ -117,7 +109,6 @@ function TopBar({
           {prKey(review.pr.ref)} · {review.pr.author} · {review.headSha.slice(0, 7)}
         </span>
       </div>
-      <JumpTrail jumps={session.jumps} onBack={workspace.back} onClear={workspace.clearJumps} />
       <FocusTimer onFinished={() => workspace.setBreakDue(true)} />
       <HintButton
         variant="ghost"
@@ -562,8 +553,8 @@ export function ReviewWorkspace({
   );
 
   return (
-    <div className="grid h-screen grid-rows-shell">
-      <TopBar review={review} session={session} workspace={workspace} />
+    <div className="grid h-screen grid-cols-shell grid-rows-shell">
+      <TopBar review={review} workspace={workspace} />
       <div className="grid min-h-0 grid-cols-workspace">
         <WorkspacePanel
           side="left"
@@ -574,7 +565,7 @@ export function ReviewWorkspace({
           orientation={orientation}
           fresh={fresh}
         />
-        <div className="flex min-h-0 min-w-0 flex-col">
+        <div className="relative flex min-h-0 min-w-0 flex-col">
           <div className="shrink-0 border-b bg-background px-3 py-2 sm:px-8">
             <div className="mx-auto flex max-w-5xl flex-col gap-2">
               <StepBar review={review} workspace={workspace} />
@@ -586,7 +577,7 @@ export function ReviewWorkspace({
               <BreakBanner workspace={workspace} />
             </div>
           </div>
-          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-5 sm:px-8">
+          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-16 sm:px-8">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-4 pt-5">
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}
@@ -606,6 +597,13 @@ export function ReviewWorkspace({
               <NoSteps review={payload} orientation={orientation} />
             </div>
           </main>
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3">
+            <JumpTrail
+              jumps={session.jumps}
+              onBack={workspace.back}
+              onClear={workspace.clearJumps}
+            />
+          </div>
         </div>
         <WorkspacePanel
           side="right"

@@ -197,6 +197,10 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+@utility grid-cols-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @utility max-h-dialog {
   max-height: 90vh;
 }
