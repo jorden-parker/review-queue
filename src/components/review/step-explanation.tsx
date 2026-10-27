@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { MessageCircleQuestion, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,16 @@ type StepExplanationProps = {
   pullRequest: PullRequestRef;
   headSha: string;
   stepId: string;
+  onAskMore?: (check: number, text: string) => void;
 };
 
-function ExplanationPanel({ explanation }: { explanation: StepExplanation }) {
+function ExplanationPanel({
+  explanation,
+  onAskMore,
+}: {
+  explanation: StepExplanation;
+  onAskMore?: (check: number, text: string) => void;
+}) {
   return (
     <div className="flex flex-col gap-1.5 rounded-lg bg-muted/60 p-3 text-sm">
       <p className="text-xs text-muted-foreground">
@@ -29,9 +36,20 @@ function ExplanationPanel({ explanation }: { explanation: StepExplanation }) {
       </div>
       {explanation.checks.length > 0 && (
         <ul className="list-disc pl-5">
-          {explanation.checks.map((check) => (
+          {explanation.checks.map((check, index) => (
             <li key={check}>
               <InlineMarkdown text={check} />
+              {onAskMore && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="ml-1 text-muted-foreground"
+                  aria-label={`Ask more about: ${check}`}
+                  onClick={() => onAskMore(index, check)}
+                >
+                  <MessageCircleQuestion /> Ask more
+                </Button>
+              )}
             </li>
           ))}
         </ul>
@@ -76,7 +94,8 @@ function useStepExplanation({ pullRequest, headSha, stepId }: StepExplanationPro
 export function StepExplanation(props: StepExplanationProps) {
   const { state, retry } = useStepExplanation(props);
   if (state.status === "disabled") return null;
-  if (state.status === "ready") return <ExplanationPanel explanation={state.explanation} />;
+  if (state.status === "ready")
+    return <ExplanationPanel explanation={state.explanation} onAskMore={props.onAskMore} />;
   if (state.status === "error") return <ExplanationError message={state.message} onRetry={retry} />;
   return <p className="text-sm text-muted-foreground">Local model is reading this step…</p>;
 }

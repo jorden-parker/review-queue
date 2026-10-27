@@ -50,6 +50,13 @@ function CurrentStep({
             pullRequest={review.pr.ref}
             headSha={review.headSha}
             stepId={step.id}
+            onAskMore={(check, text) =>
+              workspace.assist.open(
+                { kind: "check", stepId: step.id, check, path: step.files[0].path },
+                "explain",
+                `Tell me more: ${text}`,
+              )
+            }
           />
         )}
       </CardContent>
