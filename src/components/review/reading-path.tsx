@@ -23,7 +23,7 @@ type ReadingPathProps = {
 };
 
 function StepIcon({ done, reopened }: { done: boolean; reopened: boolean }) {
-  if (done) return <Check className="size-4 animate-pop text-add-foreground" />;
+  if (done) return <Check className="size-4 animate-pop text-primary" />;
   if (reopened) return <RotateCcw className="size-4 text-severity-medium" />;
   return <Circle className="size-4 text-muted-foreground" />;
 }
@@ -34,10 +34,10 @@ function ProgressSummary({ doneCount, total }: { doneCount: number; total: numbe
   return (
     <div className="relative flex flex-col gap-2">
       <div className="flex items-baseline justify-between text-sm">
-        <span className="font-medium">
+        <span className="font-bold">
           {doneCount} of {total} steps
         </span>
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground tabular-nums">
           {finished ? "🎉 all read" : `${percent}%`}
         </span>
       </div>
@@ -101,8 +101,8 @@ function StepItem({ step, index, path }: StepItemProps) {
     <li>
       <div
         className={cn(
-          "flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors duration-150",
-          current ? "bg-accent" : "hover:bg-muted",
+          "flex items-start gap-2 rounded-lg border-l-3 px-2 py-2 transition-colors duration-150",
+          current ? "border-marker bg-accent" : "border-transparent hover:bg-muted",
         )}
       >
         <span className="flex h-5 shrink-0 items-center">
@@ -115,7 +115,7 @@ function StepItem({ step, index, path }: StepItemProps) {
           <span
             className={cn(
               "text-sm wrap-anywhere",
-              done ? "text-muted-foreground line-through" : "font-medium",
+              done ? "text-muted-foreground line-through" : "font-bold",
               current && "text-accent-foreground",
             )}
           >
@@ -148,7 +148,7 @@ export function ReadingPath(props: ReadingPathProps) {
           Built-in order. The local model couldn&apos;t order these.
         </p>
       )}
-      <ol aria-label="Reading path" className="flex flex-col gap-0.5">
+      <ol aria-label="Reading path" className="flex flex-col gap-1">
         {props.steps.map((step, index) => (
           <StepItem key={step.id} step={step} index={index} path={props} />
         ))}

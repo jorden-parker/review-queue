@@ -21,7 +21,7 @@ export function OpenPullRequestForm() {
 
   return (
     <form onSubmit={open} className="flex flex-col gap-2">
-      <label htmlFor="pr" className="text-sm font-medium">
+      <label htmlFor="pr" className="text-sm font-bold">
         Open any PR
       </label>
       <div className="flex gap-2">
@@ -30,9 +30,9 @@ export function OpenPullRequestForm() {
           value={text}
           onChange={(event) => setText(event.target.value)}
           placeholder="https://github.com/owner/repo/pull/123 or owner/repo#123"
-          className="flex-1 font-mono"
+          className="h-10 flex-1 font-mono"
         />
-        <Button type="submit">
+        <Button type="submit" size="lg">
           Open <ArrowRight />
         </Button>
       </div>

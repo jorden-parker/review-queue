@@ -26,14 +26,14 @@ function ModelField({
   const auto = view.autoModel ? `Auto (${view.autoModel})` : "Auto";
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor="model" className="text-sm font-medium">
+      <label htmlFor="model" className="text-sm font-bold">
         Model
       </label>
       <select
         id="model"
         value={settings.model ?? ""}
         onChange={(event) => onChange({ model: event.target.value || null })}
-        className="h-9 rounded-md border border-input bg-background px-2 font-mono text-sm"
+        className="h-9 rounded-lg border border-input bg-card px-3 font-mono text-sm"
       >
         <option value="">{auto}</option>
         {modelChoices(view, settings.model).map((model) => (
@@ -68,7 +68,7 @@ function CheckField({
         className="mt-0.5"
       />
       <div className="flex flex-col gap-0.5">
-        <label htmlFor={id} className="text-sm font-medium">
+        <label htmlFor={id} className="text-sm font-bold">
           {label}
         </label>
         <p className="text-xs text-muted-foreground">{hint}</p>
@@ -86,7 +86,7 @@ function TimeoutField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor="timeout" className="text-sm font-medium">
+      <label htmlFor="timeout" className="text-sm font-bold">
         Timeout (seconds)
       </label>
       <Input
@@ -111,8 +111,8 @@ function CacheSection() {
   }
 
   return (
-    <section className="flex flex-col gap-2 border-t pt-6">
-      <h2 className="font-medium">Cache</h2>
+    <section className="flex flex-col gap-3 border-t pt-8">
+      <h2 className="text-lg font-bold">Cache</h2>
       <p className="text-sm text-muted-foreground">
         Removes saved orientations, step explanations and GitHub responses. They are fetched again
         the next time you open a PR.
@@ -147,9 +147,9 @@ export function LlmSettingsForm({ initial }: { initial: SettingsView }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <form onSubmit={save} className="flex flex-col gap-5">
-        <h2 className="font-medium">Local model</h2>
+    <div className="flex flex-col gap-8">
+      <form onSubmit={save} className="flex flex-col gap-6">
+        <h2 className="text-lg font-bold">Local model</h2>
         <CheckField
           id="enabled"
           label="Use the local model"
