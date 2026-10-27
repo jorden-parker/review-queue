@@ -14,7 +14,6 @@ import { nextOpenStep, type LineTarget } from "./locate";
 import { scrollToElement } from "./scroll-motion";
 import type { ShortcutAction } from "./shortcut-keys";
 import { type Assist, useAssist } from "./use-assist";
-import { useFileLoader } from "./use-file-lines";
 import { useJumps } from "./use-jumps";
 import { type LineSelection, useLineSelection } from "./use-line-selection";
 import { useSavedChats } from "./use-saved-chats";
@@ -252,7 +251,6 @@ export function useWorkspace(
   const selection = useLineSelection();
   const jumps = useJumps(session, controls.act, navigation.goTo, peek);
   const edits = useSessionEdits(ref, review.headSha, session, controls.act, controls.setSession);
-  const loadFile = useFileLoader(ref, review.headSha);
   const hotspots = useMemo(
     () => displayHotspots(review.hotspots, orientation),
     [review.hotspots, orientation],
@@ -320,7 +318,6 @@ export function useWorkspace(
     hotspots,
     startStepId,
     files,
-    loadFile,
     nextStep,
     resume,
     catchUp,
