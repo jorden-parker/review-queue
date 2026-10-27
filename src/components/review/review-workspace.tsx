@@ -626,7 +626,7 @@ export function ReviewWorkspace({
           fresh={fresh}
         />
         <div className="relative flex min-h-0 min-w-0 flex-col">
-          <div className="shrink-0 border-b bg-background px-3 pt-4 pb-3 sm:px-8">
+          <div className="shrink-0 border-b bg-background px-3 py-4 sm:px-8">
             <div className="mx-auto flex max-w-5xl flex-col gap-3">
               <StepBar review={review} session={session} workspace={workspace} />
               {controls.actionError && (
@@ -637,17 +637,15 @@ export function ReviewWorkspace({
               <BreakBanner workspace={workspace} />
             </div>
           </div>
-          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-20 sm:px-8">
+          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-24 sm:px-8">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-6 pt-6">
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}
-                className="flex animate-step-enter flex-col gap-6"
+                className="flex animate-step-enter flex-col gap-8"
               >
                 {workspace.visibleSteps.map((step) => (
                   <div key={step.id} className="flex flex-col gap-3">
-                    {workspace.showAll && (
-                      <h3 className="pt-2 text-base font-bold">{step.title}</h3>
-                    )}
+                    {workspace.showAll && <h3 className="text-base font-bold">{step.title}</h3>}
                     <StepView step={step} context={context} />
                   </div>
                 ))}
