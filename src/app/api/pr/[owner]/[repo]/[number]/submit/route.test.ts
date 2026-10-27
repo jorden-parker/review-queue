@@ -2,13 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReviewSubmission } from "@/lib/github/gh";
 import { sessionStore } from "@/lib/review/services";
 
-const github = { sent: [] as ReviewSubmission[], failure: null as string | null };
+const github = {
+  sent: [] as ReviewSubmission[],
+  failure: null as string | null,
+  head: "sha1",
+};
 
 vi.mock("@/lib/github/gh", () => ({
   submitReview: async (_ref: unknown, submission: ReviewSubmission) => {
     if (github.failure) throw new Error(github.failure);
     github.sent.push(submission);
   },
+  getPullRequest: async () => ({ headSha: github.head }),
 }));
 
 process.env.REVIEW_QUEUE_DB = ":memory:";
@@ -31,6 +36,7 @@ describe("POST submit", () => {
   beforeEach(() => {
     github.sent = [];
     github.failure = null;
+    github.head = "sha1";
   });
 
   it("rejects bad refs and bodies", async () => {
@@ -52,6 +58,13 @@ describe("POST submit", () => {
       { path: "a.ts", line: 2, body: "**nitpick:** rename" },
     ]);
     expect(sessionStore().getSession(KEY).notes).toEqual([]);
+  });
+
+  it("refuses when the head moved since the review was loaded", async () => {
+    github.head = "sha2";
+    const response = await POST(request(VALID), context("8"));
+    expect(response.status).toBe(409);
+    expect(github.sent).toEqual([]);
   });
 
   it("keeps notes and reports the error when GitHub fails", async () => {

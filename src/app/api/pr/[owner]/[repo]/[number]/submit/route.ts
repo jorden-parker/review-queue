@@ -2,8 +2,11 @@ import { z } from "zod";
 import { submitReview } from "@/lib/github/gh";
 import { prKey } from "@/lib/pr-ref";
 import { jsonError, routeRef, type PrRouteContext } from "@/lib/review/route-context";
-import { sessionStore } from "@/lib/review/services";
+import { reviewDeps, sessionStore } from "@/lib/review/services";
 import { buildSubmission } from "@/lib/review/submission";
+
+const STALE_HEAD_MESSAGE =
+  "The author pushed new commits since you loaded this review. Reload and check the changes before posting.";
 
 const SubmitSchema = z.object({
   event: z.enum(["APPROVE", "REQUEST_CHANGES", "COMMENT"]),
@@ -21,6 +24,10 @@ export async function POST(request: Request, context: PrRouteContext) {
   const key = prKey(ref);
   const chosen = store.getSession(key).notes.filter((note) => input.data.noteIds.includes(note.id));
   try {
+    const current = await reviewDeps().fetchPullRequest(ref);
+    if (current.headSha !== input.data.headSha) {
+      return jsonError(STALE_HEAD_MESSAGE, 409);
+    }
     await submitReview(
       ref,
       buildSubmission(chosen, input.data.event, input.data.summary, input.data.headSha),
