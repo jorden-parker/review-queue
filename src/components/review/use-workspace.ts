@@ -177,6 +177,7 @@ function useWorkspaceUi(review: ReviewPayload) {
   const [composer, setComposer] = useState<LineTarget | null>(null);
   const [breakDue, setBreakDue] = useState(false);
   const [posted, setPosted] = useState(false);
+  const [showChanges, setShowChanges] = useState(false);
   const hovered = useRef<SymbolPosition | null>(null);
   const parkingInput = useRef<HTMLInputElement>(null);
   const setHovered = useCallback((position: SymbolPosition | null) => {
@@ -198,6 +199,8 @@ function useWorkspaceUi(review: ReviewPayload) {
     setBreakDue,
     posted,
     setPosted,
+    showChanges,
+    setShowChanges,
     getHovered,
     setHovered,
     parkingInput,
@@ -261,6 +264,18 @@ export function useWorkspace(
     if (target) navigation.selectStep(target);
   }, [edits, navigation, nextStep, review.reopenedStepIds, setDialog]);
 
+  const catchUp = () => {
+    controls.act({ type: "catch-up" });
+    ui.setShowChanges(false);
+    const target = resumeStepId(review.reopenedStepIds, navigation.currentStep?.id, nextStep?.id);
+    if (target) navigation.selectStep(target);
+  };
+
+  const showChangesFromResume = () => {
+    setDialog(null);
+    ui.setShowChanges(true);
+  };
+
   const onShortcut = (action: ShortcutAction) =>
     shortcutHandlers({ review, ui, navigation, peek, jumps, pins, assist, selection })[action]();
 
@@ -284,6 +299,8 @@ export function useWorkspace(
     files,
     nextStep,
     resume,
+    catchUp,
+    showChangesFromResume,
     saveNote: (target: LineTarget | null, tag: NoteTag, body: string) => {
       edits.saveNote(target, tag, body);
       setComposer(null);

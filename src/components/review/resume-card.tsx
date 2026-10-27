@@ -14,6 +14,7 @@ type ResumeCardProps = {
   nextStep: Step | null;
   reopenedCount: number;
   onContinue: () => void;
+  onShowChanges: () => void;
 };
 
 function sinceText(iso: string | null): string {
@@ -24,12 +25,38 @@ function sinceText(iso: string | null): string {
   return `${Math.round(minutes / 1440)} days ago`;
 }
 
+type NewCommitsProps = {
+  reopenedCount: number;
+  canShowChanges: boolean;
+  onShowChanges: () => void;
+};
+
+function NewCommits({ reopenedCount, canShowChanges, onShowChanges }: NewCommitsProps) {
+  if (reopenedCount === 0 && !canShowChanges) return null;
+  return (
+    <div className="flex flex-col items-start gap-2 text-severity-medium">
+      {reopenedCount > 0 && (
+        <span>
+          New commits changed {reopenedCount} step{reopenedCount === 1 ? "" : "s"} you had finished.
+          They are marked again.
+        </span>
+      )}
+      {canShowChanges && (
+        <Button variant="outline" size="sm" onClick={onShowChanges}>
+          Show what changed
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function ResumeCard({
   session,
   steps,
   nextStep,
   reopenedCount,
   onContinue,
+  onShowChanges,
 }: ResumeCardProps) {
   const current = steps.find((step) => step.id === session.currentStepId);
   const position = current ? steps.indexOf(current) + 1 : null;
@@ -85,12 +112,11 @@ export function ResumeCard({
             <dd className="font-mono">{pinned.map((symbol) => symbol.name).join(", ")}</dd>
           </div>
         )}
-        {reopenedCount > 0 && (
-          <div className="text-severity-medium">
-            New commits changed {reopenedCount} step{reopenedCount === 1 ? "" : "s"} you had
-            finished. They are marked again.
-          </div>
-        )}
+        <NewCommits
+          reopenedCount={reopenedCount}
+          canShowChanges={session.baselineHeadSha !== null}
+          onShowChanges={onShowChanges}
+        />
       </dl>
       <Button size="lg" onClick={onContinue} autoFocus>
         {nextStep ? `Continue with: ${nextStep.title}` : "Continue"}

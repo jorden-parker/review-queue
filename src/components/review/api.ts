@@ -4,6 +4,7 @@ import { json } from "@/lib/json-response";
 import { prPath } from "@/lib/pr-ref";
 import type { AssistRequest } from "@/lib/review/assist-request";
 import type { ExplanationResult } from "@/lib/review/explanation-service";
+import type { Interdiff } from "@/lib/review/interdiff";
 import type { OrientationResult } from "@/lib/review/orientation-service";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { SessionAction } from "@/lib/review/session-actions";
@@ -33,6 +34,10 @@ export function fetchReview(ref: PullRequestRef): Promise<ReviewPayload> {
 
 export function fetchOrientation(ref: PullRequestRef, sha: string): Promise<OrientationResult> {
   return fetch(apiPath(ref, `/orientation${query({ sha })}`)).then(json<OrientationResult>);
+}
+
+export function fetchChanges(ref: PullRequestRef, sha: string): Promise<Interdiff> {
+  return fetch(apiPath(ref, `/changes${query({ sha })}`)).then(json<Interdiff>);
 }
 
 export function fetchStepExplanation(

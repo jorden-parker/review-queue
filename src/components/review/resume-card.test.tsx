@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ContextSymbol } from "@/lib/session/store";
 import { emptySession } from "@/test/review-fixture";
@@ -30,9 +30,38 @@ describe("ResumeCard", () => {
         nextStep={null}
         reopenedCount={0}
         onContinue={vi.fn()}
+        onShowChanges={vi.fn()}
       />,
     );
     expect(screen.getByText("You pinned")).toBeTruthy();
     expect(screen.getByText("load, Options")).toBeTruthy();
+  });
+
+  it("offers to show what changed only when a baseline was kept", () => {
+    const onShowChanges = vi.fn();
+    const { rerender } = render(
+      <ResumeCard
+        session={emptySession({ baselineHeadSha: "4".repeat(40) })}
+        steps={[]}
+        nextStep={null}
+        reopenedCount={0}
+        onContinue={vi.fn()}
+        onShowChanges={onShowChanges}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show what changed" }));
+    expect(onShowChanges).toHaveBeenCalledOnce();
+
+    rerender(
+      <ResumeCard
+        session={emptySession()}
+        steps={[]}
+        nextStep={null}
+        reopenedCount={0}
+        onContinue={vi.fn()}
+        onShowChanges={onShowChanges}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Show what changed" })).toBeNull();
   });
 });

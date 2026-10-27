@@ -305,6 +305,19 @@ describe("ReviewLoader", () => {
     );
   });
 
+  it("shows what changed since you last looked and catches up", async () => {
+    const payload = {
+      ...reviewPayload(emptySession({ baselineHeadSha: "4".repeat(40) })),
+      reopenedStepIds: ["types:src/types.ts:0"],
+    };
+    const { api, user } = await renderReview(payload);
+    await user.click(screen.getByRole("button", { name: "Show what changed" }));
+    expect(await screen.findByText(/^Since you last looked/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "I've caught up" }));
+    expect(api.actions()).toContainEqual({ type: "catch-up" });
+    await waitFor(() => expect(screen.queryByText(/^Since you last looked/)).toBeNull());
+  });
+
   it("collapses the review panel and restores it with the toggle", async () => {
     const { user } = await renderReview();
     expect(openPanes()).toEqual(["Step"]);

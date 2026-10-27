@@ -41,6 +41,7 @@ import type { Session } from "@/lib/session/store";
 import type { PullRequestRef, Step } from "@/lib/types";
 import { AssistPanel } from "./assist-panel";
 import { citationsInText, parseCitation } from "./citations";
+import { ChangesView } from "./changes-view";
 import { FinishReview } from "./finish-review";
 import { FocusTimer } from "./focus-timer";
 import { ContextList } from "./context-list";
@@ -339,6 +340,11 @@ function StepTrack({ steps, currentIndex, doneSteps }: StepTrackProps) {
 
 type StepTrackProps = { steps: Step[]; currentIndex: number; doneSteps: string[] };
 
+function stepBarTitle(workspace: Workspace, step: Step): string {
+  if (workspace.showChanges) return "What changed";
+  return workspace.showAll ? "Whole PR" : step.title;
+}
+
 function StepBar({
   review,
   session,
@@ -363,23 +369,32 @@ function StepBar({
           <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
             {workspace.currentIndex + 1} of {review.steps.length}
           </span>
-          <span className="truncate text-lg font-bold">
-            {workspace.showAll ? "Whole PR" : step.title}
-          </span>
+          <span className="truncate text-lg font-bold">{stepBarTitle(workspace, step)}</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => workspace.setShowAll(!workspace.showAll)}
-            className="text-muted-foreground"
-          >
-            <Layers />
-            <span className="max-sm:sr-only">
-              {workspace.showAll ? "Back to one step at a time" : "Show whole PR"}
-            </span>
-            <Kbd className="max-sm:hidden">a</Kbd>
-          </Button>
-          {!workspace.showAll && (
+          {workspace.showChanges ? (
+            <Button
+              variant="ghost"
+              onClick={() => workspace.setShowChanges(false)}
+              className="text-muted-foreground"
+            >
+              <ArrowLeft />
+              <span>Back to the path</span>
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              onClick={() => workspace.setShowAll(!workspace.showAll)}
+              className="text-muted-foreground"
+            >
+              <Layers />
+              <span className="max-sm:sr-only">
+                {workspace.showAll ? "Back to one step at a time" : "Show whole PR"}
+              </span>
+              <Kbd className="max-sm:hidden">a</Kbd>
+            </Button>
+          )}
+          {!workspace.showAll && !workspace.showChanges && (
             <>
               <Button
                 variant="outline"
@@ -442,6 +457,7 @@ function Dialogs({
           nextStep={workspace.nextStep}
           reopenedCount={review.reopenedStepIds.length}
           onContinue={workspace.resume}
+          onShowChanges={workspace.showChangesFromResume}
         />
       );
     case "pause":
@@ -639,17 +655,26 @@ export function ReviewWorkspace({
           </div>
           <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-24 sm:px-8">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-6 pt-6">
-              <div
-                key={workspace.showAll ? "all" : workspace.currentStep?.id}
-                className="flex animate-step-enter flex-col gap-8"
-              >
-                {workspace.visibleSteps.map((step) => (
-                  <div key={step.id} className="flex flex-col gap-3">
-                    {workspace.showAll && <h3 className="text-base font-bold">{step.title}</h3>}
-                    <StepView step={step} context={context} />
-                  </div>
-                ))}
-              </div>
+              {workspace.showChanges ? (
+                <ChangesView
+                  pullRequest={workspace.pullRequest}
+                  headSha={review.headSha}
+                  context={context}
+                  onCaughtUp={workspace.catchUp}
+                />
+              ) : (
+                <div
+                  key={workspace.showAll ? "all" : workspace.currentStep?.id}
+                  className="flex animate-step-enter flex-col gap-8"
+                >
+                  {workspace.visibleSteps.map((step) => (
+                    <div key={step.id} className="flex flex-col gap-3">
+                      {workspace.showAll && <h3 className="text-base font-bold">{step.title}</h3>}
+                      <StepView step={step} context={context} />
+                    </div>
+                  ))}
+                </div>
+              )}
               <NoSteps review={payload} orientation={orientation} />
             </div>
           </main>
