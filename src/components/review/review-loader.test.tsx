@@ -33,9 +33,17 @@ function setViewportWidth(width: number) {
   Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
 }
 
+function setDocumentHidden(hidden: boolean) {
+  Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
+  act(() => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   setViewportWidth(DEFAULT_VIEWPORT_WIDTH);
+  Reflect.deleteProperty(document, "hidden");
 });
 
 class DataTransferStub {
@@ -316,6 +324,20 @@ describe("ReviewLoader", () => {
     await user.click(screen.getByRole("button", { name: "I've caught up" }));
     expect(api.actions()).toContainEqual({ type: "catch-up" });
     await waitFor(() => expect(screen.queryByText(/^Since you last looked/)).toBeNull());
+  });
+
+  it("notices a push when you come back after a long absence", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    try {
+      const { api } = await renderReview();
+      api.head.current = "6".repeat(40);
+      setDocumentHidden(true);
+      clock.mockReturnValue(1_000_000 + 6 * 60 * 1000);
+      setDocumentHidden(false);
+      expect(await screen.findByText(/New commits were pushed/)).toBeTruthy();
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("collapses the review panel and restores it with the toggle", async () => {

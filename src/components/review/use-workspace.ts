@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { DefinitionWithCode } from "@/lib/review/peek-code";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
+import { fetchHead } from "./api";
 import { isPinned, peekedSymbol } from "./context-symbols";
 import { useContextSymbols } from "./use-context-symbols";
 import type { NoteTag, PullRequestRef, SymbolPosition } from "@/lib/types";
@@ -178,6 +179,7 @@ function useWorkspaceUi(review: ReviewPayload) {
   const [breakDue, setBreakDue] = useState(false);
   const [posted, setPosted] = useState(false);
   const [showChanges, setShowChanges] = useState(false);
+  const [newHead, setNewHead] = useState<string | null>(null);
   const hovered = useRef<SymbolPosition | null>(null);
   const parkingInput = useRef<HTMLInputElement>(null);
   const setHovered = useCallback((position: SymbolPosition | null) => {
@@ -201,6 +203,8 @@ function useWorkspaceUi(review: ReviewPayload) {
     setPosted,
     showChanges,
     setShowChanges,
+    newHead,
+    setNewHead,
     getHovered,
     setHovered,
     parkingInput,
@@ -253,9 +257,22 @@ export function useWorkspace(
     [review.files],
   );
   const nextStep = nextOpenStep(review.steps, session.doneSteps, null);
-  const { setDialog, setComposer } = ui;
+  const { setDialog, setComposer, setNewHead } = ui;
 
-  useReturnDetection(useCallback(() => setDialog((current) => current ?? "resume"), [setDialog]));
+  const checkForNewHead = useCallback(() => {
+    fetchHead(ref)
+      .then(({ headSha }) => {
+        if (headSha !== review.headSha) setNewHead(headSha);
+      })
+      .catch(() => undefined);
+  }, [ref, review.headSha, setNewHead]);
+
+  useReturnDetection(
+    useCallback(() => {
+      setDialog((current) => current ?? "resume");
+      checkForNewHead();
+    }, [setDialog, checkForNewHead]),
+  );
 
   const resume = useCallback(() => {
     edits.resume();

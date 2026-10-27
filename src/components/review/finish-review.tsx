@@ -23,6 +23,7 @@ type FinishReviewProps = {
   notes: Note[];
   stepsLeft: number;
   hotspotsLeft: number;
+  headSha: string;
   onSubmit: (event: ReviewEvent, summary: string, noteIds: number[]) => Promise<void>;
   onDraftSummary?: DraftSummary;
   onCancel: () => void;
@@ -128,6 +129,7 @@ export function FinishReview({
   notes,
   stepsLeft,
   hotspotsLeft,
+  headSha,
   onSubmit,
   onDraftSummary,
   onCancel,
@@ -201,6 +203,7 @@ export function FinishReview({
         ))}
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
+      <p className="text-sm text-muted-foreground">Posting against {headSha.slice(0, 7)}</p>
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onCancel}>
           Not yet

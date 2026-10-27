@@ -36,6 +36,10 @@ export function fetchOrientation(ref: PullRequestRef, sha: string): Promise<Orie
   return fetch(apiPath(ref, `/orientation${query({ sha })}`)).then(json<OrientationResult>);
 }
 
+export function fetchHead(ref: PullRequestRef): Promise<{ headSha: string }> {
+  return fetch(apiPath(ref, "/head")).then(json<{ headSha: string }>);
+}
+
 export function fetchChanges(ref: PullRequestRef, sha: string): Promise<Interdiff> {
   return fetch(apiPath(ref, `/changes${query({ sha })}`)).then(json<Interdiff>);
 }
