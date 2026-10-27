@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LanguageClient, ServerLocation } from "@/lib/lsp/client";
 import type { SymbolPosition } from "@/lib/types";
-import { definitionsAt, referencesAt } from "./navigation";
-import type { PeekIndex } from "./peek-code";
+import { definitionsAt, referencesAt, type Navigation } from "./navigation";
 
 const ROOT = "/checkout";
 const FILES: Record<string, string[]> = {
@@ -18,7 +17,7 @@ const POSITION: SymbolPosition = {
   side: "new",
 };
 
-function stubIndex(): PeekIndex {
+function stubIndex(): Navigation["index"] {
   return {
     definitionsOf: () => [
       { name: "load", kind: "function", path: "src/store.ts", line: 1, endLine: 1 },
@@ -27,6 +26,7 @@ function stubIndex(): PeekIndex {
     referencesTo: async () => [
       { path: "src/store.ts", line: 1, text: "export function load() {}" },
     ],
+    filesMentioning: async () => ["src/store.ts", "test/store.ts"],
     relativePath: (absolute) =>
       absolute.startsWith(`${ROOT}/`) ? absolute.slice(ROOT.length + 1) : null,
   };
@@ -118,6 +118,12 @@ describe("referencesAt", () => {
     expect(references.map(({ path, line, text }) => ({ path, line, text }))).toEqual([
       { path: "src/app.ts", line: 2, text: "return load + 1;" },
     ]);
+  });
+
+  it("lets the server search the files text search finds", async () => {
+    const references = vi.fn(async (): Promise<ServerLocation[]> => []);
+    await referencesAt(navigationWith(stubClient({ references })), POSITION);
+    expect(references).toHaveBeenCalledWith("src/app.ts", 2, 9, ["src/store.ts", "test/store.ts"]);
   });
 
   it("falls back to text search without a server", async () => {

@@ -69,6 +69,14 @@ describe("SymbolIndex", () => {
     expect(references[2].text).toContain("load('1')");
   });
 
+  it("lists every file that mentions a name", async () => {
+    expect(await index.filesMentioning("load")).toEqual([
+      "lib/other/store.ts",
+      "src/app.ts",
+      "src/store.ts",
+    ]);
+  });
+
   it("reads a snippet and refuses paths outside the checkout", () => {
     expect(index.readLines("src/store.ts", 1, 2)).toEqual([
       "export function load(id: string) {",

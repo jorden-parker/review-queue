@@ -15,6 +15,7 @@ const APP = [
   "export const start = () => load;",
   "",
 ].join("\n");
+const STORE_TEST = "import { load } from '../src/store';\nexport const loaded = load('a');\n";
 
 describe("LanguageClient with typescript-language-server", () => {
   let root: string;
@@ -25,7 +26,13 @@ describe("LanguageClient with typescript-language-server", () => {
     fs.mkdirSync(path.join(root, "src"));
     fs.writeFileSync(path.join(root, "src/store.ts"), STORE);
     fs.writeFileSync(path.join(root, "src/app.ts"), APP);
-    fs.writeFileSync(path.join(root, "tsconfig.json"), '{"compilerOptions":{"strict":true}}');
+    fs.mkdirSync(path.join(root, "test"));
+    fs.writeFileSync(path.join(root, "test/store.ts"), STORE_TEST);
+    fs.writeFileSync(path.join(root, "readme.md"), "Call load to fetch.\n");
+    fs.writeFileSync(
+      path.join(root, "tsconfig.json"),
+      '{"compilerOptions":{"strict":true},"include":["src"]}',
+    );
     client = await LanguageClient.start(serverFor("src/app.ts")!, root, (file) =>
       fs.readFileSync(path.join(root, file), "utf8"),
     );
@@ -51,6 +58,16 @@ describe("LanguageClient with typescript-language-server", () => {
     const references = await client.references("src/app.ts", 3, 8);
     expect(references.map((location) => location.line)).toEqual([4]);
     expect(await client.hover("src/app.ts", 3, 8)).toContain("const total: number");
+  });
+
+  it("finds references in related files outside the tsconfig project", async () => {
+    const references = await client.references("src/store.ts", 1, 16, [
+      "test/store.ts",
+      "readme.md",
+    ]);
+    const files = references.map((location) => path.relative(root, location.file));
+    expect(files).toContain("test/store.ts");
+    expect(files).not.toContain("readme.md");
   });
 
   it("reports library definitions with their real location", async () => {

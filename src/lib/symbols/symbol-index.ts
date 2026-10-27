@@ -11,6 +11,7 @@ const MAX_FILES = 6000;
 export const MAX_FILE_BYTES = 300 * 1024;
 const MAX_REFERENCES = 60;
 const MAX_DEFINITIONS = 20;
+const MAX_MENTIONING_FILES = 300;
 const IGNORED_SEGMENTS = /(^|\/)(node_modules|vendor|dist|build|\.next|third_party)\//;
 
 function sharedPrefixLength(a: string, b: string): number {
@@ -89,6 +90,16 @@ export class SymbolIndex {
       .filter((reference): reference is Reference => reference !== null)
       .filter((reference) => !IGNORED_SEGMENTS.test(reference.path))
       .slice(0, MAX_REFERENCES);
+  }
+
+  async filesMentioning(name: string): Promise<string[]> {
+    const output = await this.run("git", ["grep", "-l", "-w", "-F", "-I", "-e", name], {
+      cwd: this.root,
+    }).catch(() => "");
+    return output
+      .split("\n")
+      .filter((file) => file !== "" && !IGNORED_SEGMENTS.test(file))
+      .slice(0, MAX_MENTIONING_FILES);
   }
 
   relativePath(absolute: string): string | null {
