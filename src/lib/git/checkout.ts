@@ -5,6 +5,7 @@ import type { Runner } from "@/lib/exec";
 import { githubRun } from "@/lib/github/github-guard";
 import type { FileDiff, PullRequestRef } from "@/lib/types";
 import { parseUnifiedDiff } from "./diff-parser";
+import { linkWorkspacePackages } from "./workspace-links";
 
 export type CheckoutOptions = {
   cacheRoot?: string;
@@ -115,6 +116,7 @@ export async function ensureCheckout(
   ).trim();
   const worktreePath = path.join(cacheRoot, "worktrees", ref.owner, ref.repo, headSha);
   await ensureWorktree(repoDir, worktreePath, headSha, run);
+  await linkWorkspacePackages(worktreePath, run);
   return { repoDir, worktreePath, headSha, mergeBaseSha, run };
 }
 

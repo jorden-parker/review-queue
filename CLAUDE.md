@@ -33,12 +33,13 @@ Vitest has two projects. `*.test.ts` runs in node and `*.test.tsx` runs in jsdom
 **Server pipeline** (`src/lib/review/prepare.ts`). `loadReview` fetches PR
 metadata through `gh` (`lib/github/gh.ts`). It then makes a bare clone plus a
 worktree per head SHA under `~/.cache/review-queue` (`lib/git/checkout.ts`),
-parses the diff (`lib/git/diff-parser.ts`), and builds a tree-sitter
-`SymbolIndex` over the worktree (`lib/symbols/`). From these it computes
-hotspots (`lib/hotspots/`), classifies files and orders them into reading-path
-steps (`lib/plan/`), and highlights code with shiki (`lib/highlight.ts`). The
-result is a `PreparedReview`, memoized in a `globalThis` map keyed by PR and
-head SHA.
+links each workspace package into the worktree's `node_modules` so imports by
+package name resolve (`lib/git/workspace-links.ts`), parses the diff
+(`lib/git/diff-parser.ts`), and builds a tree-sitter `SymbolIndex` over the
+worktree (`lib/symbols/`). From these it computes hotspots (`lib/hotspots/`),
+classifies files and orders them into reading-path steps (`lib/plan/`), and
+highlights code with shiki (`lib/highlight.ts`). The result is a
+`PreparedReview`, memoized in a `globalThis` map keyed by PR and head SHA.
 
 **Re-review after a push** (`review_baselines` table,
 `lib/review/interdiff.ts`). When `markSeen` sees a new head, it stores the

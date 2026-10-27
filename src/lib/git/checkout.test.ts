@@ -59,6 +59,18 @@ describe("checkout", () => {
     ]);
   });
 
+  it("links workspace packages so imports by package name resolve in the checkout", async () => {
+    pushFeatureCommit(fixture, REF.number, {
+      "packages/ui/package.json": JSON.stringify({ name: "@acme/ui" }),
+    });
+    const options = { cacheRoot: fixture.cacheRoot, remoteUrl: fixture.origin };
+    const checkout = await ensureCheckout(REF, currentCommits(fixture), options);
+    const link = path.join(checkout.worktreePath, "node_modules/@acme/ui");
+    expect(fs.realpathSync(link)).toBe(
+      fs.realpathSync(path.join(checkout.worktreePath, "packages/ui")),
+    );
+  });
+
   it("diffs a merged PR against the base it was opened on, not today's base", async () => {
     const openedOn = mainOf(fixture);
     squashMergeFeature(fixture, {
