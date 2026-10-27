@@ -44,10 +44,11 @@ export function openThread(
   target: AssistTarget,
   action: AssistAction,
   headSha: string,
+  opener?: string,
 ): AssistThread {
   const turns: AssistTurn[] =
     questionPrompt(action, target) === null
-      ? [{ role: "reviewer", text: actionLabel(action, target) }]
+      ? [{ role: "reviewer", text: opener ?? actionLabel(action, target) }]
       : [];
   return { id: crypto.randomUUID(), headSha, target, action, question: null, turns };
 }

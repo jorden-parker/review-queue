@@ -18,8 +18,8 @@ const LINES = { kind: "lines" as const, range: RANGE };
 const WHOLE_FILE = { kind: "file" as const, path: "src/a.ts" };
 const CHECK_TARGET = { kind: "check" as const, stepId: "s1", check: 0, path: "src/a.ts" };
 
-function openThread(target: AssistTarget, action: AssistAction) {
-  return openThreadAt(target, action, HEAD);
+function openThread(target: AssistTarget, action: AssistAction, opener?: string) {
+  return openThreadAt(target, action, HEAD, opener);
 }
 
 describe("openThread", () => {
@@ -56,6 +56,16 @@ describe("openThread", () => {
     const thread = askedThread(openThread(LINES, "ask"), "Why three?");
     expect(thread.turns).toEqual([{ role: "reviewer", text: "Why three?" }]);
     expect(threadRequest(thread)).toMatchObject({ action: "ask", question: "Why three?" });
+  });
+});
+
+describe("openers", () => {
+  it("show the opener as the reviewer's first turn and send no history", () => {
+    const thread = openThread(CHECK_TARGET, "explain", "Tell me more: Is eviction bounded?");
+    expect(thread.turns).toEqual([
+      { role: "reviewer", text: "Tell me more: Is eviction bounded?" },
+    ]);
+    expect(threadRequest(thread).history).toEqual([]);
   });
 });
 
