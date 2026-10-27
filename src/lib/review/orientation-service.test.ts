@@ -12,6 +12,7 @@ const DATA: ReviewData = {
   startStepId: null,
   hotspots: [],
   estimateMinutes: 1,
+  changeMap: { nodes: [], edges: [], threads: [], orphanIds: [] },
 };
 const CONFIG = {
   baseURL: "http://llm.test",

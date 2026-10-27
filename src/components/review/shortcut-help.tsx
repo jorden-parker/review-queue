@@ -12,6 +12,7 @@ const SHORTCUTS: [string[], string][] = [
   [["m"], "Pin or unpin the peeked name"],
   [["g", "c"], "Context: names you have peeked"],
   [["g", "o"], "Outline of this step's files"],
+  [["g", "m"], "Map: how the changes fit together"],
   [["b"], "Back from a jump"],
   [["c"], "Note on the current chunk"],
   [["i"], "Explain the selected lines"],
