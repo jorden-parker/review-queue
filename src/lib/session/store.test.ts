@@ -90,7 +90,7 @@ describe("SessionStore", () => {
   it("reopens a finished review when the head moves", () => {
     store.rememberTitle(KEY, "Add retry");
     store.markSeen(KEY, "sha1");
-    store.addNote(KEY, { path: null, line: null, kind: "nit", body: "x" });
+    store.addNote(KEY, { path: null, line: null, kind: "nitpick", decorations: [], body: "x" });
     store.markFinished(KEY);
     store.markSeen(KEY, "sha1");
     expect(store.inProgress()).toEqual([]);
@@ -371,7 +371,13 @@ describe("SessionStore", () => {
     store.setStepDone(KEY, "s1", true);
     store.rememberTitle("acme/app#8", "Only opened");
     store.rememberTitle("acme/app#9", "Posted");
-    store.addNote("acme/app#9", { path: null, line: null, kind: "nit", body: "x" });
+    store.addNote("acme/app#9", {
+      path: null,
+      line: null,
+      kind: "nitpick",
+      decorations: [],
+      body: "x",
+    });
     store.markFinished("acme/app#9");
     expect(store.inProgress()).toEqual([
       {
