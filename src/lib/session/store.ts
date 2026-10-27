@@ -60,12 +60,30 @@ export type ProgressSummary = {
   pause: PauseState | null;
 };
 
+export type InProgressSession = {
+  key: string;
+  title: string | null;
+  doneCount: number;
+  pauseNote: string | null;
+  updatedAt: string;
+};
+
+type InProgressRow = {
+  pr_key: string;
+  title: string | null;
+  pause_note: string | null;
+  updated_at: string;
+  done_count: number;
+};
+
 type SessionRow = {
   current_step: string | null;
   head_sha: string | null;
   pause_note: string | null;
   paused_at: string | null;
   updated_at: string;
+  title: string | null;
+  finished_at: string | null;
 };
 
 type NoteRow = {
@@ -85,7 +103,9 @@ CREATE TABLE IF NOT EXISTS sessions (
   head_sha TEXT,
   pause_note TEXT,
   paused_at TEXT,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  title TEXT,
+  finished_at TEXT
 );
 CREATE TABLE IF NOT EXISTS done_steps (
   pr_key TEXT NOT NULL,
@@ -200,6 +220,25 @@ DELETE FROM context_symbols WHERE pr_key = :key AND pinned = 0 AND rowid NOT IN 
   ORDER BY seen_at DESC LIMIT :limit
 )`;
 
+const IN_PROGRESS = `
+SELECT s.pr_key, s.title, s.pause_note, s.updated_at,
+  (SELECT COUNT(*) FROM done_steps d WHERE d.pr_key = s.pr_key) AS done_count,
+  (SELECT COUNT(*) FROM notes n WHERE n.pr_key = s.pr_key) AS note_count
+FROM sessions s
+WHERE s.finished_at IS NULL
+  AND (done_count > 0 OR note_count > 0 OR s.pause_note IS NOT NULL)
+ORDER BY s.updated_at DESC`;
+
+function toInProgress(row: InProgressRow): InProgressSession {
+  return {
+    key: row.pr_key,
+    title: row.title,
+    doneCount: row.done_count,
+    pauseNote: row.pause_note,
+    updatedAt: row.updated_at,
+  };
+}
+
 export function defaultDatabasePath(): string {
   return path.join(dataDirectory(), "review-queue.db");
 }
@@ -215,11 +254,19 @@ function migrateNotes(db: DatabaseSync): void {
   );
 }
 
+function ensureColumn(db: DatabaseSync, table: string, column: string, type: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (columns.some((existing) => existing.name === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+}
+
 function openDatabase(file: string): DatabaseSync {
   if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec(SCHEMA);
   migrateNotes(db);
+  ensureColumn(db, "sessions", "title", "TEXT");
+  ensureColumn(db, "sessions", "finished_at", "TEXT");
   return db;
 }
 
@@ -458,6 +505,20 @@ export class SessionStore {
       };
     }
     return summaries;
+  }
+
+  rememberTitle(key: string, title: string): void {
+    this.touch(key);
+    this.db.prepare("UPDATE sessions SET title = ? WHERE pr_key = ?").run(title, key);
+  }
+
+  markFinished(key: string): void {
+    this.touch(key);
+    this.db.prepare("UPDATE sessions SET finished_at = ? WHERE pr_key = ?").run(this.now(), key);
+  }
+
+  inProgress(): InProgressSession[] {
+    return (this.db.prepare(IN_PROGRESS).all() as InProgressRow[]).map(toInProgress);
   }
 
   private now(): string {
