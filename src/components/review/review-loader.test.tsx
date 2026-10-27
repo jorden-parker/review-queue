@@ -441,13 +441,14 @@ describe("ReviewLoader", () => {
     expect(within(peek).getByText("export type").closest(".code-token")).toBeTruthy();
     expect(document.querySelector(".grid-cols-workspace")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /In this PR/ }));
-    expect(await screen.findByText(/1 jump deep from/)).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Back to Options/ })).toBeTruthy();
     expect(screen.getByText("1/3")).toBeTruthy();
     await user.click(screen.getByRole("tab", { name: /References/ }));
     const reference = await screen.findByText("load(options: Options) {");
     expect(reference.closest("button")?.disabled).toBe(false);
     expect(screen.getByText("in this PR")).toBeTruthy();
-    expect(screen.getByText("src/client.ts:10")).toBeTruthy();
+    await user.hover(screen.getByRole("button", { name: /Back to Options/ }));
+    expect(await screen.findAllByText("src/client.ts:10")).toBeTruthy();
     await user.keyboard("b");
     expect(await screen.findByText("2/3")).toBeTruthy();
     expect(api.actions()).toEqual(
