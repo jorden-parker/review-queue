@@ -2,6 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { runCommand } from "@/lib/exec";
+import { linkWorkspacePackages } from "@/lib/git/workspace-links";
 import { LanguageClient } from "./client";
 import { serverFor } from "./servers";
 
@@ -73,5 +75,54 @@ describe("LanguageClient with typescript-language-server", () => {
   it("reports library definitions with their real location", async () => {
     const [location] = await client.definition("src/app.ts", 4, 2);
     expect(location.file).not.toContain(root);
+  });
+});
+
+const MONOREPO: Record<string, string> = {
+  "packages/config/package.json": JSON.stringify({ name: "@acme/config" }),
+  "packages/config/app.json": JSON.stringify({
+    compilerOptions: { module: "esnext", moduleResolution: "bundler", jsx: "preserve" },
+  }),
+  "packages/ui/package.json": JSON.stringify({
+    name: "@acme/ui",
+    exports: { "./button": "./src/button.tsx" },
+  }),
+  "packages/ui/tsconfig.json": JSON.stringify({ extends: "@acme/config/app.json" }),
+  "packages/ui/src/button.tsx": "export function Button() {\n  return <button />;\n}\n",
+  "apps/web/package.json": JSON.stringify({ name: "web" }),
+  "apps/web/tsconfig.json": JSON.stringify({ extends: "@acme/config/app.json" }),
+  "apps/web/page.tsx":
+    'import { Button } from "@acme/ui/button";\nexport const Page = () => <Button />;\n',
+};
+
+describe("LanguageClient in a workspace monorepo", () => {
+  let root: string;
+  let client: LanguageClient;
+
+  beforeAll(async () => {
+    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "lsp-monorepo-")));
+    for (const [file, text] of Object.entries(MONOREPO)) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      fs.writeFileSync(path.join(root, file), text);
+    }
+    await runCommand("git", ["init", "-q"], { cwd: root });
+    await runCommand("git", ["add", "-A"], { cwd: root });
+    await linkWorkspacePackages(root, runCommand);
+    client = await LanguageClient.start(serverFor("apps/web/page.tsx")!, root, (file) =>
+      fs.readFileSync(path.join(root, file), "utf8"),
+    );
+  }, 30_000);
+
+  afterAll(async () => {
+    await client.stop();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("finds a component's uses in packages that import it by package name", async () => {
+    const references = await client.references("packages/ui/src/button.tsx", 1, 16, [
+      "apps/web/page.tsx",
+    ]);
+    const files = references.map((location) => path.relative(root, location.file));
+    expect(files).toContain("apps/web/page.tsx");
   });
 });
