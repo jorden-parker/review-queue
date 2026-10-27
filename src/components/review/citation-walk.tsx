@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { KeyboardEvent } from "react";
 import { cn } from "cn";
 import { splitPath } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
@@ -18,23 +19,32 @@ export function CitationChip({
   onShow: () => void;
 }) {
   const { directory, name } = splitPath(citation.path);
+  const show = citation.inDiff ? onShow : undefined;
   return (
-    <button
-      type="button"
-      disabled={!citation.inDiff}
+    <span
+      role="button"
+      tabIndex={citation.inDiff ? 0 : undefined}
+      aria-disabled={!citation.inDiff}
       title={citation.inDiff ? citation.path : "Not in this diff"}
       aria-pressed={active}
-      onClick={onShow}
+      onClick={show}
+      onKeyDown={show && ((event) => activateOnKey(event, show))}
       className={cn(
-        "cursor-pointer font-mono text-code wrap-anywhere underline decoration-dotted decoration-1 underline-offset-4 transition-colors duration-calm hover:decoration-primary disabled:cursor-default disabled:text-muted-foreground disabled:no-underline",
+        "cursor-pointer rounded-xs font-mono text-code wrap-anywhere underline decoration-dotted decoration-1 underline-offset-4 outline-none transition-colors duration-calm hover:decoration-primary focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:cursor-default aria-disabled:text-muted-foreground aria-disabled:no-underline",
         active ? "text-primary decoration-primary" : "decoration-foreground/25",
       )}
     >
       <span className="text-muted-foreground">{directory}</span>
       <span className="font-medium">{name}</span>
       <span className="text-muted-foreground">{lineRange(citation)}</span>
-    </button>
+    </span>
   );
+}
+
+function activateOnKey(event: KeyboardEvent<HTMLElement>, activate: () => void) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  activate();
 }
 
 function stepsInDiff(citations: Citation[]): number[] {
