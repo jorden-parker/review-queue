@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ASSIST_REPLY, installFakeApi } from "@/test/fake-api";
+import type { ReviewComment } from "@/lib/github/gh";
+import { ASSIST_REPLY, installFakeApi, SUBMITTED_REVIEW_URL } from "@/test/fake-api";
 import { emptySession, HEAD_SHA, REF, reviewPayload } from "@/test/review-fixture";
 import type { PanelSide } from "./pane-layout";
 import { ReviewLoader } from "./review-loader";
@@ -566,6 +567,30 @@ describe("ReviewLoader", () => {
     expect(await screen.findByRole("region", { name: "Context" })).toBeTruthy();
   });
 
+  it("marks a line that has a GitHub thread and opens the conversation from it", async () => {
+    const thread: ReviewComment = {
+      id: 1,
+      inReplyTo: null,
+      path: "src/types.ts",
+      line: 1,
+      side: "RIGHT",
+      author: "sam",
+      body: "Should this be exported?",
+      url: "https://github.com/acme/app/pull/7#discussion_r1",
+      createdAt: "2026-10-01T10:00:00Z",
+    };
+    installFakeApi(reviewPayload(), undefined, undefined, undefined, {
+      comments: [thread],
+      reviews: [],
+      truncated: false,
+    });
+    const user = userEvent.setup();
+    render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
+    await screen.findByText(/^Step \d of 3/);
+    await user.click(await screen.findByRole("button", { name: "Show 1 GitHub thread" }));
+    expect(await screen.findByText("Should this be exported?")).toBeTruthy();
+  });
+
   it("adds a line note with the keyboard and parks a thought", async () => {
     const { api, user } = await renderReview();
     await user.keyboard("c");
@@ -694,6 +719,9 @@ describe("ReviewLoader", () => {
     await user.click(within(dialog).getByRole("button", { name: /Approve on GitHub/ }));
     await waitFor(() => expect(screen.queryByText("Finish review")).toBeNull());
     expect(screen.getByRole("status").textContent).toMatch(/Review posted/);
+    expect(screen.getByRole("link", { name: "Open it" }).getAttribute("href")).toBe(
+      SUBMITTED_REVIEW_URL,
+    );
     expect(api.calls.find((call) => call.url.endsWith("/submit"))?.body).toEqual({
       event: "APPROVE",
       summary: "Nice work",
