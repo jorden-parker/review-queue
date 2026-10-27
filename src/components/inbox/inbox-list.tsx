@@ -8,15 +8,9 @@ import { Card } from "@/components/ui/card";
 import { REVIEW_REQUEST_LIMIT, type ReviewRequest } from "@/lib/github/gh";
 import { prKey, prPath } from "@/lib/pr-ref";
 import { reviewRequests, sessionStore } from "@/lib/review/services";
-import type { PauseState, ProgressSummary } from "@/lib/session/store";
+import type { InProgressSession, PauseState, ProgressSummary } from "@/lib/session/store";
+import { InProgressList, relativeTime } from "./in-progress-list";
 import { orderQueue, type QueueEntry } from "./queue";
-
-function relativeTime(iso: string): string {
-  const hours = Math.round((Date.now() - Date.parse(iso)) / 3_600_000);
-  if (hours < 1) return "just now";
-  if (hours < 48) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
-}
 
 function ProgressBadges({ entry }: { entry: QueueEntry }) {
   if (!entry.progress) return <Badge variant="outline">Not started</Badge>;
@@ -89,20 +83,27 @@ function QueueRows({ entries }: { entries: QueueEntry[] }) {
 type Inbox = {
   requests: ReviewRequest[];
   progress: Record<string, ProgressSummary>;
+  inProgress: InProgressSession[];
   error: string | null;
 };
 
 async function loadInbox(): Promise<Inbox> {
+  const store = sessionStore();
+  const inProgress = store.inProgress();
   try {
     const requests = await reviewRequests();
-    const progress = sessionStore().progressSummaries(
-      requests.map((request) => prKey(request.ref)),
-    );
-    return { requests, progress, error: null };
+    const listedKeys = new Set(requests.map((request) => prKey(request.ref)));
+    return {
+      requests,
+      progress: store.progressSummaries([...listedKeys]),
+      inProgress: inProgress.filter((session) => !listedKeys.has(session.key)),
+      error: null,
+    };
   } catch (error) {
     return {
       requests: [],
       progress: {},
+      inProgress,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -119,9 +120,11 @@ function QueueSection({ count, children }: { count: number; children: ReactNode 
   );
 }
 
-export async function InboxList() {
-  await connection();
-  const { requests, progress, error } = await loadInbox();
+function RequestQueue({
+  requests,
+  progress,
+  error,
+}: Pick<Inbox, "requests" | "progress" | "error">) {
   if (error) {
     return (
       <QueueSection count={0}>
@@ -153,5 +156,16 @@ export async function InboxList() {
         <QueueRows entries={orderQueue(requests, progress)} />
       </ul>
     </QueueSection>
+  );
+}
+
+export async function InboxList() {
+  await connection();
+  const { requests, progress, inProgress, error } = await loadInbox();
+  return (
+    <div className="flex flex-col gap-8">
+      <RequestQueue requests={requests} progress={progress} error={error} />
+      <InProgressList sessions={inProgress} />
+    </div>
   );
 }
