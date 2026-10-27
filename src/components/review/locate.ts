@@ -1,10 +1,15 @@
 import type { PreparedFile } from "@/lib/review/prepare";
 import type { Step } from "@/lib/types";
 
-export type LineTarget = { path: string; line: number; name?: string };
+export type LineTarget = { path: string; line: number; endLine?: number; name?: string };
 
 export function isSameLine(target: LineTarget | null, path: string, line: number): boolean {
   return target?.path === path && target.line === line;
+}
+
+export function isInTarget(target: LineTarget | null, path: string, line: number): boolean {
+  if (target?.path !== path) return false;
+  return line >= target.line && line <= (target.endLine ?? target.line);
 }
 
 function hunkContains(file: PreparedFile, hunkIndex: number, line: number): boolean {

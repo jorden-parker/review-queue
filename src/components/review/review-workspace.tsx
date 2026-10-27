@@ -39,6 +39,7 @@ import type { PreparedFile, ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
 import type { PullRequestRef, Step } from "@/lib/types";
 import { AssistPanel } from "./assist-panel";
+import { citationsInText, parseCitation } from "./citations";
 import { FinishReview } from "./finish-review";
 import { FocusTimer } from "./focus-timer";
 import { ContextList } from "./context-list";
@@ -457,6 +458,10 @@ function WorkspaceAssist({ workspace }: { workspace: Workspace }) {
   const { target } = thread;
   const path = targetPath(target);
   const hunks = hunksOf(workspace, target);
+  const citationsOf = (text: string) =>
+    citationsInText(text, (code) =>
+      parseCitation(code, [...workspace.files.keys()], path, [...workspace.files.values()]),
+    );
   return (
     <AssistPanel
       key={thread.id}
@@ -464,10 +469,14 @@ function WorkspaceAssist({ workspace }: { workspace: Workspace }) {
       thread={thread}
       label={targetLabel(hunks, target)}
       commentLine={targetCommentLine(hunks, target)}
+      citationsOf={citationsOf}
       onSaveNote={(line, kind, body) =>
         workspace.saveNote(line === null ? null : { path, line }, kind, body)
       }
       onShowLines={() => workspace.goTo({ path, line: targetFirstLine(hunks, target) })}
+      onShowCitation={(citation) =>
+        workspace.goTo({ path: citation.path, line: citation.line, endLine: citation.endLine })
+      }
     />
   );
 }

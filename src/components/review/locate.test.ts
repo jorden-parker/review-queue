@@ -2,7 +2,29 @@ import { describe, expect, it } from "vitest";
 import type { PreparedFile } from "@/lib/review/prepare";
 import type { Step } from "@/lib/types";
 import { addedHunk, fileDiff } from "@/test/diff-builders";
-import { isSameLine, nextOpenStep, stepForLine } from "./locate";
+import { isInTarget, isSameLine, nextOpenStep, stepForLine } from "./locate";
+
+describe("isInTarget", () => {
+  it("matches every line from the target's line through its endLine", () => {
+    const target = { path: "src/a.ts", line: 4, endLine: 6 };
+    expect(isInTarget(target, "src/a.ts", 3)).toBe(false);
+    expect(isInTarget(target, "src/a.ts", 4)).toBe(true);
+    expect(isInTarget(target, "src/a.ts", 5)).toBe(true);
+    expect(isInTarget(target, "src/a.ts", 6)).toBe(true);
+    expect(isInTarget(target, "src/a.ts", 7)).toBe(false);
+  });
+
+  it("matches only the target's line when there is no endLine", () => {
+    const target = { path: "src/a.ts", line: 4 };
+    expect(isInTarget(target, "src/a.ts", 4)).toBe(true);
+    expect(isInTarget(target, "src/a.ts", 5)).toBe(false);
+  });
+
+  it("never matches another path or a missing target", () => {
+    expect(isInTarget({ path: "src/a.ts", line: 4, endLine: 6 }, "src/b.ts", 5)).toBe(false);
+    expect(isInTarget(null, "src/a.ts", 5)).toBe(false);
+  });
+});
 
 describe("isSameLine", () => {
   it("matches a target on the same path and line, ignoring the symbol name", () => {
