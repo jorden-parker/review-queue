@@ -68,6 +68,7 @@ import { occurrencesOf } from "./occurrences";
 import { orderedSteps, stepReasons } from "./step-order";
 import { SavedChatsPanel } from "./saved-chats-panel";
 import { SelectionToolbar } from "./selection-toolbar";
+import { useFileLoader } from "./use-file-lines";
 import { useReferenceCounts } from "./use-file-symbols";
 import { WorkspaceOutline } from "./workspace-outline";
 import { StepSummary } from "./step-summary";
@@ -368,8 +369,8 @@ function ChatsPane({ review, session, workspace }: PaneProps) {
   );
 }
 
-function ContextPane({ session, workspace }: PaneProps) {
-  if (workspace.peek.peek) return <WorkspacePeek workspace={workspace} />;
+function ContextPane({ session, workspace, review }: PaneProps) {
+  if (workspace.peek.peek) return <WorkspacePeek workspace={workspace} review={review} />;
   return (
     <ContextList
       symbols={session.contextSymbols}
@@ -599,7 +600,8 @@ function Dialogs({
   }
 }
 
-function WorkspacePeek({ workspace }: { workspace: Workspace }) {
+function WorkspacePeek({ workspace, review }: Pick<PaneProps, "workspace" | "review">) {
+  const loadFile = useFileLoader(workspace.pullRequest, review.headSha);
   const { peek } = workspace.peek;
   if (!peek) return null;
   return (
@@ -615,7 +617,7 @@ function WorkspacePeek({ workspace }: { workspace: Workspace }) {
         else workspace.peek.showDefinitions(peek.position);
       }}
       onClose={workspace.peek.close}
-      loadFile={workspace.loadFile}
+      loadFile={loadFile}
     />
   );
 }
@@ -703,6 +705,7 @@ export function ReviewWorkspace({
   const workspace = useWorkspace(pullRequest, review, session, orientation, controls);
   const sizings = usePanelSizings(workspace.panes);
   const fresh = session.doneSteps.length === 0 && workspace.currentIndex <= 0;
+  const loadFile = useFileLoader(pullRequest, review.headSha);
   const referenceCounts = useReferenceCounts(
     pullRequest,
     review.headSha,
@@ -720,7 +723,7 @@ export function ReviewWorkspace({
       occurrences: occurrencesOf(workspace.peek.peek),
       activeHunkId: workspace.activeHunkId,
       referenceCounts,
-      loadFile: workspace.loadFile,
+      loadFile,
       onAskFile: workspace.aiEnabled
         ? (path, action) => workspace.assist.open({ kind: "file", path }, action)
         : null,
@@ -739,7 +742,7 @@ export function ReviewWorkspace({
         onOpenConversation: () => workspace.showPane("github"),
       },
     }),
-    [workspace, session.notes, session.checkedHotspots, referenceCounts],
+    [workspace, session.notes, session.checkedHotspots, referenceCounts, loadFile],
   );
 
   return (
