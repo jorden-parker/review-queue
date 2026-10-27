@@ -110,4 +110,12 @@ describe("ChangeMapList", () => {
     renderList([]);
     expect(screen.getByText("No changed symbols to map.")).toBeTruthy();
   });
+
+  it("shows the model's part under the row it describes", () => {
+    const parts = new Map([
+      ["routes.ts#handler", { part: "Entry point for saving settings.", weight: "essential" }],
+    ]);
+    render(<ChangeMapList sections={[THREAD]} onOpen={vi.fn()} parts={parts} />);
+    expect(screen.getByText("Entry point for saving settings.")).toBeTruthy();
+  });
 });
