@@ -7,6 +7,7 @@ const NOW = Date.parse("2026-10-26T12:00:00Z");
 const EMPTY: Session = {
   currentStepId: null,
   lastHeadSha: null,
+  baselineHeadSha: null,
   updatedAt: null,
   pause: null,
   doneSteps: [],
@@ -15,6 +16,7 @@ const EMPTY: Session = {
   jumps: [],
   assistThreads: [],
   contextSymbols: [],
+  submissions: [],
 };
 
 function review(session: Partial<Session>, reopenedStepIds: string[] = []): ReviewPayload {

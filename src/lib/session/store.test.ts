@@ -55,6 +55,49 @@ describe("SessionStore", () => {
     expect(store.getSession(KEY).lastHeadSha).toBe("sha9");
   });
 
+  it("keeps the head you had seen as the baseline when a push arrives", () => {
+    store.markSeen(KEY, "sha1");
+    store.markSeen(KEY, "sha2");
+    expect(store.getSession(KEY)).toMatchObject({ baselineHeadSha: "sha1", lastHeadSha: "sha2" });
+  });
+
+  it("does not move the baseline on a second push", () => {
+    store.markSeen(KEY, "sha1");
+    store.markSeen(KEY, "sha2");
+    store.markSeen(KEY, "sha3");
+    expect(store.getSession(KEY)).toMatchObject({ baselineHeadSha: "sha1", lastHeadSha: "sha3" });
+  });
+
+  it("forgets the baseline on catch-up", () => {
+    store.markSeen(KEY, "sha1");
+    store.markSeen(KEY, "sha2");
+    store.catchUp(KEY);
+    expect(store.getSession(KEY).baselineHeadSha).toBeNull();
+  });
+
+  it("first load sets no baseline", () => {
+    store.markSeen(KEY, "sha1");
+    expect(store.getSession(KEY).baselineHeadSha).toBeNull();
+  });
+
+  it("clears the baseline when start over runs", () => {
+    store.markSeen(KEY, "sha1");
+    store.markSeen(KEY, "sha2");
+    store.startOver(KEY, true);
+    expect(store.getSession(KEY).baselineHeadSha).toBeNull();
+  });
+
+  it("reopens a finished review when the head moves", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.markSeen(KEY, "sha1");
+    store.addNote(KEY, { path: null, line: null, kind: "nitpick", decorations: [], body: "x" });
+    store.markFinished(KEY);
+    store.markSeen(KEY, "sha1");
+    expect(store.inProgress()).toEqual([]);
+    store.markSeen(KEY, "sha2");
+    expect(store.inProgress()).toEqual([expect.objectContaining({ key: KEY, title: "Add retry" })]);
+  });
+
   it("marks steps done and undone", () => {
     store.setStepDone(KEY, "s1", true);
     store.setStepDone(KEY, "s2", true);
@@ -293,7 +336,102 @@ describe("SessionStore", () => {
     store.setStepDone(KEY, "s1", true);
     store.setCurrentStep(KEY, "s2", "sha1");
     expect(store.progressSummaries([KEY, "other#1"])).toEqual({
-      [KEY]: { doneCount: 1, lastHeadSha: "sha1", updatedAt: "2026-10-26T10:00:00.000Z" },
+      [KEY]: {
+        doneCount: 1,
+        noteCount: 0,
+        lastHeadSha: "sha1",
+        updatedAt: "2026-10-26T10:00:00.000Z",
+        pause: null,
+      },
     });
+  });
+
+  it("includes the pause note in the summary", () => {
+    store.pause(KEY, "about to read the tests");
+    expect(store.progressSummaries([KEY])[KEY]?.pause).toEqual({
+      note: "about to read the tests",
+      at: "2026-10-26T10:00:00.000Z",
+    });
+  });
+
+  it("adds the title and finished columns to a database created before them", () => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "review-queue-")), "old.db");
+    const old = new DatabaseSync(file);
+    old.exec(
+      "CREATE TABLE sessions (pr_key TEXT PRIMARY KEY, current_step TEXT, head_sha TEXT, pause_note TEXT, paused_at TEXT, updated_at TEXT NOT NULL)",
+    );
+    old.close();
+    const upgraded = new SessionStore(file);
+    upgraded.rememberTitle(KEY, "Add retry");
+    expect(upgraded.inProgress()).toEqual([]);
+  });
+
+  it("remembers the PR title and lists sessions with progress that are not finished", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.setStepDone(KEY, "s1", true);
+    store.rememberTitle("acme/app#8", "Only opened");
+    store.rememberTitle("acme/app#9", "Posted");
+    store.addNote("acme/app#9", {
+      path: null,
+      line: null,
+      kind: "nitpick",
+      decorations: [],
+      body: "x",
+    });
+    store.markFinished("acme/app#9");
+    expect(store.inProgress()).toEqual([
+      {
+        key: KEY,
+        title: "Add retry",
+        doneCount: 1,
+        pauseNote: null,
+        updatedAt: "2026-10-26T10:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("keeps a receipt of each posted review, newest first", () => {
+    const submission = {
+      reviewId: 1,
+      url: "https://github.com/acme/app/pull/7#pullrequestreview-1",
+      event: "COMMENT" as const,
+      headSha: "sha1",
+      body: "first",
+    };
+    store.recordSubmission(KEY, submission);
+    now += 1000;
+    store.recordSubmission(KEY, { ...submission, reviewId: 2, body: "second" });
+    expect(store.getSession(KEY).submissions).toEqual([
+      {
+        reviewId: 2,
+        url: submission.url,
+        event: "COMMENT",
+        headSha: "sha1",
+        body: "second",
+        postedAt: "2026-10-26T10:00:01.000Z",
+      },
+      {
+        reviewId: 1,
+        url: submission.url,
+        event: "COMMENT",
+        headSha: "sha1",
+        body: "first",
+        postedAt: "2026-10-26T10:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("keeps receipts across start over", () => {
+    store.recordSubmission(KEY, {
+      reviewId: 1,
+      url: "https://github.com/acme/app/pull/7#pullrequestreview-1",
+      event: "APPROVE",
+      headSha: "sha1",
+      body: "",
+    });
+    store.setStepDone(KEY, "s1", true);
+    store.startOver(KEY, false);
+    expect(store.getSession(KEY).doneSteps).toEqual([]);
+    expect(store.getSession(KEY).submissions).toHaveLength(1);
   });
 });

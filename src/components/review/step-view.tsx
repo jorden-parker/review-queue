@@ -14,6 +14,7 @@ import { CodeLine, type LineHandlers } from "./code-line";
 import { FileAskButton } from "./file-ask-button";
 import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
+import { threadsAt, type Thread } from "./conversation-threads";
 import { isInTarget, isSameLine, lineElementId, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
 import { occurrenceAt, type Occurrences } from "./occurrences";
@@ -24,6 +25,7 @@ export type StepViewContext = {
   hotspots: DisplayHotspot[];
   checkedHotspots: string[];
   notes: Note[];
+  threads: Thread[];
   composer: LineTarget | null;
   landed: LineTarget | null;
   occurrences: Occurrences | null;
@@ -34,8 +36,33 @@ export type StepViewContext = {
     onSaveNote: (target: LineTarget, tag: NoteTag, body: string) => void;
     onCancelNote: () => void;
     onShowReferences: (position: SymbolPosition) => void;
+    onOpenConversation: () => void;
   };
 };
+
+function targetOn(path: string, lineNumber: number | null): LineTarget | null {
+  return lineNumber !== null ? { path, line: lineNumber } : null;
+}
+
+function isComposingAt(composer: LineTarget | null, target: LineTarget | null): boolean {
+  return target !== null && isSameLine(composer, target.path, target.line);
+}
+
+function isLandedAt(landed: LineTarget | null, target: LineTarget | null): boolean {
+  return target !== null && isInTarget(landed, target.path, target.line);
+}
+
+function lensAt(
+  lenses: Map<number, ReferenceCount>,
+  lineNumber: number | null,
+): ReferenceCount | undefined {
+  return lineNumber !== null ? lenses.get(lineNumber) : undefined;
+}
+
+function threadCountAt(threads: Thread[], path: string, lineNumber: number | null): number {
+  if (lineNumber === null) return 0;
+  return threadsAt(threads, path, lineNumber).length;
+}
 
 function lensesOf(context: StepViewContext, path: string): Map<number, ReferenceCount> {
   const counts = context.referenceCounts.get(path) ?? [];
@@ -104,10 +131,10 @@ function HunkBlock({
       </div>
       {hunk.lines.map((line, lineIndex) => {
         const lineNumber = line.newLine;
-        const target = lineNumber !== null ? { path: file.path, line: lineNumber } : null;
-        const composing = target && isSameLine(context.composer, target.path, target.line);
-        const landed = target && isInTarget(context.landed, target.path, target.line);
-        const lens = lineNumber !== null ? lenses.get(lineNumber) : undefined;
+        const target = targetOn(file.path, lineNumber);
+        const composing = isComposingAt(context.composer, target);
+        const landed = isLandedAt(context.landed, target);
+        const lens = lensAt(lenses, lineNumber);
         return (
           <div key={lineIndex}>
             {lens && (
@@ -129,6 +156,8 @@ function HunkBlock({
                 (note) =>
                   note.path === file.path && note.line === lineNumber && lineNumber !== null,
               )}
+              threadCount={threadCountAt(context.threads, file.path, lineNumber)}
+              onOpenThreads={context.handlers.onOpenConversation}
               elementId={target ? lineElementId(target) : undefined}
               landed={landed ? context.landed : null}
               occurrence={occurrenceAt(context.occurrences, file.path, lineNumber)}

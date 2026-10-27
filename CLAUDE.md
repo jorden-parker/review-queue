@@ -40,6 +40,25 @@ steps (`lib/plan/`), and highlights code with shiki (`lib/highlight.ts`). The
 result is a `PreparedReview`, memoized in a `globalThis` map keyed by PR and
 head SHA.
 
+**Re-review after a push** (`review_baselines` table,
+`lib/review/interdiff.ts`). When `markSeen` sees a new head, it stores the
+previous head as the session's baseline (once, so a second push does not move
+it) and clears `finished_at` so the PR shows as in progress again. The
+`catch-up` session action clears the baseline. `changes?sha=` returns the
+interdiff from the baseline (404 when there is none), `head` returns the current
+head, and `submit` answers 409 when the PR head no longer matches the `headSha`
+being posted.
+
+**PR conversation and receipts** (`lib/github/conversation.ts`, `gh.ts`,
+`components/review/conversation-*`). The `conversation` route reads the first
+100 review comments and reviews through `conditionalGet` (ETag cache in the
+store, TTL cache in `services.ts`), and the "On GitHub" pane shows them with
+threads per line. `submitReview` returns the created review's id and URL, and
+the `submissions` table keeps a receipt of each post. "Start over" never clears
+receipts. Comment and review bodies are author-written: they render through
+`Markdown` only, and they must stay out of `ReviewData` and every model prompt
+(`src/lib/llm/**`, `assist-service.ts`).
+
 **API routes** (`src/app/api/pr/[owner]/[repo]/[number]/*`). The base route
 loads the review. `definitions`, `references` and `orientation` take `?sha=` and
 use `preparedFromRequest` (`lib/review/route-context.ts`), which returns 409 if

@@ -51,6 +51,8 @@ const RENDERED_BODY = "Accept: application/vnd.github.full+json";
 
 const SEARCH_FIELDS = "number,title,url,repository,author,updatedAt,isDraft";
 
+export const REVIEW_REQUEST_LIMIT = 100;
+
 function refFromSearch(result: SearchResult): PullRequestRef {
   const [owner, repo] = result.repository.nameWithOwner.split("/");
   return { owner, repo, number: result.number };
@@ -62,7 +64,7 @@ export async function listReviewRequests(run: Runner = githubRun): Promise<Revie
     "prs",
     "--review-requested=@me",
     "--state=open",
-    "--limit=50",
+    `--limit=${REVIEW_REQUEST_LIMIT}`,
     `--json=${SEARCH_FIELDS}`,
   ]);
   return (JSON.parse(output) as SearchResult[]).map((result) => ({
@@ -103,14 +105,14 @@ export async function submitReview(
   ref: PullRequestRef,
   review: ReviewSubmission,
   run: Runner = githubRun,
-): Promise<void> {
+): Promise<{ id: number; url: string }> {
   const payload = {
     event: review.event,
     body: review.body,
     commit_id: review.commitId,
     comments: review.comments.map((comment) => ({ ...comment, side: "RIGHT" })),
   };
-  await run(
+  const output = await run(
     "gh",
     [
       "api",
@@ -122,4 +124,104 @@ export async function submitReview(
     ],
     { input: JSON.stringify(payload) },
   );
+  const created = JSON.parse(output) as { id: number; html_url: string };
+  return { id: created.id, url: created.html_url };
+}
+
+export type ReviewComment = {
+  id: number;
+  inReplyTo: number | null;
+  path: string;
+  line: number | null;
+  side: "LEFT" | "RIGHT";
+  author: string;
+  body: string;
+  url: string;
+  createdAt: string;
+};
+
+export type PostedReview = {
+  id: number;
+  author: string;
+  state: "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED" | "PENDING";
+  body: string;
+  url: string;
+  submittedAt: string | null;
+  commitId: string;
+};
+
+type RawUser = { login: string } | null;
+
+type RawReviewComment = {
+  id: number;
+  in_reply_to_id?: number | null;
+  path: string;
+  line: number | null;
+  side: "LEFT" | "RIGHT";
+  user: RawUser;
+  body: string;
+  html_url: string;
+  created_at: string;
+};
+
+type RawReview = {
+  id: number;
+  user: RawUser;
+  state: PostedReview["state"];
+  body: string;
+  html_url: string;
+  submitted_at: string | null;
+  commit_id: string;
+};
+
+export const CONVERSATION_PAGE_SIZE = 100;
+
+function pullPath(ref: PullRequestRef): string {
+  return `repos/${ref.owner}/${ref.repo}/pulls/${ref.number}`;
+}
+
+function toReviewComment(raw: RawReviewComment): ReviewComment {
+  return {
+    id: raw.id,
+    inReplyTo: raw.in_reply_to_id ?? null,
+    path: raw.path,
+    line: raw.line,
+    side: raw.side,
+    author: raw.user?.login ?? "",
+    body: raw.body,
+    url: raw.html_url,
+    createdAt: raw.created_at,
+  };
+}
+
+function toPostedReview(raw: RawReview): PostedReview {
+  return {
+    id: raw.id,
+    author: raw.user?.login ?? "",
+    state: raw.state,
+    body: raw.body,
+    url: raw.html_url,
+    submittedAt: raw.submitted_at,
+    commitId: raw.commit_id,
+  };
+}
+
+export async function listReviewComments(
+  ref: PullRequestRef,
+  cache: EtagCache,
+  run: Runner = githubRun,
+): Promise<ReviewComment[]> {
+  const path = `${pullPath(ref)}/comments?per_page=${CONVERSATION_PAGE_SIZE}`;
+  const comments = JSON.parse(await conditionalGet(path, cache, run)) as RawReviewComment[];
+  return comments.map(toReviewComment);
+}
+
+export async function listReviews(
+  ref: PullRequestRef,
+  cache: EtagCache,
+  run: Runner = githubRun,
+): Promise<PostedReview[]> {
+  const path = `${pullPath(ref)}/reviews?per_page=${CONVERSATION_PAGE_SIZE}`;
+  const reviews = JSON.parse(await conditionalGet(path, cache, run)) as RawReview[];
+  return reviews.map(toPostedReview);
 }

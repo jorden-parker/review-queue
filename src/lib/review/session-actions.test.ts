@@ -202,6 +202,13 @@ describe("applySessionAction", () => {
     expect(run(store, { type: "start-over", keepNotes: false }).notes).toEqual([]);
   });
 
+  it("catches up on a moved head by clearing the baseline", () => {
+    const store = new SessionStore(":memory:");
+    store.markSeen(KEY, "sha1");
+    store.markSeen(KEY, "sha2");
+    expect(run(store, { type: "catch-up" }).baselineHeadSha).toBeNull();
+  });
+
   it("rejects malformed actions", () => {
     expect(() => SessionActionSchema.parse({ type: "note-add", body: "" })).toThrow();
     expect(() => SessionActionSchema.parse({ type: "explode" })).toThrow();

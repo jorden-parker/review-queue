@@ -71,6 +71,7 @@ export const SessionActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("symbol-seen"), symbol: SymbolSchema }),
   z.object({ type: z.literal("symbol-pin"), symbol: SymbolSchema, pinned: z.boolean() }),
   z.object({ type: z.literal("start-over"), keepNotes: z.boolean() }),
+  z.object({ type: z.literal("catch-up") }),
   z.object({ type: z.literal("assist-save"), thread: AssistThreadSchema }),
   z.object({ type: z.literal("assist-delete"), id: z.uuid() }),
 ]);
@@ -103,6 +104,7 @@ const HANDLERS: Handlers = {
   "symbol-seen": (store, key, action) => store.recordSymbolSeen(key, action.symbol),
   "symbol-pin": (store, key, action) => store.setSymbolPinned(key, action.symbol, action.pinned),
   "start-over": (store, key, action) => store.startOver(key, action.keepNotes),
+  "catch-up": (store, key) => store.catchUp(key),
   "assist-save": (store, key, action) => store.saveAssistThread(key, action.thread),
   "assist-delete": (store, key, action) => store.deleteAssistThread(key, action.id),
 };

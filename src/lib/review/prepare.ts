@@ -34,7 +34,7 @@ export type PreparedReview = {
   data: ReviewData;
   index: SymbolIndex;
   clientFor: ClientFor;
-  changedSince: (sha: string) => Promise<string[]>;
+  diffFrom: (sha: string) => Promise<FileDiff[]>;
 };
 
 export type ReviewPayload = ReviewData & {
@@ -78,13 +78,7 @@ async function build(pr: PullRequest, deps: ReviewDeps): Promise<PreparedReview>
     churn: await fileChurn(checkout),
     callerCounts: await callerCounts(diffs, index),
   });
-  const files = await Promise.all(
-    diffs.map(async (diff) => ({
-      ...diff,
-      highlighted: await highlightFile(diff),
-      navigable: languageFor(diff.path) !== null,
-    })),
-  );
+  const files = await prepareFiles(diffs);
   const data: ReviewData = {
     pr,
     headSha: checkout.headSha,
@@ -102,9 +96,18 @@ async function build(pr: PullRequest, deps: ReviewDeps): Promise<PreparedReview>
     data,
     index,
     clientFor,
-    changedSince: async (sha) =>
-      (await diffCheckout(checkout, sha).catch(() => diffs)).map((diff) => diff.path),
+    diffFrom: (sha) => diffCheckout(checkout, sha).catch(() => diffs),
   };
+}
+
+export function prepareFiles(diffs: FileDiff[]): Promise<PreparedFile[]> {
+  return Promise.all(
+    diffs.map(async (diff) => ({
+      ...diff,
+      highlighted: await highlightFile(diff),
+      navigable: languageFor(diff.path) !== null,
+    })),
+  );
 }
 
 function cacheKey(ref: PullRequestRef, headSha: string): string {
@@ -129,7 +132,7 @@ async function reopenChangedSteps(review: PreparedReview, store: SessionStore): 
   const key = prKey(review.data.pr.ref);
   const session = store.getSession(key);
   if (!session.lastHeadSha || session.lastHeadSha === review.data.headSha) return [];
-  const changed = new Set(await review.changedSince(session.lastHeadSha));
+  const changed = new Set((await review.diffFrom(session.lastHeadSha)).map((diff) => diff.path));
   const reopened = review.data.steps
     .filter((step) => session.doneSteps.includes(step.id))
     .filter((step) => step.files.some((file) => changed.has(file.path)))
@@ -143,5 +146,6 @@ export async function loadReview(ref: PullRequestRef, deps: ReviewDeps): Promise
   const review = await preparedReview(pr, deps);
   const reopenedStepIds = await reopenChangedSteps(review, deps.store);
   deps.store.markSeen(prKey(ref), review.data.headSha);
+  deps.store.rememberTitle(prKey(ref), pr.title);
   return { ...review.data, pr, session: deps.store.getSession(prKey(ref)), reopenedStepIds };
 }
