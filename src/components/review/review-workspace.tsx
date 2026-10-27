@@ -242,7 +242,7 @@ function NotesPane({ session, workspace }: PaneProps) {
     <NotesPanel
       notes={session.notes}
       parkingRef={workspace.parkingInput}
-      onPark={(body) => workspace.saveNote(null, "parked", body)}
+      onPark={(body) => workspace.saveNote(null, { kind: "parked", decorations: [] }, body)}
       onOpen={(note) => note.path && workspace.goTo({ path: note.path, line: note.line ?? 1 })}
       onEdit={workspace.editNote}
       onDelete={workspace.deleteNote}
@@ -521,8 +521,8 @@ function WorkspaceAssist({ workspace }: { workspace: Workspace }) {
       label={targetLabel(hunks, target)}
       commentLine={targetCommentLine(hunks, target)}
       citationsOf={citationsOf}
-      onSaveNote={(line, kind, body) =>
-        workspace.saveNote(line === null ? null : { path, line }, kind, body)
+      onSaveNote={(line, tag, body) =>
+        workspace.saveNote(line === null ? null : { path, line }, tag, body)
       }
       onShowLines={() => workspace.goTo({ path, line: targetFirstLine(hunks, target) })}
       onShowCitation={(citation) =>
@@ -606,7 +606,7 @@ export function ReviewWorkspace({
         onCheckFlag: workspace.aiEnabled
           ? (range) => workspace.assist.open({ kind: "lines", range }, "check")
           : null,
-        onSaveNote: (target, kind, body) => workspace.saveNote(target, kind, body),
+        onSaveNote: (target, tag, body) => workspace.saveNote(target, tag, body),
         onCancelNote: () => workspace.setComposer(null),
         onShowReferences: workspace.peek.showReferences,
       },

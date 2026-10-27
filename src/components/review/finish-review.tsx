@@ -7,6 +7,7 @@ import { AppDialog } from "@/components/common/app-dialog";
 import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { PathLabel } from "@/components/common/path-label";
+import { isBlocking } from "@/lib/review/conventional-comment";
 import { plural } from "@/lib/plural";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,7 +41,7 @@ const POST_LABELS: Record<ReviewEvent, string> = {
 };
 
 function defaultEvent(notes: Note[], unfinished: string | null): ReviewEvent {
-  if (notes.some((note) => note.kind === "blocker")) return "REQUEST_CHANGES";
+  if (notes.some(isBlocking)) return "REQUEST_CHANGES";
   if (unfinished === null && !notes.some((note) => note.kind === "question")) return "APPROVE";
   return "COMMENT";
 }
@@ -112,7 +113,7 @@ function NoteChecklist({ notes, selected, onToggle }: NoteChecklistProps) {
             onCheckedChange={() => onToggle(note.id)}
             className="mt-0.5"
           />
-          <NoteKindBadge kind={note.kind} />
+          <NoteKindBadge tag={note} />
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             {note.body}
             {note.path && <PathLabel path={note.path} line={note.line} />}

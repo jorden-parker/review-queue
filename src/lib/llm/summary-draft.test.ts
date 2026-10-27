@@ -8,7 +8,8 @@ const NOTES: Note[] = [
     id: 1,
     path: "src/a.ts",
     line: 12,
-    kind: "blocker",
+    kind: "issue",
+    decorations: ["blocking"],
     body: "Cache never evicts",
     createdAt: "2026-10-26T10:00:00Z",
   },
@@ -17,6 +18,7 @@ const NOTES: Note[] = [
     path: null,
     line: null,
     kind: "question",
+    decorations: [],
     body: "Why retry twice?",
     createdAt: "2026-10-26T10:01:00Z",
   },
@@ -64,7 +66,7 @@ function scriptedFetch(texts: string[]) {
 describe("buildSummaryPrompt", () => {
   it("lists each note with its location and states the verdict", () => {
     const prompt = buildSummaryPrompt(INPUT);
-    expect(prompt).toContain("- [blocker] Cache never evicts (src/a.ts:12)");
+    expect(prompt).toContain("- [issue (blocking)] Cache never evicts (src/a.ts:12)");
     expect(prompt).toContain("- [question] Why retry twice?");
     expect(prompt).not.toContain("- [question] Why retry twice? (");
     expect(prompt).toContain("REQUEST_CHANGES");

@@ -5,7 +5,16 @@ import type { Note } from "@/lib/types";
 import { FinishReview } from "./finish-review";
 
 function note(overrides: Partial<Note>): Note {
-  return { id: 1, path: null, line: null, kind: "nit", body: "x", createdAt: "", ...overrides };
+  return {
+    id: 1,
+    path: null,
+    line: null,
+    kind: "nitpick",
+    decorations: [],
+    body: "x",
+    createdAt: "",
+    ...overrides,
+  };
 }
 
 function renderDialog({
@@ -34,7 +43,7 @@ describe("FinishReview", () => {
   it("keeps parked notes out of the checklist", () => {
     renderDialog({
       notes: [
-        note({ id: 2, kind: "nit", body: "rename this" }),
+        note({ id: 2, kind: "nitpick", body: "rename this" }),
         note({ id: 3, kind: "parked", body: "lunch plans" }),
       ],
       stepsLeft: 1,
@@ -57,7 +66,9 @@ describe("FinishReview", () => {
   });
 
   it("defaults to Request changes when a blocker exists", () => {
-    renderDialog({ notes: [note({ id: 2, kind: "blocker", body: "this leaks" })] });
+    renderDialog({
+      notes: [note({ id: 2, kind: "issue", decorations: ["blocking"], body: "this leaks" })],
+    });
     expect(screen.getByRole("button", { name: "Request changes on GitHub" })).toBeTruthy();
   });
 
@@ -65,7 +76,7 @@ describe("FinishReview", () => {
     const user = userEvent.setup();
     const { onSubmit } = renderDialog({
       notes: [
-        note({ id: 2, kind: "nit", body: "rename" }),
+        note({ id: 2, kind: "nitpick", body: "rename" }),
         note({ id: 3, kind: "parked", body: "lunch" }),
       ],
     });

@@ -1,12 +1,6 @@
 import type { ReviewEvent, ReviewSubmission } from "@/lib/github/gh";
 import type { Note, NoteKind } from "@/lib/types";
-
-const LABELS: Record<Exclude<NoteKind, "parked">, string> = {
-  blocker: "**Blocker:**",
-  question: "**Question:**",
-  nit: "**Nit:**",
-  praise: "**Nice:**",
-};
+import { conventionalLabel } from "./conventional-comment";
 
 type PostableNote = Note & { kind: Exclude<NoteKind, "parked"> };
 
@@ -15,7 +9,7 @@ function isPostable(note: Note): note is PostableNote {
 }
 
 function labelled(note: PostableNote): string {
-  return `${LABELS[note.kind]} ${note.body}`;
+  return `**${conventionalLabel(note)}:** ${note.body}`;
 }
 
 function isLineComment<T extends Note>(note: T): note is T & { path: string; line: number } {

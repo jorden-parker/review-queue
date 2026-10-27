@@ -100,13 +100,37 @@ export type SymbolPosition = {
   side: DiffSide;
 };
 
-export type NoteKind = "blocker" | "question" | "nit" | "praise" | "parked";
+export const NOTE_LABELS = [
+  "praise",
+  "nitpick",
+  "suggestion",
+  "issue",
+  "todo",
+  "question",
+  "thought",
+  "chore",
+  "note",
+  "typo",
+  "polish",
+  "quibble",
+] as const;
+
+export type NoteLabel = (typeof NOTE_LABELS)[number];
+
+export type NoteKind = NoteLabel | "parked";
+
+export const NOTE_DECORATIONS = ["blocking", "non-blocking", "if-minor"] as const;
+
+export type NoteDecoration = (typeof NOTE_DECORATIONS)[number];
+
+export type NoteTag = { kind: NoteKind; decorations: NoteDecoration[] };
 
 export type Note = {
   id: number;
   path: string | null;
   line: number | null;
   kind: NoteKind;
+  decorations: NoteDecoration[];
   body: string;
   createdAt: string;
 };

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SessionStore } from "@/lib/session/store";
+import { NOTE_LABELS } from "@/lib/types";
 import { applySessionAction, SessionActionSchema } from "./session-actions";
 
 const KEY = "acme/app#1";
@@ -15,7 +16,14 @@ describe("applySessionAction", () => {
     run(store, { type: "current-step", stepId: "s1", headSha: HEAD_SHA });
     run(store, { type: "step-done", stepId: "s1", done: true });
     run(store, { type: "hotspot-checked", hotspotId: "h1", checked: true });
-    run(store, { type: "note-add", path: "a.ts", line: 2, kind: "nit", body: " rename " });
+    run(store, {
+      type: "note-add",
+      path: "a.ts",
+      line: 2,
+      kind: "nitpick",
+      decorations: [],
+      body: " rename ",
+    });
     run(store, { type: "jump-push", name: "f", path: "a.ts", line: 1 });
     run(store, { type: "jump-push", name: "g", path: "b.ts", line: 1 });
     run(store, { type: "jump-pop" });
@@ -33,19 +41,90 @@ describe("applySessionAction", () => {
     expect(run(store, { type: "jump-clear" }).jumps).toEqual([]);
   });
 
-  it("edits a note's kind and body", () => {
+  it("edits a note's kind, decorations and body", () => {
     const store = new SessionStore(":memory:");
     const added = run(store, {
       type: "note-add",
       path: null,
       line: null,
-      kind: "nit",
+      kind: "nitpick",
+      decorations: [],
       body: "typo",
     });
     const id = added.notes[0].id;
-    const session = run(store, { type: "note-edit", id, kind: "blocker", body: " leaks " });
-    expect(session.notes[0]).toMatchObject({ id, kind: "blocker", body: "leaks" });
-    expect(() => run(store, { type: "note-edit", id, kind: "nit", body: "  " })).toThrow();
+    const session = run(store, {
+      type: "note-edit",
+      id,
+      kind: "issue",
+      decorations: ["blocking"],
+      body: " leaks ",
+    });
+    expect(session.notes[0]).toMatchObject({
+      id,
+      kind: "issue",
+      decorations: ["blocking"],
+      body: "leaks",
+    });
+    expect(() =>
+      run(store, { type: "note-edit", id, kind: "nitpick", decorations: [], body: "  " }),
+    ).toThrow();
+  });
+
+  it("stores any label with decorations and rejects the old blocker label", () => {
+    const store = new SessionStore(":memory:");
+    const session = run(store, {
+      type: "note-add",
+      path: null,
+      line: null,
+      kind: "suggestion",
+      decorations: ["non-blocking", "if-minor"],
+      body: "extract a helper",
+    });
+    expect(session.notes[0]).toMatchObject({
+      kind: "suggestion",
+      decorations: ["non-blocking", "if-minor"],
+    });
+    expect(() =>
+      run(store, {
+        type: "note-add",
+        path: null,
+        line: null,
+        kind: "blocker",
+        decorations: [],
+        body: "x",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects contradictory blocking decorations", () => {
+    const store = new SessionStore(":memory:");
+    expect(() =>
+      run(store, {
+        type: "note-add",
+        path: null,
+        line: null,
+        kind: "issue",
+        decorations: ["blocking", "non-blocking"],
+        body: "x",
+      }),
+    ).toThrow();
+  });
+
+  it("offers the twelve Conventional Comments labels in order", () => {
+    expect(NOTE_LABELS).toEqual([
+      "praise",
+      "nitpick",
+      "suggestion",
+      "issue",
+      "todo",
+      "question",
+      "thought",
+      "chore",
+      "note",
+      "typo",
+      "polish",
+      "quibble",
+    ]);
   });
 
   it("saves, updates and deletes model chats", () => {
@@ -109,7 +188,14 @@ describe("applySessionAction", () => {
   it("starts over and drops notes only when asked", () => {
     const store = new SessionStore(":memory:");
     run(store, { type: "step-done", stepId: "s1", done: true });
-    run(store, { type: "note-add", path: null, line: null, kind: "parked", body: "later" });
+    run(store, {
+      type: "note-add",
+      path: null,
+      line: null,
+      kind: "parked",
+      decorations: [],
+      body: "later",
+    });
     const kept = run(store, { type: "start-over", keepNotes: true });
     expect(kept.doneSteps).toEqual([]);
     expect(kept.notes).toHaveLength(1);

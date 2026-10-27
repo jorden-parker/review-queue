@@ -3,45 +3,68 @@
 import { useState } from "react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Textarea } from "@/components/ui/textarea";
-import type { NoteKind } from "@/lib/types";
-import { LINE_NOTE_KINDS, NOTE_KIND_LABELS, NOTE_KIND_STYLES } from "./note-kinds";
+import { exclusiveDecorations } from "@/lib/review/conventional-comment";
+import { NOTE_DECORATIONS, NOTE_LABELS, type NoteDecoration, type NoteTag } from "@/lib/types";
+import { NOTE_KIND_HINTS, NOTE_KIND_LABELS, NOTE_KIND_STYLES } from "./note-kinds";
 
 type NoteComposerProps = {
-  onSave: (kind: NoteKind, body: string) => void;
+  onSave: (tag: NoteTag, body: string) => void;
   onCancel: () => void;
 };
 
-export function NoteKindPicker({
-  kind,
+export function NoteTagPicker({
+  tag,
   onChange,
 }: {
-  kind: NoteKind;
-  onChange: (kind: NoteKind) => void;
+  tag: NoteTag;
+  onChange: (tag: NoteTag) => void;
 }) {
   return (
-    <div className="flex items-center gap-1">
-      {LINE_NOTE_KINDS.map((option) => (
-        <Button
-          key={option}
-          variant="ghost"
-          size="xs"
-          onClick={() => onChange(option)}
-          className={cn("rounded-full", option === kind && NOTE_KIND_STYLES[option])}
-        >
-          {NOTE_KIND_LABELS[option]}
-        </Button>
-      ))}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-1">
+        {NOTE_LABELS.map((option) => (
+          <Button
+            key={option}
+            variant="ghost"
+            size="xs"
+            onClick={() => onChange({ ...tag, kind: option })}
+            className={cn("rounded-full", option === tag.kind && NOTE_KIND_STYLES[option])}
+          >
+            {NOTE_KIND_LABELS[option]}
+          </Button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">{NOTE_KIND_HINTS[tag.kind]}</p>
+      <ToggleGroup
+        type="multiple"
+        size="sm"
+        value={tag.decorations}
+        onValueChange={(next) =>
+          onChange({
+            ...tag,
+            decorations: exclusiveDecorations(tag.decorations, next as NoteDecoration[]),
+          })
+        }
+        className="flex-wrap"
+      >
+        {NOTE_DECORATIONS.map((decoration) => (
+          <ToggleGroupItem key={decoration} value={decoration} className="text-xs">
+            {decoration}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
     </div>
   );
 }
 
 export function NoteComposer({ onSave, onCancel }: NoteComposerProps) {
-  const [kind, setKind] = useState<NoteKind>("question");
+  const [tag, setTag] = useState<NoteTag>({ kind: "question", decorations: [] });
   const [body, setBody] = useState("");
 
   function save() {
-    if (body.trim()) onSave(kind, body.trim());
+    if (body.trim()) onSave(tag, body.trim());
   }
 
   function handleKey(event: React.KeyboardEvent) {
@@ -52,7 +75,7 @@ export function NoteComposer({ onSave, onCancel }: NoteComposerProps) {
 
   return (
     <div className="flex animate-step-enter flex-col gap-2 border-y bg-card p-3 font-sans">
-      <NoteKindPicker kind={kind} onChange={setKind} />
+      <NoteTagPicker tag={tag} onChange={setTag} />
       <Textarea
         autoFocus
         value={body}

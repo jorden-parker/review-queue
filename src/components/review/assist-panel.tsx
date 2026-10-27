@@ -7,11 +7,11 @@ import { type CitationRenderer, Markdown } from "@/components/common/markdown-te
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { AssistThread, AssistTurn } from "@/lib/assist-protocol";
-import type { NoteKind } from "@/lib/types";
+import type { NoteTag } from "@/lib/types";
 import { actionLabel, awaitsQuestion, canFollowUp, questionPrompt } from "./assist-thread";
 import { CitationChip, CitationWalk } from "./citation-walk";
 import type { Citation } from "./citations";
-import { NoteKindPicker } from "./note-composer";
+import { NoteTagPicker } from "./note-composer";
 import { useStickToBottom } from "./use-stick-to-bottom";
 import type { Assist } from "./use-assist";
 
@@ -21,7 +21,7 @@ type AssistPanelProps = {
   label: string;
   commentLine: number | null;
   citationsOf: (text: string) => Citation[];
-  onSaveNote: (line: number | null, kind: NoteKind, body: string) => void;
+  onSaveNote: (line: number | null, tag: NoteTag, body: string) => void;
   onShowLines: () => void;
   onShowCitation: (citation: Citation) => void;
 };
@@ -111,18 +111,18 @@ function CommentDraft({
 }: {
   draft: string;
   commentLine: number | null;
-  onSave: (kind: NoteKind, body: string) => void;
+  onSave: (tag: NoteTag, body: string) => void;
 }) {
-  const [kind, setKind] = useState<NoteKind>("question");
+  const [tag, setTag] = useState<NoteTag>({ kind: "question", decorations: [] });
   const [body, setBody] = useState(draft.trim());
   const [saved, setSaved] = useState(false);
   const save = () => {
-    onSave(kind, body.trim());
+    onSave(tag, body.trim());
     setSaved(true);
   };
   return (
     <div className="flex flex-col gap-2 rounded-lg border p-3">
-      <NoteKindPicker kind={kind} onChange={setKind} />
+      <NoteTagPicker tag={tag} onChange={setTag} />
       <Textarea
         aria-label="Comment draft"
         value={body}
@@ -251,7 +251,7 @@ export function AssistPanel({
             key={last.text}
             draft={last.text}
             commentLine={commentLine}
-            onSave={(kind, body) => onSaveNote(commentLine, kind, body)}
+            onSave={(tag, body) => onSaveNote(commentLine, tag, body)}
           />
         )}
       </div>
