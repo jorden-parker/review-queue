@@ -23,6 +23,7 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut("g", "r")).toBe("peek-references");
     expect(resolveShortcut("g", "c")).toBe("open-context");
     expect(resolveShortcut("g", "o")).toBe("open-outline");
+    expect(resolveShortcut("g", "m")).toBe("open-map");
   });
 
   it("drops unknown chords and keys", () => {

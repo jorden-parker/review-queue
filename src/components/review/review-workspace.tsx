@@ -12,6 +12,7 @@ import {
   type LucideIcon,
   MapPin,
   MessagesSquare,
+  Network,
   RotateCcw,
   Route,
   Send,
@@ -43,6 +44,7 @@ import { AssistPanel } from "./assist-panel";
 import { citationsInText, parseCitation } from "./citations";
 import { FinishReview } from "./finish-review";
 import { FocusTimer } from "./focus-timer";
+import { ChangeMapList } from "./change-map-list";
 import { ContextList } from "./context-list";
 import { contextCount } from "./context-symbols";
 import { HotspotList } from "./hotspot-list";
@@ -52,6 +54,7 @@ import { OrientationCard } from "./orientation-card";
 import { PauseDialog } from "./pause-dialog";
 import { PeekPanel } from "./peek-panel";
 import { PostedToast } from "./posted-toast";
+import { mapSections } from "./map-rows";
 import { ORDERING_MESSAGE, ReadingPath } from "./reading-path";
 import { ResumeCard } from "./resume-card";
 import { ShortcutHelp } from "./shortcut-help";
@@ -82,6 +85,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
   { id: "about", label: "About", icon: Compass },
   { id: "step", label: "Step", icon: MapPin },
   { id: "path", label: "Path", icon: Route },
+  { id: "map", label: "Map", icon: Network },
   { id: "hotspots", label: "Hotspots", icon: Flame },
   { id: "notes", label: "Notes", icon: StickyNote },
   { id: "chat", label: "Chat", icon: Sparkles },
@@ -170,6 +174,7 @@ function paneEntries({ session, workspace }: PaneProps, side: PanelSide): PaneEn
     about: null,
     step: null,
     path: null,
+    map: null,
     hotspots: openHotspots,
     notes: session.notes.length,
     chat: null,
@@ -233,6 +238,15 @@ function HotspotsPane({ session, workspace }: PaneProps) {
       checked={session.checkedHotspots}
       onOpen={(hotspot) => workspace.goTo({ path: hotspot.path, line: hotspot.line ?? 1 })}
       onToggleChecked={workspace.toggleHotspot}
+    />
+  );
+}
+
+function MapPane({ review, session, workspace }: PaneProps) {
+  return (
+    <ChangeMapList
+      sections={mapSections(review.changeMap, session.doneSteps, workspace.currentStep?.id ?? null)}
+      onOpen={(node) => workspace.goTo({ path: node.path, line: node.line })}
     />
   );
 }
@@ -312,6 +326,7 @@ const PANE_CONTENT: Record<PaneId, (props: PaneProps) => PaneContent> = {
   }),
   step: (props) => ({ body: <StepSummary {...props} /> }),
   path: (props) => ({ body: <PathPane {...props} /> }),
+  map: (props) => ({ body: <MapPane {...props} /> }),
   hotspots: (props) => ({ body: <HotspotsPane {...props} /> }),
   notes: (props) => ({ body: <NotesPane {...props} /> }),
   chat: chatPane,
