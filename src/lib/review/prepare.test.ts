@@ -117,5 +117,6 @@ describe("loadReview", () => {
     )!;
     expect(second.reopenedStepIds).toEqual([retryStep.id]);
     expect(second.session.doneSteps).not.toContain(retryStep.id);
+    expect(second.session.baselineHeadSha).toBe(first.headSha);
   });
 });
