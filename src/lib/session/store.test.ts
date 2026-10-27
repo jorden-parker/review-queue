@@ -293,7 +293,21 @@ describe("SessionStore", () => {
     store.setStepDone(KEY, "s1", true);
     store.setCurrentStep(KEY, "s2", "sha1");
     expect(store.progressSummaries([KEY, "other#1"])).toEqual({
-      [KEY]: { doneCount: 1, lastHeadSha: "sha1", updatedAt: "2026-10-26T10:00:00.000Z" },
+      [KEY]: {
+        doneCount: 1,
+        noteCount: 0,
+        lastHeadSha: "sha1",
+        updatedAt: "2026-10-26T10:00:00.000Z",
+        pause: null,
+      },
+    });
+  });
+
+  it("includes the pause note in the summary", () => {
+    store.pause(KEY, "about to read the tests");
+    expect(store.progressSummaries([KEY])[KEY]?.pause).toEqual({
+      note: "about to read the tests",
+      at: "2026-10-26T10:00:00.000Z",
     });
   });
 });
