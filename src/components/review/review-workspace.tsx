@@ -418,6 +418,22 @@ function StepBar({
   );
 }
 
+function PushNotice({ headSha, onDismiss }: { headSha: string; onDismiss: () => void }) {
+  return (
+    <Callout className="flex flex-wrap items-center justify-between gap-2">
+      <span>New commits were pushed ({headSha.slice(0, 7)}). Reload to re-check what changed.</span>
+      <span className="flex gap-2">
+        <Button size="sm" onClick={() => location.reload()}>
+          Reload
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDismiss}>
+          Dismiss
+        </Button>
+      </span>
+    </Callout>
+  );
+}
+
 function BreakBanner({ workspace }: { workspace: Workspace }) {
   if (!workspace.breakDue) return null;
   return (
@@ -471,6 +487,7 @@ function Dialogs({
             workspace.hotspots.filter((hotspot) => !session.checkedHotspots.includes(hotspot.id))
               .length
           }
+          headSha={review.headSha}
           onSubmit={workspace.submit}
           onDraftSummary={workspace.aiEnabled ? workspace.draftSummary : undefined}
           onCancel={close}
@@ -649,6 +666,12 @@ export function ReviewWorkspace({
               <StepBar review={review} session={session} workspace={workspace} />
               {controls.actionError && (
                 <Callout tone="error">Couldn&apos;t save: {controls.actionError}</Callout>
+              )}
+              {workspace.newHead && (
+                <PushNotice
+                  headSha={workspace.newHead}
+                  onDismiss={() => workspace.setNewHead(null)}
+                />
               )}
               <BreakBanner workspace={workspace} />
             </div>
