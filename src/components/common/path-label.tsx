@@ -2,7 +2,7 @@ import { cn } from "cn";
 
 type PathLabelProps = { path: string; line?: number | null; wrap?: boolean; className?: string };
 
-function splitPath(path: string): { directory: string; name: string } {
+export function splitPath(path: string): { directory: string; name: string } {
   const slash = path.lastIndexOf("/");
   return { directory: path.slice(0, slash + 1), name: path.slice(slash + 1) };
 }

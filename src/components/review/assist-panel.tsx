@@ -53,7 +53,6 @@ function ModelTurn({ turn, streaming, isLast, citationsOf, onShowCitation }: Tur
       if (!citation) return code;
       return (
         <CitationChip
-          index={index}
           citation={citation}
           active={index === activeIndex}
           onShow={() => showCitation(index)}
