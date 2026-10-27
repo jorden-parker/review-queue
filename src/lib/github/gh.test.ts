@@ -34,6 +34,7 @@ describe("github", () => {
     );
     const requests = await listReviewRequests(run);
     expect(calls[0].args).toContain("--review-requested=@me");
+    expect(calls[0].args).toContain("--limit=100");
     expect(requests[0]).toEqual({
       ref: REF,
       title: "Add cache",
