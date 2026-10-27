@@ -48,6 +48,21 @@ describe("SavedChatsPanel", () => {
     expect(screen.getAllByText("src/a.ts label")).toHaveLength(2);
   });
 
+  it("titles a step-check chat with the opener it was started from", () => {
+    const check = { kind: "check" as const, stepId: "s", check: 0, path: "src/a.ts" };
+    renderPanel([
+      chat({
+        target: check,
+        turns: [
+          { role: "reviewer", text: "Tell me more: Is the key stable?" },
+          { role: "model", text: "It is." },
+        ],
+      }),
+    ]);
+    expect(screen.getByText("Tell me more: Is the key stable?")).toBeTruthy();
+    expect(screen.getByText("lines label")).toBeTruthy();
+  });
+
   it("marks chats asked on an older commit", () => {
     renderPanel([chat({ headSha: "b".repeat(40) })]);
     expect(screen.getByText("Older commit")).toBeTruthy();

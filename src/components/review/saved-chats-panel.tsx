@@ -65,7 +65,7 @@ function ChatRow({
         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left text-sm"
       >
         <span className="wrap-anywhere">
-          {chat.question ?? actionLabel(chat.action, chat.target)}
+          {chat.question ?? chat.turns[0]?.text ?? actionLabel(chat.action, chat.target)}
         </span>
         <span className="truncate font-mono text-xs text-muted-foreground">{label}</span>
         {older && (
