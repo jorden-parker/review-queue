@@ -28,4 +28,15 @@ describe("buildSubmission", () => {
   it("allows an empty summary", () => {
     expect(buildSubmission([], "APPROVE", "  ", "abc").body).toBe("");
   });
+
+  it("never posts a parked note, even when it is selected", () => {
+    const submission = buildSubmission(
+      [note({ kind: "parked", body: "lunch" }), note({ id: 2, kind: "nit", body: "rename" })],
+      "COMMENT",
+      "",
+      "abc",
+    );
+    expect(submission.body).toBe("- **Nit:** rename");
+    expect(submission.comments).toEqual([]);
+  });
 });
