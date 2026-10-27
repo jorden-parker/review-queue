@@ -136,7 +136,7 @@ function ReviewRow({ review }: { review: PostedReview }) {
 
 function ThreadRow({ thread, onOpen }: { thread: Thread; onOpen: (target: LineTarget) => void }) {
   const { root, replies } = thread;
-  const { path, line } = root;
+  const { path, line, side } = root;
   return (
     <article className="flex flex-col gap-1.5 rounded-md border p-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -148,7 +148,7 @@ function ThreadRow({ thread, onOpen }: { thread: Thread; onOpen: (target: LineTa
       <Markdown text={root.body} className="wrap-anywhere" />
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{replies.length > 0 && replyCount(replies.length)}</span>
-        {line !== null && (
+        {line !== null && side === "RIGHT" && (
           <Button
             variant="outline"
             size="sm"

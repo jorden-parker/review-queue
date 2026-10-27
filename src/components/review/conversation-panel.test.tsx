@@ -87,6 +87,12 @@ describe("ConversationPanel", () => {
     expect(screen.queryByRole("button", { name: /Open a\.ts/ })).toBeNull();
   });
 
+  it("offers no jump for a thread on the old side of the diff", () => {
+    renderPanel({ comments: [comment({ id: 1, side: "LEFT", line: 3 })] });
+    expect(screen.getByText("Rename this")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Open a\.ts/ })).toBeNull();
+  });
+
   it("says when only the first page is shown", () => {
     renderPanel({ reviews: [review({ id: 9 })], truncated: true });
     expect(screen.getByText("Showing the first 100")).toBeTruthy();
