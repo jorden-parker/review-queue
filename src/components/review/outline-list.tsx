@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "cn";
 import { EmptyState } from "@/components/common/empty-state";
+import { PaneRow } from "@/components/common/pane-row";
 import { PathLabel } from "@/components/common/path-label";
 import type { OutlineSymbol } from "@/lib/types";
 import { type DiffLines, type OutlineRow, outlineRows } from "./outline-rows";
@@ -49,13 +50,13 @@ function SymbolRow({
 }) {
   const Icon = KIND_ICONS[row.symbol.kind];
   return (
-    <li
+    <PaneRow
       role="treeitem"
       aria-level={row.depth + 1}
       aria-expanded={row.hasChildren ? row.expanded : undefined}
       aria-selected={false}
-      style={{ paddingInlineStart: `${row.depth}rem` }}
-      className="flex items-center rounded-lg transition-colors duration-calm hover:bg-muted"
+      style={{ paddingInlineStart: `calc(0.5rem + ${row.depth}rem)` }}
+      className="items-center py-1"
     >
       <ExpandToggle row={row} onToggle={onToggle} />
       <button
@@ -65,7 +66,7 @@ function SymbolRow({
           .join(" ")}
         onClick={() => onOpen(row.symbol, row.shown)}
         title={row.shown ? "Go to it in the diff" : "Peek it; it is outside this step's diff"}
-        className="flex min-w-0 flex-1 items-center gap-1.5 py-1 pr-2 text-left text-sm"
+        className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-sm"
       >
         <Icon className="size-3.5 shrink-0 text-primary" aria-hidden />
         <span className={cn("truncate font-mono", row.changed && "font-medium text-primary")}>
@@ -73,7 +74,7 @@ function SymbolRow({
         </span>
         <span className="text-xs text-muted-foreground">{row.symbol.kind}</span>
       </button>
-    </li>
+    </PaneRow>
   );
 }
 
@@ -81,14 +82,12 @@ function FileOutline({ file, onOpen }: { file: OutlineFile; onOpen: OpenSymbol }
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const rows = file.symbols ? outlineRows(file.symbols, collapsed, file.diff) : [];
   return (
-    <section className="flex flex-col gap-1">
-      <PathLabel path={file.path} className="px-2 text-muted-foreground" />
-      {file.symbols === undefined && <p className="px-2 text-xs text-muted-foreground">Loading…</p>}
-      {file.symbols?.length === 0 && (
-        <p className="px-2 text-xs text-muted-foreground">No symbols</p>
-      )}
+    <section className="flex flex-col gap-2">
+      <PathLabel path={file.path} className="text-muted-foreground" />
+      {file.symbols === undefined && <p className="text-xs text-muted-foreground">Loading…</p>}
+      {file.symbols?.length === 0 && <p className="text-xs text-muted-foreground">No symbols</p>}
       {rows.length > 0 && (
-        <ul role="tree" aria-label={`Outline of ${file.path}`} className="flex flex-col">
+        <ul role="tree" aria-label={`Outline of ${file.path}`} className="flex flex-col gap-0.5">
           {rows.map((row) => (
             <SymbolRow
               key={row.key}

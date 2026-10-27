@@ -2,6 +2,7 @@
 
 import { Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
+import { PaneRow } from "@/components/common/pane-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { SavedAssistThread } from "@/lib/assist-protocol";
@@ -59,7 +60,7 @@ function ChatRow({
   onDelete: (id: string) => void;
 }) {
   return (
-    <li className="group flex items-start gap-2 rounded-lg p-2 transition-colors duration-calm hover:bg-muted">
+    <PaneRow className="group">
       <button
         onClick={() => onOpen(chat)}
         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left text-sm"
@@ -83,6 +84,6 @@ function ChatRow({
       >
         <Trash2 />
       </Button>
-    </li>
+    </PaneRow>
   );
 }

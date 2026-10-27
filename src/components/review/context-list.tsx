@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cn } from "cn";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
+import { PaneRow } from "@/components/common/pane-row";
 import { PathLabel } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -110,11 +111,11 @@ function SymbolRow({
   const Icon = KIND_ICONS[symbol.kind];
   const pinLabel = `${symbol.pinned ? "Unpin" : "Pin"} ${symbol.name}`;
   return (
-    <li className="group flex items-start gap-1 rounded-lg transition-colors duration-calm hover:bg-muted">
+    <PaneRow className="group">
       <button
         aria-label={`Open ${symbol.name}`}
         onClick={() => onOpen(symbol)}
-        className="flex min-w-0 flex-1 flex-col gap-0.5 p-2 text-left"
+        className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
       >
         <span className="flex items-center gap-1.5 text-sm">
           <Icon className="size-3.5 shrink-0 text-primary" aria-hidden />
@@ -135,7 +136,6 @@ function SymbolRow({
         aria-label={pinLabel}
         onClick={() => onTogglePin(symbol)}
         className={cn(
-          "mt-2 mr-1",
           symbol.pinned
             ? "text-primary"
             : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
@@ -143,7 +143,7 @@ function SymbolRow({
       >
         {symbol.pinned ? <PinOff /> : <Pin />}
       </HintButton>
-    </li>
+    </PaneRow>
   );
 }
 
@@ -151,7 +151,7 @@ export function ContextList({ symbols, stepId, ...handlers }: ContextListProps) 
   const [filter, setFilter] = useState<ContextFilter>({ view: "all", shown: ALL_KIND_GROUPS });
   const visible = visibleSymbols(symbols, stepId, filter);
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <TrailButtons {...handlers} />
       <FilterBar filter={filter} onChange={setFilter} />
       {visible.length === 0 ? (
