@@ -7,6 +7,7 @@ import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { plural } from "@/lib/plural";
 import type { Step } from "@/lib/types";
 
 type ReadingPathProps = {
@@ -121,8 +122,9 @@ function StepItem({ step, index, path }: StepItemProps) {
           >
             {index + 1}. {step.title}
           </span>
-          <span className="text-xs text-muted-foreground">
-            {step.role} · {step.changedLines} lines
+          <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+            <span>{step.role}</span>
+            <span>{plural(step.changedLines, "line")}</span>
           </span>
           <StepNotes
             reason={path.reasons[step.id]}

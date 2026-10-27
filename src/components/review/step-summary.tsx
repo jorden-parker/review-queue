@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { plural } from "@/lib/plural";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
 import { hotspotsInStep } from "./display-hotspots";
@@ -31,9 +32,13 @@ function CurrentStep({
   return (
     <Card>
       <CardHeader>
-        <CardDescription className="text-xs">
-          Step {workspace.currentIndex + 1} of {review.steps.length} · {step.role} ·{" "}
-          {step.changedLines} lines
+        <CardDescription className="flex flex-wrap gap-x-2 text-xs">
+          <span>
+            Step {workspace.currentIndex + 1} of {review.steps.length}
+          </span>
+          <span>
+            {step.role}, {plural(step.changedLines, "line")}
+          </span>
         </CardDescription>
         <CardTitle className="text-lg font-bold">{step.title}</CardTitle>
       </CardHeader>

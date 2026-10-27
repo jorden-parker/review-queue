@@ -65,7 +65,7 @@ function AiSummaryLine({ orientation }: { orientation: OrientationState }) {
       <span className="truncate">
         <InlineMarkdown text={summary} />
       </span>
-      <span className={`shrink-0 font-medium ${RISK_STYLES[risk]}`}>· {risk} risk</span>
+      <span className={`shrink-0 font-medium ${RISK_STYLES[risk]}`}>{risk} risk</span>
     </p>
   );
 }

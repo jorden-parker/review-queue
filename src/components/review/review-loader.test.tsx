@@ -100,7 +100,8 @@ describe("ReviewLoader", () => {
     const user = userEvent.setup();
     render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
     expect(screen.getByText("Getting the PR ready…")).toBeTruthy();
-    expect(await screen.findByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
+    expect(await screen.findByText("Step 1 of 3")).toBeTruthy();
+    expect(screen.getByText("types, 1 line")).toBeTruthy();
     await splitAboutPane(user);
     expect(screen.getByText("Before you start")).toBeTruthy();
     expect(screen.getByText("≈")).toBeTruthy();
@@ -165,7 +166,8 @@ describe("ReviewLoader", () => {
         extraHotspots: [],
       },
     });
-    expect(screen.getByText("Step 1 of 3 · core · 2 lines")).toBeTruthy();
+    expect(screen.getByText("Step 1 of 3")).toBeTruthy();
+    expect(screen.getByText("core, 2 lines")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Start at step/ })).toBeNull();
     const reasons = [
       "The retry loop lives here.",
@@ -195,7 +197,8 @@ describe("ReviewLoader", () => {
     });
     await splitAboutPane(user);
     expect(await screen.findByText(/connection refused/)).toBeTruthy();
-    expect(screen.getByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
+    expect(screen.getByText("Step 1 of 3")).toBeTruthy();
+    expect(screen.getByText("types, 1 line")).toBeTruthy();
     await user.click(paneButton("Path"));
     expect(screen.getByText(/Built-in order/)).toBeTruthy();
   });
@@ -282,7 +285,8 @@ describe("ReviewLoader", () => {
   it("marks a step done and moves to the next one", async () => {
     const { api, user } = await renderReview();
     await user.click(screen.getByRole("button", { name: /Done, next step/ }));
-    expect(await screen.findByText("Step 2 of 3 · core · 2 lines")).toBeTruthy();
+    expect(await screen.findByText("Step 2 of 3")).toBeTruthy();
+    expect(screen.getByText("core, 2 lines")).toBeTruthy();
     expect(api.actions()).toEqual(
       expect.arrayContaining([
         { type: "step-done", stepId: "types:src/types.ts:0", done: true },
@@ -406,7 +410,8 @@ describe("ReviewLoader", () => {
     await splitAboutPane(user);
     expect(screen.getByText(/Retries failed loads/)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Done, next step/ }));
-    await screen.findByText("Step 2 of 3 · core · 2 lines");
+    await screen.findByText("Step 2 of 3");
+    expect(screen.getByText("core, 2 lines")).toBeTruthy();
     expect(screen.getByText("≈")).toBeTruthy();
     expect(screen.queryByText(/Retries failed loads/)).toBeNull();
     await user.click(screen.getByRole("button", { name: "Show details" }));
@@ -417,9 +422,11 @@ describe("ReviewLoader", () => {
   it("moves between steps with the keyboard and toggles the whole PR", async () => {
     const { user } = await renderReview();
     await user.keyboard("n");
-    expect(await screen.findByText("Step 2 of 3 · core · 2 lines")).toBeTruthy();
+    expect(await screen.findByText("Step 2 of 3")).toBeTruthy();
+    expect(screen.getByText("core, 2 lines")).toBeTruthy();
     await user.keyboard("p");
-    expect(await screen.findByText("Step 1 of 3 · types · 1 lines")).toBeTruthy();
+    expect(await screen.findByText("Step 1 of 3")).toBeTruthy();
+    expect(screen.getByText("types, 1 line")).toBeTruthy();
     await user.keyboard("jk");
     await user.keyboard("a");
     expect(screen.getByText("Back to one step at a time")).toBeTruthy();
@@ -545,7 +552,8 @@ describe("ReviewLoader", () => {
     await user.click(paneButton(/Hotspots \(1\)/));
     await user.click(screen.getByRole("button", { name: /Debug output left in/ }));
     await user.click(paneButton("Step"));
-    expect(await screen.findByText("Step 2 of 3 · core · 2 lines")).toBeTruthy();
+    expect(await screen.findByText("Step 2 of 3")).toBeTruthy();
+    expect(screen.getByText("core, 2 lines")).toBeTruthy();
     const stepHotspots = screen.getByRole("region", { name: "Hotspots in this step" });
     await user.click(within(stepHotspots).getByTitle("Checked"));
     expect(api.actions()).toContainEqual({
