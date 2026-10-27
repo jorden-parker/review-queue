@@ -8,7 +8,7 @@ import { parseDefinitions } from "./parse";
 export type Reference = { path: string; line: number; text: string };
 
 const MAX_FILES = 6000;
-const MAX_FILE_BYTES = 300 * 1024;
+export const MAX_FILE_BYTES = 300 * 1024;
 const MAX_REFERENCES = 60;
 const MAX_DEFINITIONS = 20;
 const IGNORED_SEGMENTS = /(^|\/)(node_modules|vendor|dist|build|\.next|third_party)\//;

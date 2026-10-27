@@ -307,3 +307,30 @@ export function CodeLine({
     </>
   );
 }
+
+export function ContextLine({
+  path,
+  line,
+  tokens,
+  linked,
+  handlers,
+}: Pick<CodeLineProps, "path" | "line" | "tokens" | "linked" | "handlers">) {
+  return (
+    <div className="group">
+      <div className={rowClassName("context", null)}>
+        <LineNumber value={line.oldLine} />
+        <LineNumber value={line.newLine} />
+        <span className={NOTE_BUTTON_WIDTH} />
+        <span className={MARKER_WIDTH} />
+        <LineCode
+          path={path}
+          line={line}
+          tokens={tokens}
+          linked={linked}
+          landed={null}
+          handlers={handlers}
+        />
+      </div>
+    </div>
+  );
+}

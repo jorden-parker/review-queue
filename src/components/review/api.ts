@@ -6,6 +6,7 @@ import { prPath } from "@/lib/pr-ref";
 import type { AssistRequest } from "@/lib/review/assist-request";
 import type { ChangePartsResult } from "@/lib/review/change-parts-service";
 import type { ExplanationResult } from "@/lib/review/explanation-service";
+import type { FileLines } from "@/lib/review/file-lines";
 import type { Interdiff } from "@/lib/review/interdiff";
 import type { OrientationResult } from "@/lib/review/orientation-service";
 import type { ReviewPayload } from "@/lib/review/prepare";
@@ -105,6 +106,10 @@ export function fetchOutline(
   path: string,
 ): Promise<OutlineSymbol[]> {
   return fetch(apiPath(ref, `/outline${query({ sha, path })}`)).then(json<OutlineSymbol[]>);
+}
+
+export function fetchFileLines(ref: PullRequestRef, sha: string, path: string): Promise<FileLines> {
+  return fetch(apiPath(ref, `/file${query({ sha, path })}`)).then(json<FileLines>);
 }
 
 function post<T>(url: string, body: unknown): Promise<T> {

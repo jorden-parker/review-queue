@@ -1,6 +1,8 @@
 "use client";
 
-import { ArrowRight, Pin, PinOff, Telescope, X } from "lucide-react";
+import { ArrowRight, FoldVertical, Pin, PinOff, Telescope, UnfoldVertical, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { cn } from "cn";
 import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
@@ -14,9 +16,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DefinitionWithCode } from "@/lib/review/peek-code";
 import type { SymbolPosition } from "@/lib/types";
+import type { Token } from "@/lib/highlight";
 import { CodeTokens } from "./code-tokens";
 import type { LineTarget } from "./locate";
 import { groupReferencesByFile, type ReferenceGroup } from "./reference-groups";
+import { useFileLines, type LoadFile } from "./use-file-lines";
 import type { PeekState } from "./use-peek";
 
 type PeekPanelProps = {
@@ -28,6 +32,7 @@ type PeekPanelProps = {
   pinned: boolean;
   onTogglePin: () => void;
   onClose: () => void;
+  loadFile: LoadFile;
 };
 
 type PanelBodyProps = Omit<PeekPanelProps, "onTab" | "onClose" | "pinned" | "onTogglePin">;
@@ -48,19 +53,32 @@ const SCOPE_LABELS: Record<DefinitionWithCode["scope"], string | null> = {
   external: "library",
 };
 
+type WholeFileToggle = { showFile: boolean; onToggle: () => void } | null;
+
+function WholeFileButton({ toggle }: { toggle: NonNullable<WholeFileToggle> }) {
+  return (
+    <Button variant="ghost" size="xs" onClick={toggle.onToggle} aria-pressed={toggle.showFile}>
+      {toggle.showFile ? <FoldVertical /> : <UnfoldVertical />}
+      {toggle.showFile ? "Definition only" : "Whole file"}
+    </Button>
+  );
+}
+
 function DefinitionHeader({
   definition,
   peek,
   inPullRequest,
   onGoTo,
-}: PanelBodyProps & { definition: DefinitionWithCode }) {
+  wholeFileToggle,
+}: PanelBodyProps & { definition: DefinitionWithCode; wholeFileToggle: WholeFileToggle }) {
   const scopeLabel = SCOPE_LABELS[definition.scope];
   const inThisPullRequest = definition.scope !== "external" && inPullRequest(definition.path);
   return (
-    <div className="flex items-center gap-2 border-b bg-muted/50 px-3 py-2">
-      <PathLabel path={definition.path} line={definition.line} className="flex-1" />
+    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b bg-muted px-3 py-2">
+      <PathLabel path={definition.path} line={definition.line} className="min-w-40 flex-1" />
       {scopeLabel && <Badge variant="outline">{scopeLabel}</Badge>}
       <Badge variant="secondary">{definition.kind}</Badge>
+      {wholeFileToggle && <WholeFileButton toggle={wholeFileToggle} />}
       {inThisPullRequest && (
         <Button
           variant="ghost"
@@ -77,47 +95,101 @@ function DefinitionHeader({
   );
 }
 
-function DefinitionCode({
-  definition,
+const WRAPPED_CODE = "min-w-0 flex-1 tab-2 break-words whitespace-pre-wrap wrap-anywhere";
+
+type LineRange = { from: number; to: number };
+
+function scrollToCentre(element: HTMLElement | null) {
+  element?.scrollIntoView?.({ block: "center" });
+}
+
+function CodeRows({
+  path,
+  startLine,
+  tokens,
+  focus,
   onIdentifier,
-}: Pick<PanelBodyProps, "onIdentifier"> & { definition: DefinitionWithCode }) {
+}: Pick<PanelBodyProps, "onIdentifier"> & {
+  path: string;
+  startLine: number;
+  tokens: Token[][];
+  focus: LineRange | null;
+}) {
+  const focused = (line: number) => focus !== null && line >= focus.from && line <= focus.to;
   return (
-    <pre className="overflow-x-auto py-2 font-mono text-code">
-      <div className="w-max min-w-full">
-        {definition.tokens.map((row, index) => (
-          <div key={index} className="flex px-3 transition-colors duration-calm hover:bg-muted/60">
+    <pre className="py-2 font-mono text-code">
+      {tokens.map((row, index) => {
+        const line = startLine + index;
+        return (
+          <div
+            key={index}
+            ref={focus?.from === line ? scrollToCentre : undefined}
+            className={cn(
+              "flex px-3 transition-colors duration-calm hover:bg-muted/60",
+              focused(line) && "bg-primary/10",
+            )}
+          >
             <span className="w-8 shrink-0 pr-3 text-right text-muted-foreground/70 select-none">
-              {definition.line + index}
+              {line}
             </span>
-            <code className="whitespace-pre">
+            <code className={WRAPPED_CODE}>
               <CodeTokens
                 tokens={row}
-                onIdentifier={(target) =>
-                  onIdentifier({
-                    ...target,
-                    path: definition.path,
-                    line: definition.line + index,
-                    side: "new",
-                  })
-                }
+                onIdentifier={(target) => onIdentifier({ ...target, path, line, side: "new" })}
               />
             </code>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </pre>
+  );
+}
+
+function WholeFile({
+  definition,
+  loadFile,
+  onIdentifier,
+}: Pick<PanelBodyProps, "onIdentifier" | "loadFile"> & { definition: DefinitionWithCode }) {
+  const { load, request } = useFileLines(loadFile, definition.path);
+  useEffect(request, [request]);
+  if (load.failed) return <Callout tone="error">Could not load the file.</Callout>;
+  if (!load.lines) return <LoadingRows />;
+  return (
+    <>
+      <CodeRows
+        path={definition.path}
+        startLine={1}
+        tokens={load.lines.tokens}
+        focus={{ from: definition.line, to: definition.endLine }}
+        onIdentifier={onIdentifier}
+      />
+      {load.lines.truncated && (
+        <p className="px-3 pb-2 text-sm text-muted-foreground">The file is cut at 300 KB.</p>
+      )}
+    </>
   );
 }
 
 function DefinitionBlock(props: PanelBodyProps & { definition: DefinitionWithCode }) {
   const { definition } = props;
+  const [showFile, setShowFile] = useState(false);
+  const external = definition.scope === "external";
+  const wholeFileToggle = external ? null : { showFile, onToggle: () => setShowFile(!showFile) };
   return (
-    <section className="flex flex-col overflow-hidden rounded-lg border">
-      <DefinitionHeader {...props} />
-      {definition.scope === "external" ? (
+    <section className="flex flex-col overflow-clip rounded-lg border">
+      <DefinitionHeader {...props} wholeFileToggle={wholeFileToggle} />
+      {external ? (
         <Markdown text={definition.hover ?? definition.signature} className="px-3 py-2 text-sm" />
+      ) : showFile ? (
+        <WholeFile {...props} />
       ) : (
-        <DefinitionCode definition={definition} onIdentifier={props.onIdentifier} />
+        <CodeRows
+          path={definition.path}
+          startLine={definition.line}
+          tokens={definition.tokens}
+          focus={null}
+          onIdentifier={props.onIdentifier}
+        />
       )}
     </section>
   );
@@ -171,7 +243,7 @@ function ReferenceFile({
               <span className="w-8 shrink-0 text-right text-muted-foreground/70 select-none">
                 {reference.line}
               </span>
-              <code className="truncate whitespace-pre">
+              <code className={WRAPPED_CODE}>
                 <CodeTokens tokens={reference.tokens} />
               </code>
             </button>
