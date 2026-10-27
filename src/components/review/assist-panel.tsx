@@ -1,13 +1,15 @@
 "use client";
 
 import { Sparkles, Square, X } from "lucide-react";
-import { useState } from "react";
-import { Markdown } from "@/components/common/markdown-text";
+import { useMemo, useState } from "react";
+import { type CitationRenderer, Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { AssistThread, AssistTurn } from "@/lib/assist-protocol";
 import type { NoteKind } from "@/lib/types";
 import { actionLabel, awaitsQuestion, canFollowUp, questionPrompt } from "./assist-thread";
+import { CitationChip, CitationWalk } from "./citation-walk";
+import type { Citation } from "./citations";
 import { NoteKindPicker } from "./note-composer";
 import { useStickToBottom } from "./use-stick-to-bottom";
 import type { Assist } from "./use-assist";
@@ -17,21 +19,88 @@ type AssistPanelProps = {
   thread: AssistThread;
   label: string;
   commentLine: number | null;
+  citationsOf: (text: string) => Citation[];
   onSaveNote: (line: number | null, kind: NoteKind, body: string) => void;
   onShowLines: () => void;
+  onShowCitation: (citation: Citation) => void;
 };
 
-function Turn({ turn, streaming }: { turn: AssistTurn; streaming: boolean }) {
-  if (turn.role === "reviewer") {
-    return (
-      <p className="self-end rounded-lg bg-accent px-3 py-2 text-accent-foreground">{turn.text}</p>
-    );
-  }
+type TurnProps = {
+  turn: AssistTurn;
+  streaming: boolean;
+  isLast: boolean;
+  citationsOf: (text: string) => Citation[];
+  onShowCitation: (citation: Citation) => void;
+};
+
+function ModelTurn({ turn, streaming, isLast, citationsOf, onShowCitation }: TurnProps) {
+  const citations = useMemo(() => citationsOf(turn.text), [citationsOf, turn.text]);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const showCitation = (index: number) => {
+    const citation = citations[index];
+    if (!citation) return;
+    setActiveIndex(index);
+    onShowCitation(citation);
+  };
+  const renderer: CitationRenderer = {
+    indexOf: (code) => {
+      const index = citations.findIndex((citation) => citation.code === code);
+      return index === -1 ? null : index;
+    },
+    render: (index, code) => {
+      const citation = citations[index];
+      if (!citation) return code;
+      return (
+        <CitationChip
+          index={index}
+          citation={citation}
+          active={index === activeIndex}
+          onShow={() => showCitation(index)}
+        />
+      );
+    },
+  };
   return (
     <div className="flex flex-col gap-2">
-      <Markdown text={turn.text} className="flex flex-col gap-2" />
+      <Markdown text={turn.text} className="flex flex-col gap-2" citations={renderer} />
       {streaming && <span className="h-4 w-1.5 animate-pulse bg-primary" aria-label="Writing" />}
+      {isLast && !streaming && (
+        <CitationWalk citations={citations} activeIndex={activeIndex} onStep={showCitation} />
+      )}
     </div>
+  );
+}
+
+function Turn(props: TurnProps) {
+  if (props.turn.role === "reviewer") {
+    return (
+      <p className="self-end rounded-lg bg-accent px-3 py-2 text-accent-foreground">
+        {props.turn.text}
+      </p>
+    );
+  }
+  return <ModelTurn {...props} />;
+}
+
+type ChatTurnsProps = Omit<TurnProps, "turn" | "streaming" | "isLast"> & {
+  thread: AssistThread;
+  streaming: boolean;
+};
+
+function ChatTurns({ thread, streaming, ...shared }: ChatTurnsProps) {
+  const lastIndex = thread.turns.length - 1;
+  return (
+    <>
+      {thread.turns.map((turn, index) => (
+        <Turn
+          key={index}
+          turn={turn}
+          streaming={streaming && index === lastIndex}
+          isLast={index === lastIndex}
+          {...shared}
+        />
+      ))}
+    </>
   );
 }
 
@@ -121,8 +190,10 @@ export function AssistPanel({
   thread,
   label,
   commentLine,
+  citationsOf,
   onSaveNote,
   onShowLines,
+  onShowCitation,
 }: AssistPanelProps) {
   const last = thread.turns.at(-1);
   const draftReady =
@@ -165,13 +236,12 @@ export function AssistPanel({
         <p className="text-xs text-muted-foreground">
           The model&apos;s guess, unverified. The PR author can sway it.
         </p>
-        {thread.turns.map((turn, index) => (
-          <Turn
-            key={index}
-            turn={turn}
-            streaming={assist.streaming && index === thread.turns.length - 1}
-          />
-        ))}
+        <ChatTurns
+          thread={thread}
+          streaming={assist.streaming}
+          citationsOf={citationsOf}
+          onShowCitation={onShowCitation}
+        />
         {assist.streaming && last?.role === "reviewer" && (
           <p className="text-muted-foreground">Local model is reading…</p>
         )}
