@@ -27,7 +27,16 @@ async function renderReview(
   return { api, user };
 }
 
-afterEach(() => vi.unstubAllGlobals());
+const DEFAULT_VIEWPORT_WIDTH = window.innerWidth;
+
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setViewportWidth(DEFAULT_VIEWPORT_WIDTH);
+});
 
 class DataTransferStub {
   private data = new Map<string, string>();
@@ -334,6 +343,7 @@ describe("ReviewLoader", () => {
   });
 
   it("opens a chat on the Discuss side and keeps the Step pane open", async () => {
+    setViewportWidth(1280);
     const { user } = await renderReview(reviewPayload(), MODEL_ON);
     selectFirstLine("src/types.ts");
     const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
@@ -346,6 +356,7 @@ describe("ReviewLoader", () => {
   });
 
   it("keeps an open chat while Path opens", async () => {
+    setViewportWidth(1280);
     const { user } = await renderReview(reviewPayload(), MODEL_ON);
     selectFirstLine("src/types.ts");
     const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
@@ -353,6 +364,18 @@ describe("ReviewLoader", () => {
     await screen.findByRole("region", { name: "Ask the model" });
     await user.click(paneButton("Path"));
     expect(screen.getByRole("region", { name: "Ask the model" })).toBeTruthy();
+    expect(openPanes("right")).toEqual(["Path"]);
+  });
+
+  it("opens Path in place of the chat when both sides do not fit", async () => {
+    setViewportWidth(1100);
+    const { user } = await renderReview(reviewPayload(), MODEL_ON);
+    selectFirstLine("src/types.ts");
+    const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
+    await user.click(within(toolbar).getByRole("button", { name: /Explain/ }));
+    await screen.findByRole("region", { name: "Ask the model" });
+    await user.click(paneButton("Path"));
+    expect(openPanes("left")).toEqual([]);
     expect(openPanes("right")).toEqual(["Path"]);
   });
 
@@ -625,6 +648,7 @@ describe("ReviewLoader", () => {
   });
 
   it("explains selected lines in a side panel and takes a follow-up", async () => {
+    setViewportWidth(1280);
     const { api, user } = await renderReview(reviewPayload(), MODEL_ON);
     selectFirstLine("src/types.ts");
     const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
