@@ -49,12 +49,16 @@ export function installFakeApi(
   payload: ReviewPayload,
   orientation: unknown = { status: "disabled" },
   explanations: unknown[] = [],
+  changes: unknown = { baselineHeadSha: payload.headSha, headSha: payload.headSha, files: [] },
 ) {
   const store = new SessionStore(":memory:");
   const calls: Call[] = [];
+  const head = { current: payload.headSha };
   const key = "acme/app#7";
   const routes: [RegExp, (body: unknown, url: URL) => unknown][] = [
     [/\/orientation/, () => orientation],
+    [/\/head$/, () => ({ headSha: head.current })],
+    [/\/changes$/, () => changes],
     [/\/reference-counts$/, (_body, url) => REFERENCE_COUNTS[url.searchParams.get("path")!] ?? []],
     [/\/outline$/, (_body, url) => OUTLINES[url.searchParams.get("path")!] ?? []],
     [
@@ -118,6 +122,7 @@ export function installFakeApi(
   return {
     calls,
     store,
+    head,
     actions: () => calls.filter((call) => call.url.endsWith("/session")).map((call) => call.body),
   };
 }
