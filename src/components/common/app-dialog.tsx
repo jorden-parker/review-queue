@@ -8,16 +8,21 @@ type AppDialogProps = {
   title: ReactNode;
   onClose: () => void;
   className?: string;
+  wide?: boolean;
   children: ReactNode;
 };
 
-export function AppDialog({ title, onClose, className, children }: AppDialogProps) {
+export function AppDialog({ title, onClose, className, wide = false, children }: AppDialogProps) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         aria-describedby={undefined}
         onKeyDown={(event) => event.stopPropagation()}
-        className={cn("max-h-dialog gap-5 overflow-y-auto p-6 sm:max-w-lg", className)}
+        className={cn(
+          "max-h-dialog gap-5 overflow-y-auto p-6",
+          wide ? "sm:max-w-2xl" : "sm:max-w-lg",
+          className,
+        )}
       >
         <DialogHeader>
           <DialogTitle className="text-lg font-bold">{title}</DialogTitle>
