@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { Celebration } from "@/components/common/celebration";
 import { Button } from "@/components/ui/button";
 
-export function PostedToast({ onDismiss }: { onDismiss: () => void }) {
+export function PostedToast({ url, onDismiss }: { url: string | null; onDismiss: () => void }) {
   return (
     <div
       role="status"
@@ -15,6 +15,16 @@ export function PostedToast({ onDismiss }: { onDismiss: () => void }) {
         <Celebration />
       </span>
       <span className="text-sm font-medium">Review posted to GitHub. Nicely done.</span>
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm font-medium text-primary underline underline-offset-4"
+        >
+          Open it
+        </a>
+      )}
       <Button variant="ghost" size="icon-xs" aria-label="Dismiss" onClick={onDismiss}>
         <X />
       </Button>

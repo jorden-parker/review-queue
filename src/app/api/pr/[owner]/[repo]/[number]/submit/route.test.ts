@@ -2,13 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReviewSubmission } from "@/lib/github/gh";
 import { sessionStore } from "@/lib/review/services";
 
-const github = { sent: [] as ReviewSubmission[], failure: null as string | null };
+const github = {
+  sent: [] as ReviewSubmission[],
+  failure: null as string | null,
+  head: "sha1",
+};
 
 vi.mock("@/lib/github/gh", () => ({
   submitReview: async (_ref: unknown, submission: ReviewSubmission) => {
     if (github.failure) throw new Error(github.failure);
     github.sent.push(submission);
+    return { id: 42, url: REVIEW_URL };
   },
+  getPullRequest: async () => ({ headSha: github.head }),
 }));
 
 process.env.REVIEW_QUEUE_DB = ":memory:";
@@ -16,6 +22,7 @@ process.env.REVIEW_QUEUE_DB = ":memory:";
 const { POST } = await import("./route");
 
 const KEY = "acme/app#7";
+const REVIEW_URL = "https://github.com/acme/app/pull/7#pullrequestreview-42";
 
 function context(number = "7") {
   return { params: Promise.resolve({ owner: "acme", repo: "app", number }) };
@@ -31,6 +38,7 @@ describe("POST submit", () => {
   beforeEach(() => {
     github.sent = [];
     github.failure = null;
+    github.head = "sha1";
   });
 
   it("rejects bad refs and bodies", async () => {
@@ -52,6 +60,35 @@ describe("POST submit", () => {
       { path: "a.ts", line: 2, body: "**nitpick:** rename" },
     ]);
     expect(sessionStore().getSession(KEY).notes).toEqual([]);
+  });
+
+  it("records a receipt with the review link", async () => {
+    const response = await POST(request({ ...VALID, summary: "Ship it" }), context());
+    const session = await response.json();
+    expect(session.submissions[0]).toEqual(
+      expect.objectContaining({
+        reviewId: 42,
+        url: REVIEW_URL,
+        event: "COMMENT",
+        headSha: "sha1",
+        body: "Ship it",
+      }),
+    );
+  });
+
+  it("refuses when the head moved since the review was loaded", async () => {
+    github.head = "sha2";
+    const response = await POST(request(VALID), context());
+    expect(response.status).toBe(409);
+    expect(github.sent).toEqual([]);
+  });
+
+  it("refuses a second submit after the head moved, even though the first one posted", async () => {
+    expect((await POST(request(VALID), context())).status).toBe(200);
+    github.head = "sha2";
+    const response = await POST(request(VALID), context());
+    expect(response.status).toBe(409);
+    expect(github.sent).toHaveLength(1);
   });
 
   it("keeps notes and reports the error when GitHub fails", async () => {

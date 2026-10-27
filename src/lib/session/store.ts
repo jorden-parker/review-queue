@@ -3,6 +3,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { AssistThread, SavedAssistThread } from "@/lib/assist-protocol";
 import { dataDirectory } from "@/lib/data-directory";
+import type { ReviewEvent } from "@/lib/github/gh";
 import type {
   DefinitionScope,
   Note,
@@ -29,9 +30,21 @@ export type ContextSymbol = SeenSymbol & { pinned: boolean; seenAt: string };
 
 export type PauseState = { note: string; at: string };
 
+type Submission = {
+  reviewId: number;
+  url: string;
+  event: ReviewEvent;
+  headSha: string;
+  body: string;
+  postedAt: string;
+};
+
+type NewSubmission = Omit<Submission, "postedAt">;
+
 export type Session = {
   currentStepId: string | null;
   lastHeadSha: string | null;
+  baselineHeadSha: string | null;
   updatedAt: string | null;
   pause: PauseState | null;
   doneSteps: string[];
@@ -40,6 +53,7 @@ export type Session = {
   jumps: Jump[];
   assistThreads: SavedAssistThread[];
   contextSymbols: ContextSymbol[];
+  submissions: Submission[];
 };
 
 export type NewNote = {
@@ -52,7 +66,29 @@ export type NewNote = {
 
 export type NoteChange = Pick<Note, "kind" | "decorations" | "body">;
 
-export type ProgressSummary = { doneCount: number; lastHeadSha: string | null; updatedAt: string };
+export type ProgressSummary = {
+  doneCount: number;
+  noteCount: number;
+  lastHeadSha: string | null;
+  updatedAt: string;
+  pause: PauseState | null;
+};
+
+export type InProgressSession = {
+  key: string;
+  title: string | null;
+  doneCount: number;
+  pauseNote: string | null;
+  updatedAt: string;
+};
+
+type InProgressRow = {
+  pr_key: string;
+  title: string | null;
+  pause_note: string | null;
+  updated_at: string;
+  done_count: number;
+};
 
 type SessionRow = {
   current_step: string | null;
@@ -60,6 +96,8 @@ type SessionRow = {
   pause_note: string | null;
   paused_at: string | null;
   updated_at: string;
+  title: string | null;
+  finished_at: string | null;
 };
 
 type NoteRow = {
@@ -79,7 +117,13 @@ CREATE TABLE IF NOT EXISTS sessions (
   head_sha TEXT,
   pause_note TEXT,
   paused_at TEXT,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  title TEXT,
+  finished_at TEXT
+);
+CREATE TABLE IF NOT EXISTS review_baselines (
+  pr_key TEXT PRIMARY KEY,
+  head_sha TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS done_steps (
   pr_key TEXT NOT NULL,
@@ -141,9 +185,26 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS submissions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pr_key TEXT NOT NULL,
+  review_id INTEGER NOT NULL,
+  url TEXT NOT NULL,
+  event TEXT NOT NULL,
+  head_sha TEXT NOT NULL,
+  body TEXT NOT NULL,
+  posted_at TEXT NOT NULL
+);
 `;
 
-const PROGRESS_TABLES = ["sessions", "done_steps", "checked_hotspots", "jumps", "context_symbols"];
+const PROGRESS_TABLES = [
+  "sessions",
+  "review_baselines",
+  "done_steps",
+  "checked_hotspots",
+  "jumps",
+  "context_symbols",
+];
 const MAX_UNPINNED_SYMBOLS = 50;
 
 type AssistThreadRow = {
@@ -194,6 +255,29 @@ DELETE FROM context_symbols WHERE pr_key = :key AND pinned = 0 AND rowid NOT IN 
   ORDER BY seen_at DESC LIMIT :limit
 )`;
 
+const IN_PROGRESS = `
+SELECT s.pr_key, s.title, s.pause_note, s.updated_at,
+  (SELECT COUNT(*) FROM done_steps d WHERE d.pr_key = s.pr_key) AS done_count,
+  (SELECT COUNT(*) FROM notes n WHERE n.pr_key = s.pr_key) AS note_count
+FROM sessions s
+WHERE s.finished_at IS NULL
+  AND (done_count > 0 OR note_count > 0 OR s.pause_note IS NOT NULL)
+ORDER BY s.updated_at DESC`;
+
+function pauseOf(row: SessionRow | undefined): PauseState | null {
+  return row?.pause_note != null ? { note: row.pause_note, at: row.paused_at ?? "" } : null;
+}
+
+function toInProgress(row: InProgressRow): InProgressSession {
+  return {
+    key: row.pr_key,
+    title: row.title,
+    doneCount: row.done_count,
+    pauseNote: row.pause_note,
+    updatedAt: row.updated_at,
+  };
+}
+
 export function defaultDatabasePath(): string {
   return path.join(dataDirectory(), "review-queue.db");
 }
@@ -209,11 +293,19 @@ function migrateNotes(db: DatabaseSync): void {
   );
 }
 
+function ensureColumn(db: DatabaseSync, table: string, column: string, type: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (columns.some((existing) => existing.name === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+}
+
 function openDatabase(file: string): DatabaseSync {
   if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec(SCHEMA);
   migrateNotes(db);
+  ensureColumn(db, "sessions", "title", "TEXT");
+  ensureColumn(db, "sessions", "finished_at", "TEXT");
   return db;
 }
 
@@ -229,6 +321,26 @@ function toContextSymbol(row: ContextSymbolRow): ContextSymbol {
     origin: JSON.parse(row.origin) as SymbolPosition,
     pinned: row.pinned === 1,
     seenAt: row.seen_at,
+  };
+}
+
+type SubmissionRow = {
+  review_id: number;
+  url: string;
+  event: ReviewEvent;
+  head_sha: string;
+  body: string;
+  posted_at: string;
+};
+
+function toSubmission(row: SubmissionRow): Submission {
+  return {
+    reviewId: row.review_id,
+    url: row.url,
+    event: row.event,
+    headSha: row.head_sha,
+    body: row.body,
+    postedAt: row.posted_at,
   };
 }
 
@@ -260,8 +372,9 @@ export class SessionStore {
     return {
       currentStepId: row?.current_step ?? null,
       lastHeadSha: row?.head_sha ?? null,
+      baselineHeadSha: this.headFrom("SELECT head_sha FROM review_baselines WHERE pr_key = ?", key),
       updatedAt: row?.updated_at ?? null,
-      pause: row?.pause_note != null ? { note: row.pause_note, at: row.paused_at ?? "" } : null,
+      pause: pauseOf(row),
       doneSteps: this.column(
         "SELECT step_id AS v FROM done_steps WHERE pr_key = ? ORDER BY rowid",
         key,
@@ -274,6 +387,7 @@ export class SessionStore {
       jumps: this.jumps(key),
       assistThreads: this.assistThreads(key),
       contextSymbols: this.contextSymbols(key),
+      submissions: this.submissions(key),
     };
   }
 
@@ -286,7 +400,13 @@ export class SessionStore {
 
   markSeen(key: string, headSha: string): void {
     this.touch(key);
+    const previousHead = this.headFrom("SELECT head_sha FROM sessions WHERE pr_key = ?", key);
+    if (previousHead && previousHead !== headSha) this.recordPush(key, previousHead);
     this.db.prepare("UPDATE sessions SET head_sha = ? WHERE pr_key = ?").run(headSha, key);
+  }
+
+  catchUp(key: string): void {
+    this.db.prepare("DELETE FROM review_baselines WHERE pr_key = ?").run(key);
   }
 
   setStepDone(key: string, stepId: string, done: boolean): void {
@@ -335,6 +455,22 @@ export class SessionStore {
 
   deleteNote(key: string, id: number): void {
     this.db.prepare("DELETE FROM notes WHERE pr_key = ? AND id = ?").run(key, id);
+  }
+
+  recordSubmission(key: string, submission: NewSubmission): void {
+    this.db
+      .prepare(
+        "INSERT INTO submissions (pr_key, review_id, url, event, head_sha, body, posted_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        key,
+        submission.reviewId,
+        submission.url,
+        submission.event,
+        submission.headSha,
+        submission.body,
+        this.now(),
+      );
   }
 
   pause(key: string, note: string): void {
@@ -445,11 +581,27 @@ export class SessionStore {
       if (!session.updatedAt) continue;
       summaries[key] = {
         doneCount: session.doneSteps.length,
+        noteCount: session.notes.length,
         lastHeadSha: session.lastHeadSha,
         updatedAt: session.updatedAt,
+        pause: session.pause,
       };
     }
     return summaries;
+  }
+
+  rememberTitle(key: string, title: string): void {
+    this.touch(key);
+    this.db.prepare("UPDATE sessions SET title = ? WHERE pr_key = ?").run(title, key);
+  }
+
+  markFinished(key: string): void {
+    this.touch(key);
+    this.db.prepare("UPDATE sessions SET finished_at = ? WHERE pr_key = ?").run(this.now(), key);
+  }
+
+  inProgress(): InProgressSession[] {
+    return (this.db.prepare(IN_PROGRESS).all() as InProgressRow[]).map(toInProgress);
   }
 
   private now(): string {
@@ -471,8 +623,27 @@ export class SessionStore {
     this.db.prepare(statement).run(key, value);
   }
 
+  private headFrom(sql: string, key: string): string | null {
+    const row = this.db.prepare(sql).get(key) as { head_sha: string | null } | undefined;
+    return row?.head_sha ?? null;
+  }
+
+  private recordPush(key: string, previousHead: string): void {
+    this.db
+      .prepare("INSERT OR IGNORE INTO review_baselines (pr_key, head_sha) VALUES (?, ?)")
+      .run(key, previousHead);
+    this.db.prepare("UPDATE sessions SET finished_at = NULL WHERE pr_key = ?").run(key);
+  }
+
   private column(sql: string, key: string): string[] {
     return (this.db.prepare(sql).all(key) as { v: string }[]).map((row) => row.v);
+  }
+
+  private submissions(key: string): Submission[] {
+    const rows = this.db
+      .prepare("SELECT * FROM submissions WHERE pr_key = ? ORDER BY id DESC")
+      .all(key) as SubmissionRow[];
+    return rows.map(toSubmission);
   }
 
   private notes(key: string): Note[] {

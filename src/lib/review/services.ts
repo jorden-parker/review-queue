@@ -1,8 +1,10 @@
+import { type Conversation, loadConversation } from "@/lib/github/conversation";
 import { getPullRequest, listReviewRequests, type ReviewRequest } from "@/lib/github/gh";
 import { TtlCache } from "@/lib/github/ttl-cache";
 import type { LlmConfig } from "@/lib/llm/client";
 import { llmConfig } from "@/lib/llm/model-choice";
 import { prKey } from "@/lib/pr-ref";
+import type { PullRequestRef } from "@/lib/types";
 import { defaultDatabasePath, SessionStore } from "@/lib/session/store";
 import { savedLlmSettings } from "@/lib/settings/llm-settings";
 import type { ReviewDeps } from "./prepare";
@@ -29,6 +31,12 @@ function githubCache(): TtlCache {
 
 export function reviewRequests(): Promise<ReviewRequest[]> {
   return githubCache().get("review-requests", REVIEW_REQUESTS_TTL_MS, () => listReviewRequests());
+}
+
+export function conversation(ref: PullRequestRef): Promise<Conversation> {
+  return githubCache().get(`conversation:${prKey(ref)}`, PULL_REQUEST_TTL_MS, () =>
+    loadConversation(ref, sessionStore()),
+  );
 }
 
 export function reviewDeps(): ReviewDeps {

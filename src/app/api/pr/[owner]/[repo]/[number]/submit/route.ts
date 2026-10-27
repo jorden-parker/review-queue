@@ -1,9 +1,12 @@
 import { z } from "zod";
-import { submitReview } from "@/lib/github/gh";
+import { getPullRequest, submitReview } from "@/lib/github/gh";
 import { prKey } from "@/lib/pr-ref";
 import { jsonError, routeRef, type PrRouteContext } from "@/lib/review/route-context";
 import { sessionStore } from "@/lib/review/services";
 import { buildSubmission } from "@/lib/review/submission";
+
+const STALE_HEAD_MESSAGE =
+  "The author pushed new commits since you loaded this review. Reload and check the changes before posting.";
 
 const SubmitSchema = z.object({
   event: z.enum(["APPROVE", "REQUEST_CHANGES", "COMMENT"]),
@@ -20,14 +23,30 @@ export async function POST(request: Request, context: PrRouteContext) {
   const store = sessionStore();
   const key = prKey(ref);
   const chosen = store.getSession(key).notes.filter((note) => input.data.noteIds.includes(note.id));
+  const submission = buildSubmission(
+    chosen,
+    input.data.event,
+    input.data.summary,
+    input.data.headSha,
+  );
+  let posted: { id: number; url: string };
   try {
-    await submitReview(
-      ref,
-      buildSubmission(chosen, input.data.event, input.data.summary, input.data.headSha),
-    );
+    const current = await getPullRequest(ref, sessionStore());
+    if (current.headSha !== input.data.headSha) {
+      return jsonError(STALE_HEAD_MESSAGE, 409);
+    }
+    posted = await submitReview(ref, submission);
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : String(error), 502);
   }
+  store.recordSubmission(key, {
+    reviewId: posted.id,
+    url: posted.url,
+    event: input.data.event,
+    headSha: input.data.headSha,
+    body: submission.body,
+  });
   for (const note of chosen) store.deleteNote(key, note.id);
+  store.markFinished(key);
   return Response.json(store.getSession(key));
 }

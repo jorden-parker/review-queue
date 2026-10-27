@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import type { ReviewEvent } from "@/lib/github/gh";
 import { applySessionAction, SessionActionSchema } from "@/lib/review/session-actions";
 import { SessionStore } from "@/lib/session/store";
 import type { ReviewPayload } from "@/lib/review/prepare";
@@ -45,16 +46,27 @@ const OUTLINES: Record<string, unknown> = {
   ],
 };
 
+export const SUBMITTED_REVIEW_URL = "https://github.com/acme/app/pull/7#pullrequestreview-42";
+
+type SubmitBody = { event: ReviewEvent; summary: string; headSha: string };
+
+const EMPTY_CONVERSATION = { comments: [], reviews: [], truncated: false };
+
 export function installFakeApi(
   payload: ReviewPayload,
   orientation: unknown = { status: "disabled" },
   explanations: unknown[] = [],
+  changes: unknown = { baselineHeadSha: payload.headSha, headSha: payload.headSha, files: [] },
+  conversation: unknown = EMPTY_CONVERSATION,
 ) {
   const store = new SessionStore(":memory:");
   const calls: Call[] = [];
+  const head = { current: payload.headSha };
   const key = "acme/app#7";
   const routes: [RegExp, (body: unknown, url: URL) => unknown][] = [
     [/\/orientation/, () => orientation],
+    [/\/head$/, () => ({ headSha: head.current })],
+    [/\/changes$/, () => changes],
     [/\/reference-counts$/, (_body, url) => REFERENCE_COUNTS[url.searchParams.get("path")!] ?? []],
     [/\/outline$/, (_body, url) => OUTLINES[url.searchParams.get("path")!] ?? []],
     [
@@ -101,7 +113,21 @@ export function installFakeApi(
     ],
     [/\/assist$/, () => streamedText(ASSIST_REPLY)],
     [/\/session$/, (body) => applySessionAction(store, key, SessionActionSchema.parse(body))],
-    [/\/submit$/, () => store.getSession(key)],
+    [
+      /\/submit$/,
+      (body) => {
+        const submitted = body as SubmitBody;
+        store.recordSubmission(key, {
+          reviewId: 42,
+          url: SUBMITTED_REVIEW_URL,
+          event: submitted.event,
+          headSha: submitted.headSha,
+          body: submitted.summary,
+        });
+        return store.getSession(key);
+      },
+    ],
+    [/\/conversation$/, () => conversation],
     [/\/api\/pr\/acme\/app\/7$/, () => payload],
   ];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -118,6 +144,7 @@ export function installFakeApi(
   return {
     calls,
     store,
+    head,
     actions: () => calls.filter((call) => call.url.endsWith("/session")).map((call) => call.body),
   };
 }
