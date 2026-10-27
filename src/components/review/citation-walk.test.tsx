@@ -21,11 +21,30 @@ describe("CitationChip", () => {
     expect(onShow).toHaveBeenCalledOnce();
   });
 
+  it("flows inline with the sentence around it", () => {
+    render(<CitationChip citation={FIRST} active={false} onShow={vi.fn()} />);
+    expect(screen.getByRole("button").tagName).toBe("SPAN");
+  });
+
+  it.each(["Enter", " "])("reports %j pressed on the focused chip", (key) => {
+    const onShow = vi.fn();
+    render(<CitationChip citation={FIRST} active={false} onShow={onShow} />);
+    const chip = screen.getByRole("button");
+    expect(chip.tabIndex).toBe(0);
+    fireEvent.keyDown(chip, { key });
+    expect(onShow).toHaveBeenCalledOnce();
+  });
+
   it("is disabled with a title when its lines are not in the diff", () => {
-    render(<CitationChip citation={OUTSIDE} active={false} onShow={vi.fn()} />);
+    const onShow = vi.fn();
+    render(<CitationChip citation={OUTSIDE} active={false} onShow={onShow} />);
     const chip = screen.getByRole("button", { name: /src\/a\.ts:90/ });
-    expect(chip.hasAttribute("disabled")).toBe(true);
+    expect(chip.getAttribute("aria-disabled")).toBe("true");
     expect(chip.getAttribute("title")).toBe("Not in this diff");
+    expect(chip.hasAttribute("tabindex")).toBe(false);
+    fireEvent.click(chip);
+    fireEvent.keyDown(chip, { key: "Enter" });
+    expect(onShow).not.toHaveBeenCalled();
   });
 
   it("reads as a path with its line range, whatever form the model wrote", () => {
