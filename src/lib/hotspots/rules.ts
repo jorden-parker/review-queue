@@ -1,11 +1,12 @@
 import { plural } from "@/lib/plural";
-import type { DiffLine, FileDiff, Hotspot, Severity } from "@/lib/types";
+import type { DiffLine, FileDiff, Hotspot, Severity, SymbolDefinition } from "@/lib/types";
 import { classifyFile } from "@/lib/plan/classify";
 
 export type HotspotContext = {
   diffs: FileDiff[];
   churn: Map<string, number>;
   callerCounts: Map<string, number>;
+  touchedDefinitions: Map<string, SymbolDefinition[]>;
 };
 
 export type Rule = (file: FileDiff, context: HotspotContext) => Hotspot[];
@@ -224,6 +225,25 @@ const signatureChange: Rule = (file, context) =>
     );
   });
 
+const busyFunctionChange: Rule = (file, context) => {
+  if (isTestOrGenerated(file)) return [];
+  const signatureChanged = changedSignaturesIn(file);
+  return (context.touchedDefinitions.get(file.path) ?? [])
+    .filter((definition) => !signatureChanged.has(definition.name))
+    .map((definition) => ({ definition, callers: context.callerCounts.get(definition.name) ?? 0 }))
+    .filter(({ callers }) => callers > BUSY_CALLER_LIMIT)
+    .map(({ definition, callers }) =>
+      hotspot(
+        "busy-function-change",
+        "medium",
+        file,
+        definition.line,
+        `${definition.name} is used in ${plural(callers, "other place")}`,
+        "Only its body changed, but every caller gets the new behaviour. Do they all still want it?",
+      ),
+    );
+};
+
 function branchLines(file: FileDiff): DiffLine[] {
   return addedLines(file).filter((line) => BRANCH.test(scannable(line)));
 }
@@ -353,6 +373,7 @@ const removedTests: Rule = (file) => {
 
 export const FILE_RULES: Rule[] = [
   signatureChange,
+  busyFunctionChange,
   migration,
   removedTests,
   codePatterns,

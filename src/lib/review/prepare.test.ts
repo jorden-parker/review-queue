@@ -120,3 +120,45 @@ describe("loadReview", () => {
     expect(second.session.baselineHeadSha).toBe(first.headSha);
   });
 });
+
+describe("loadReview busy function changes", () => {
+  let fixture: FixtureRepo;
+  let deps: ReviewDeps;
+
+  beforeEach(() => {
+    fixture = createFixtureRepo(
+      {
+        "src/format.ts": "export function money(cents: number) {\n  return String(cents);\n}\n",
+        "src/a.ts": [
+          'import { money } from "./format";',
+          "export const a1 = money(1);",
+          "export const a2 = money(2);",
+          "export const a3 = money(3);",
+          "export const a4 = money(4);",
+          "export const a5 = money(5);",
+          "",
+        ].join("\n"),
+      },
+      {
+        "src/format.ts":
+          "export function money(cents: number) {\n  return (cents / 100).toFixed(2);\n}\n",
+      },
+      REF.number,
+    );
+    deps = {
+      fetchPullRequest: async () => pullRequest(headOf(fixture, REF.number), mainOf(fixture)),
+      store: new SessionStore(":memory:"),
+      checkoutOptions: { cacheRoot: fixture.cacheRoot, remoteUrl: fixture.origin },
+      languageClients: () => async () => null,
+    };
+  });
+
+  afterEach(() => removeFixtureRepo(fixture));
+
+  it("flags a body-only change to a function with many callers at its definition", async () => {
+    const review = await loadReview(REF, deps);
+    const busy = review.hotspots.find((hotspot) => hotspot.rule === "busy-function-change");
+    expect(busy).toMatchObject({ path: "src/format.ts", line: 1 });
+    expect(busy?.title).toContain("money is used in");
+  });
+});
