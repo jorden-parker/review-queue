@@ -52,7 +52,13 @@ export type NewNote = {
 
 export type NoteChange = Pick<Note, "kind" | "decorations" | "body">;
 
-export type ProgressSummary = { doneCount: number; lastHeadSha: string | null; updatedAt: string };
+export type ProgressSummary = {
+  doneCount: number;
+  noteCount: number;
+  lastHeadSha: string | null;
+  updatedAt: string;
+  pause: PauseState | null;
+};
 
 type SessionRow = {
   current_step: string | null;
@@ -445,8 +451,10 @@ export class SessionStore {
       if (!session.updatedAt) continue;
       summaries[key] = {
         doneCount: session.doneSteps.length,
+        noteCount: session.notes.length,
         lastHeadSha: session.lastHeadSha,
         updatedAt: session.updatedAt,
+        pause: session.pause,
       };
     }
     return summaries;
