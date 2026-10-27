@@ -5,13 +5,11 @@ import { InlineMarkdown } from "@/components/common/markdown-text";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import type { ReviewRequest } from "@/lib/github/gh";
+import { REVIEW_REQUEST_LIMIT, type ReviewRequest } from "@/lib/github/gh";
 import { prKey, prPath } from "@/lib/pr-ref";
 import { reviewRequests, sessionStore } from "@/lib/review/services";
 import type { PauseState, ProgressSummary } from "@/lib/session/store";
 import { orderQueue, type QueueEntry } from "./queue";
-
-const REVIEW_REQUEST_LIMIT = 100;
 
 function relativeTime(iso: string): string {
   const hours = Math.round((Date.now() - Date.parse(iso)) / 3_600_000);

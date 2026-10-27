@@ -51,6 +51,8 @@ const RENDERED_BODY = "Accept: application/vnd.github.full+json";
 
 const SEARCH_FIELDS = "number,title,url,repository,author,updatedAt,isDraft";
 
+export const REVIEW_REQUEST_LIMIT = 100;
+
 function refFromSearch(result: SearchResult): PullRequestRef {
   const [owner, repo] = result.repository.nameWithOwner.split("/");
   return { owner, repo, number: result.number };
@@ -62,7 +64,7 @@ export async function listReviewRequests(run: Runner = githubRun): Promise<Revie
     "prs",
     "--review-requested=@me",
     "--state=open",
-    "--limit=100",
+    `--limit=${REVIEW_REQUEST_LIMIT}`,
     `--json=${SEARCH_FIELDS}`,
   ]);
   return (JSON.parse(output) as SearchResult[]).map((result) => ({
