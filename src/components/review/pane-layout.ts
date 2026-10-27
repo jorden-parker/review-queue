@@ -47,3 +47,20 @@ export function onPaneSide(
   const side = PANE_SIDES[id];
   return { ...layouts, [side]: change(layouts[side], id) };
 }
+
+export function withOnlySide(layouts: SideLayouts, side: PanelSide): SideLayouts {
+  const otherSide: PanelSide = side === "left" ? "right" : "left";
+  return { ...layouts, [otherSide]: [] };
+}
+
+export function openPaneOnSide(
+  layouts: SideLayouts,
+  id: PaneId,
+  change: (layout: PaneLayout, id: PaneId) => PaneLayout,
+  wideScreen: boolean,
+): SideLayouts {
+  const next = onPaneSide(layouts, id, change);
+  const side = PANE_SIDES[id];
+  const opened = next[side].includes(id);
+  return !wideScreen && opened ? withOnlySide(next, side) : next;
+}

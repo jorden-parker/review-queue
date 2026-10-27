@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ASSIST_REPLY, installFakeApi } from "@/test/fake-api";
 import { emptySession, HEAD_SHA, REF, reviewPayload } from "@/test/review-fixture";
+import type { PanelSide } from "./pane-layout";
 import { ReviewLoader } from "./review-loader";
 
 vi.mock("next/link", () => ({
@@ -42,12 +43,20 @@ class DataTransferStub {
   }
 }
 
-function reviewPanel() {
-  return screen.getByRole("complementary", { name: "Review panel" });
+function reviewPanel(side: PanelSide = "right"): HTMLElement {
+  const panel = screen
+    .getAllByRole("complementary")
+    .find((aside) => aside.getAttribute("data-side") === side);
+  if (!panel) throw new Error(`no ${side} review panel`);
+  return panel;
 }
 
 function paneButton(name: string | RegExp) {
-  return within(reviewPanel()).getByRole("button", { name });
+  const matches = (["left", "right"] as const).flatMap((side) =>
+    within(reviewPanel(side)).queryAllByRole("button", { name }),
+  );
+  if (matches.length !== 1) throw new Error(`expected one pane button named ${String(name)}`);
+  return matches[0];
 }
 
 async function splitAboutPane(user: ReturnType<typeof userEvent.setup>) {
@@ -56,8 +65,8 @@ async function splitAboutPane(user: ReturnType<typeof userEvent.setup>) {
   await user.keyboard("{/Shift}");
 }
 
-function openPanes() {
-  return [...reviewPanel().querySelectorAll("[data-pane-index]")].map(
+function openPanes(side: PanelSide = "right") {
+  return [...reviewPanel(side).querySelectorAll("[data-pane-index]")].map(
     (pane) => pane.getAttribute("aria-label") ?? pane.querySelector("section")?.ariaLabel,
   );
 }
@@ -324,15 +333,27 @@ describe("ReviewLoader", () => {
     expect(openPanes()).toEqual(["Path", "Step", "Hotspots"]);
   });
 
-  it("opens a chat in place of the open pane and leaves the panel empty when it closes", async () => {
+  it("opens a chat on the Discuss side and keeps the Step pane open", async () => {
     const { user } = await renderReview(reviewPayload(), MODEL_ON);
     selectFirstLine("src/types.ts");
     const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
     await user.click(within(toolbar).getByRole("button", { name: /Explain/ }));
     const chat = await screen.findByRole("region", { name: "Ask the model" });
-    expect(openPanes()).toEqual(["Ask the model"]);
+    expect(openPanes("left")).toEqual(["Ask the model"]);
+    expect(openPanes("right")).toEqual(["Step"]);
     await user.click(within(chat).getByRole("button", { name: "Close" }));
-    expect(openPanes()).toEqual([]);
+    expect(openPanes("left")).toEqual([]);
+  });
+
+  it("keeps an open chat while Path opens", async () => {
+    const { user } = await renderReview(reviewPayload(), MODEL_ON);
+    selectFirstLine("src/types.ts");
+    const toolbar = await screen.findByRole("toolbar", { name: /selected lines/ });
+    await user.click(within(toolbar).getByRole("button", { name: /Explain/ }));
+    await screen.findByRole("region", { name: "Ask the model" });
+    await user.click(paneButton("Path"));
+    expect(screen.getByRole("region", { name: "Ask the model" })).toBeTruthy();
+    expect(openPanes("right")).toEqual(["Path"]);
   });
 
   it("keeps a split when a peek opens a Context pane that is already open", async () => {
@@ -340,11 +361,12 @@ describe("ReviewLoader", () => {
       reviewPayload(emptySession({ currentStepId: "core:src/client.ts:0" })),
     );
     await user.keyboard("{Shift>}");
+    await user.click(paneButton("Chats"));
     await user.click(paneButton("Context"));
     await user.keyboard("{/Shift}");
     await user.click(screen.getAllByRole("button", { name: "Options" })[0]);
     expect(await screen.findByRole("region", { name: "Options" })).toBeTruthy();
-    expect(openPanes()).toEqual(["Step", "Context"]);
+    expect(openPanes("left")).toEqual(["Chats", "Context"]);
   });
 
   it("opens the hidden panel when a chat starts", async () => {
@@ -609,7 +631,7 @@ describe("ReviewLoader", () => {
     await user.click(within(toolbar).getByRole("button", { name: /Explain/ }));
     const panel = await screen.findByRole("region", { name: "Ask the model" });
     expect(await within(panel).findByText(ASSIST_REPLY.join(""))).toBeTruthy();
-    expect(screen.queryByRole("region", { name: "Step" })).toBeNull();
+    expect(openPanes("right")).toEqual(["Step"]);
     await user.click(within(panel).getByRole("button", { name: "src/types.ts L1" }));
     await user.type(
       within(panel).getByLabelText("Ask the model"),

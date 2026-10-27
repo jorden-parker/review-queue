@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   PANE_SIDES,
   type PaneId,
+  type SideLayouts,
   closePane,
   dropPane,
   onPaneSide,
+  openPaneOnSide,
   pickPane,
   showPane,
   splitPane,
+  withOnlySide,
 } from "./pane-layout";
 
 describe("pickPane", () => {
@@ -74,6 +77,37 @@ describe("onPaneSide", () => {
     expect(onPaneSide({ left: [], right: ["step"] }, "context", showPane)).toEqual({
       left: ["context"],
       right: ["step"],
+    });
+  });
+});
+
+describe("withOnlySide", () => {
+  it("empties the other side and keeps the chosen one", () => {
+    const layouts: SideLayouts = { left: ["chat"], right: ["step"] };
+    expect(withOnlySide(layouts, "left")).toEqual({ left: ["chat"], right: [] });
+    expect(withOnlySide(layouts, "right")).toEqual({ left: [], right: ["step"] });
+  });
+});
+
+describe("openPaneOnSide", () => {
+  it("leaves the other side open on a wide screen", () => {
+    expect(openPaneOnSide({ left: ["chat"], right: ["step"] }, "path", pickPane, true)).toEqual({
+      left: ["chat"],
+      right: ["path"],
+    });
+  });
+
+  it("empties the other side on a narrow screen when a pane opens", () => {
+    expect(openPaneOnSide({ left: ["chat"], right: ["step"] }, "path", pickPane, false)).toEqual({
+      left: [],
+      right: ["path"],
+    });
+  });
+
+  it("keeps both sides on a narrow screen when a pane closes", () => {
+    expect(openPaneOnSide({ left: ["chat"], right: ["path"] }, "path", pickPane, false)).toEqual({
+      left: ["chat"],
+      right: [],
     });
   });
 });
