@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import type { ReviewRequest } from "@/lib/github/gh";
 import { prKey, prPath } from "@/lib/pr-ref";
 import { reviewRequests, sessionStore } from "@/lib/review/services";
-import type { ProgressSummary } from "@/lib/session/store";
+import type { PauseState, ProgressSummary } from "@/lib/session/store";
+import { orderQueue, type QueueEntry } from "./queue";
 
 function relativeTime(iso: string): string {
   const hours = Math.round((Date.now() - Date.parse(iso)) / 3_600_000);
@@ -17,16 +18,32 @@ function relativeTime(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function ProgressBadge({ progress }: { progress?: ProgressSummary }) {
-  if (!progress) return <Badge variant="outline">Not started</Badge>;
+function ProgressBadges({ entry }: { entry: QueueEntry }) {
+  if (!entry.progress) return <Badge variant="outline">Not started</Badge>;
   return (
-    <Badge className="bg-accent text-accent-foreground">
-      Resume, {progress.doneCount} steps done
-    </Badge>
+    <span className="flex flex-wrap justify-end gap-2">
+      <Badge className="bg-accent text-accent-foreground">
+        Resume, {entry.progress.doneCount} steps done
+      </Badge>
+      {entry.movedSinceVisit && <Badge variant="outline">Activity since your visit</Badge>}
+    </span>
   );
 }
 
-function InboxRow({ request, progress }: { request: ReviewRequest; progress?: ProgressSummary }) {
+function PausedNote({ pause }: { pause: PauseState }) {
+  const note = pause.note.trim();
+  return (
+    <span className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="rounded-full bg-callout px-3 py-0.5 text-callout-foreground">
+        {note ? `You were about to: ${note}` : "Paused"}
+      </span>
+      <span className="text-muted-foreground">{relativeTime(pause.at)}</span>
+    </span>
+  );
+}
+
+function InboxRow({ entry }: { entry: QueueEntry }) {
+  const { request, progress } = entry;
   return (
     <li>
       <Link
@@ -43,10 +60,29 @@ function InboxRow({ request, progress }: { request: ReviewRequest; progress?: Pr
             <span>updated {relativeTime(request.updatedAt)}</span>
             {request.isDraft && <span>draft</span>}
           </span>
+          {progress?.pause && <PausedNote pause={progress.pause} />}
         </span>
-        <ProgressBadge progress={progress} />
+        <ProgressBadges entry={entry} />
       </Link>
     </li>
+  );
+}
+
+function QueueRows({ entries }: { entries: QueueEntry[] }) {
+  const started = entries.filter((entry) => entry.progress);
+  const notStarted = entries.filter((entry) => !entry.progress);
+  return (
+    <>
+      {started.map((entry) => (
+        <InboxRow key={prKey(entry.request.ref)} entry={entry} />
+      ))}
+      {started.length > 0 && notStarted.length > 0 && (
+        <li className="px-5 py-2 text-xs font-medium text-muted-foreground">Not started</li>
+      )}
+      {notStarted.map((entry) => (
+        <InboxRow key={prKey(entry.request.ref)} entry={entry} />
+      ))}
+    </>
   );
 }
 
@@ -111,13 +147,7 @@ export async function InboxList() {
   return (
     <QueueSection count={requests.length}>
       <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
-        {requests.map((request) => (
-          <InboxRow
-            key={prKey(request.ref)}
-            request={request}
-            progress={progress[prKey(request.ref)]}
-          />
-        ))}
+        <QueueRows entries={orderQueue(requests, progress)} />
       </ul>
     </QueueSection>
   );
