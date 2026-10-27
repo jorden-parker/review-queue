@@ -213,7 +213,7 @@ export function AssistPanel({
       onKeyDown={(event) => event.stopPropagation()}
     >
       <header className="flex items-center gap-2 border-b px-3 py-2.5">
-        <Sparkles size={14} className="shrink-0 text-primary" />
+        <Sparkles className="size-3.5 shrink-0 text-primary" />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="font-medium">{actionLabel(thread.action, thread.target)}</span>
           <button

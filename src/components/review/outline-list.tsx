@@ -33,7 +33,7 @@ function ExpandToggle({ row, onToggle }: { row: OutlineRow; onToggle: () => void
       onClick={onToggle}
       className="flex w-5 shrink-0 justify-center text-muted-foreground hover:text-foreground"
     >
-      <Chevron size={14} />
+      <Chevron className="size-3.5" />
     </button>
   );
 }
@@ -67,7 +67,7 @@ function SymbolRow({
         title={row.shown ? "Go to it in the diff" : "Peek it; it is outside this step's diff"}
         className="flex min-w-0 flex-1 items-center gap-1.5 py-1 pr-2 text-left text-sm"
       >
-        <Icon size={14} className="shrink-0 text-primary" aria-hidden />
+        <Icon className="size-3.5 shrink-0 text-primary" aria-hidden />
         <span className={cn("truncate font-mono", row.changed && "font-medium text-primary")}>
           {row.symbol.name}
         </span>

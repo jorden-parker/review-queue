@@ -31,7 +31,7 @@ function ExplanationPanel({
         The model&apos;s guess, unverified. The PR author can sway it.
       </p>
       <div className="flex items-start gap-1.5 font-medium">
-        <Sparkles size={14} className="mt-0.5 shrink-0 text-primary" />
+        <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" />
         <Markdown text={explanation.what} className="flex flex-col gap-1.5" />
       </div>
       {explanation.checks.length > 0 && (

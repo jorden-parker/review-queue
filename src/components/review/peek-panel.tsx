@@ -226,7 +226,7 @@ export function PeekPanel({ onTab, onClose, pinned, onTogglePin, ...body }: Peek
       className="flex min-h-0 flex-1 animate-step-enter flex-col gap-3"
     >
       <div className="flex items-center gap-2">
-        <Telescope size={16} className="text-primary" />
+        <Telescope className="size-4 text-primary" />
         <h2 className="min-w-0 flex-1 truncate font-mono text-sm font-semibold">
           {peek.position.name}
         </h2>
