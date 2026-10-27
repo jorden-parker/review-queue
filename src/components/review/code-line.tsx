@@ -160,7 +160,7 @@ function NoteButton({ onClick }: { onClick: () => void }) {
       title="Add a note on this line (c)"
       className="text-primary opacity-0 transition-[opacity,transform] duration-calm ease-spring group-hover:opacity-100 hover:scale-125 focus-visible:opacity-100 pointer-coarse:opacity-100"
     >
-      <MessageSquarePlus size={14} />
+      <MessageSquarePlus className="size-3.5" />
     </button>
   );
 }

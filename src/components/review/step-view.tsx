@@ -52,7 +52,7 @@ function FileHeader({
   return (
     <div className="sticky top-0 z-10 flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-4 py-2 font-sans">
       <span className="flex min-w-0 items-center gap-2 max-sm:basis-full">
-        <FileCode2 size={16} className="shrink-0 text-muted-foreground" />
+        <FileCode2 className="size-4 shrink-0 text-muted-foreground" />
         {file.status === "renamed" && file.oldPath && (
           <>
             <PathLabel path={file.oldPath} className="text-sm opacity-60" />

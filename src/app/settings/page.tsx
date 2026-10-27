@@ -15,7 +15,7 @@ export default async function SettingsPage() {
           href="/"
           className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft size={14} /> Review queue
+          <ArrowLeft className="size-3.5" /> Review queue
         </Link>
         <h1 className="text-4xl font-bold">Settings</h1>
         <p className="max-w-prose text-lg text-muted-foreground">

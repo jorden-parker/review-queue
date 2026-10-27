@@ -117,7 +117,7 @@ function SymbolRow({
         className="flex min-w-0 flex-1 flex-col gap-0.5 p-2 text-left"
       >
         <span className="flex items-center gap-1.5 text-sm">
-          <Icon size={14} className="shrink-0 text-primary" aria-hidden />
+          <Icon className="size-3.5 shrink-0 text-primary" aria-hidden />
           <span className="truncate font-mono font-medium">{symbol.name}</span>
           <span className="text-xs text-muted-foreground">{symbol.kind}</span>
         </span>

@@ -38,7 +38,7 @@ export function ResumeCard({
     <AppDialog
       title={
         <span className="flex items-center gap-2">
-          <Coffee size={20} className="animate-float text-primary" /> Welcome back
+          <Coffee className="size-5 animate-float text-primary" /> Welcome back
         </span>
       }
       onClose={onContinue}
