@@ -23,18 +23,29 @@ export async function POST(request: Request, context: PrRouteContext) {
   const store = sessionStore();
   const key = prKey(ref);
   const chosen = store.getSession(key).notes.filter((note) => input.data.noteIds.includes(note.id));
+  const submission = buildSubmission(
+    chosen,
+    input.data.event,
+    input.data.summary,
+    input.data.headSha,
+  );
+  let posted: { id: number; url: string };
   try {
     const current = await getPullRequest(ref, sessionStore());
     if (current.headSha !== input.data.headSha) {
       return jsonError(STALE_HEAD_MESSAGE, 409);
     }
-    await submitReview(
-      ref,
-      buildSubmission(chosen, input.data.event, input.data.summary, input.data.headSha),
-    );
+    posted = await submitReview(ref, submission);
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : String(error), 502);
   }
+  store.recordSubmission(key, {
+    reviewId: posted.id,
+    url: posted.url,
+    event: input.data.event,
+    headSha: input.data.headSha,
+    body: submission.body,
+  });
   for (const note of chosen) store.deleteNote(key, note.id);
   store.markFinished(key);
   return Response.json(store.getSession(key));
