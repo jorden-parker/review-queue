@@ -174,7 +174,7 @@ type RawReview = {
   commit_id: string;
 };
 
-const CONVERSATION_PAGE_SIZE = 100;
+export const CONVERSATION_PAGE_SIZE = 100;
 
 function pullPath(ref: PullRequestRef): string {
   return `repos/${ref.owner}/${ref.repo}/pulls/${ref.number}`;
