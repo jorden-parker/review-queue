@@ -2,6 +2,7 @@ import path from "node:path";
 import type { ServerLocation } from "@/lib/lsp/client";
 import { hoverSummary } from "@/lib/lsp/hover-summary";
 import type { ClientFor } from "@/lib/lsp/pool";
+import type { SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { SymbolPosition } from "@/lib/types";
 import {
   definitionsWithCode,
@@ -14,7 +15,10 @@ import {
   type ReferenceWithCode,
 } from "./peek-code";
 
-export type Navigation = { index: PeekIndex; clientFor: ClientFor };
+export type Navigation = {
+  index: PeekIndex & Pick<SymbolIndex, "filesMentioning">;
+  clientFor: ClientFor;
+};
 
 async function clientAt({ clientFor }: Navigation, position: SymbolPosition) {
   return position.side === "new" ? clientFor(position.path) : null;
@@ -93,7 +97,13 @@ async function serverReferences(
 ): Promise<ReferenceWithCode[] | null> {
   const client = await clientAt(navigation, position);
   if (!client) return null;
-  const locations = await client.references(position.path, position.line, position.character);
+  const related = await navigation.index.filesMentioning(position.name);
+  const locations = await client.references(
+    position.path,
+    position.line,
+    position.character,
+    related,
+  );
   const inside = locations.flatMap((location) => {
     const file = navigation.index.relativePath(location.file);
     if (file === null) return [];

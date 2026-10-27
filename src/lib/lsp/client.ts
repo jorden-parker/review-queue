@@ -126,7 +126,15 @@ export class LanguageClient {
     return locationsOf(result);
   }
 
-  async references(file: string, line: number, character: number): Promise<ServerLocation[]> {
+  async references(
+    file: string,
+    line: number,
+    character: number,
+    related: string[] = [],
+  ): Promise<ServerLocation[]> {
+    await Promise.all(
+      related.filter((other) => this.serves(other)).map((other) => this.open(other)),
+    );
     const result = await this.request<Location[] | null>("textDocument/references", file, {
       position: { line: line - 1, character },
       context: { includeDeclaration: false },
@@ -163,6 +171,10 @@ export class LanguageClient {
     await this.connection.sendNotification("workspace/didChangeConfiguration", {
       settings: this.server.settings,
     });
+  }
+
+  private serves(file: string): boolean {
+    return languageIdOf(this.server, file) !== undefined;
   }
 
   private uriOf(file: string): string {
