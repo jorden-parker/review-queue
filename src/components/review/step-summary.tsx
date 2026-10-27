@@ -70,7 +70,7 @@ function StepHotspots({ session, workspace }: { session: Session; workspace: Wor
   if (hotspots.length === 0) return null;
   return (
     <section aria-label="Hotspots in this step" className="flex flex-col gap-2">
-      <h2 className="px-2 text-xs font-medium text-muted-foreground">Hotspots in this step</h2>
+      <h2 className="px-2 text-sm font-bold">Hotspots in this step</h2>
       <HotspotList
         hotspots={hotspots}
         checked={session.checkedHotspots}

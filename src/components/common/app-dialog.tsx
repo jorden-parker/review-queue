@@ -20,7 +20,7 @@ export function AppDialog({ title, onClose, className, children }: AppDialogProp
         className={cn("max-h-dialog gap-5 overflow-y-auto p-6 sm:max-w-lg", className)}
       >
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold tracking-tight">{title}</DialogTitle>
+          <DialogTitle className="text-lg font-bold">{title}</DialogTitle>
         </DialogHeader>
         {children}
       </DialogContent>

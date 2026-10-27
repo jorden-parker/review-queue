@@ -16,7 +16,7 @@ export function ReviewLoader({ pullRequest }: { pullRequest: PullRequestRef }) {
         <span aria-hidden className="animate-float text-4xl">
           🦦
         </span>
-        <p className="text-lg font-semibold tracking-tight">Getting the PR ready…</p>
+        <p className="text-lg font-bold">Getting the PR ready…</p>
         <p className="max-w-md text-sm text-muted-foreground">
           Fetching, checking out the branch and indexing symbols. The first time for a repo can take
           a minute.
@@ -27,7 +27,7 @@ export function ReviewLoader({ pullRequest }: { pullRequest: PullRequestRef }) {
   if (load.status === "error") {
     return (
       <main className="mx-auto flex max-w-xl flex-col gap-3 px-4 py-16">
-        <h1 className="text-xl font-semibold tracking-tight">🙈 Couldn&apos;t open this PR</h1>
+        <h1 className="text-xl font-bold">🙈 Couldn&apos;t open this PR</h1>
         <p className="rounded-lg bg-del p-3 font-mono text-sm text-del-foreground">
           {load.message}
         </p>

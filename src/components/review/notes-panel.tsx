@@ -32,7 +32,7 @@ export function NotesPanel({ notes, onPark, onOpen, onDelete, parkingRef }: Note
   return (
     <div className="flex flex-col gap-5">
       <form onSubmit={park} className="flex flex-col gap-2">
-        <label htmlFor="parking" className="text-sm font-medium">
+        <label htmlFor="parking" className="text-sm font-bold">
           Parking lot
         </label>
         <Input
@@ -52,7 +52,7 @@ export function NotesPanel({ notes, onPark, onOpen, onDelete, parkingRef }: Note
         </ul>
       )}
       <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">Notes on code ({lineNotes.length})</h3>
+        <h3 className="text-sm font-bold">Notes on code ({lineNotes.length})</h3>
         {lineNotes.length === 0 ? (
           <EmptyState emoji="💬">Hover a line and click the speech bubble, or press c.</EmptyState>
         ) : (
