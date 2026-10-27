@@ -150,6 +150,10 @@ function NoteRow({
   );
 }
 
+function isSaveShortcut(event: React.KeyboardEvent) {
+  return event.key === "Enter" && (event.metaKey || event.ctrlKey);
+}
+
 function NoteEditor({
   note,
   onSave,
@@ -168,7 +172,7 @@ function NoteEditor({
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Escape") onCancel();
-    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) save();
+    else if (isSaveShortcut(event)) save();
   }
 
   return (
