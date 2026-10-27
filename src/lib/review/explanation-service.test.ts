@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PullRequest } from "@/lib/github/gh";
 import { SessionStore } from "@/lib/session/store";
-import { explanationFor } from "./explanation-service";
+import { explanationFor, storedExplanation } from "./explanation-service";
 import type { ReviewData } from "./prepare";
 
 const STEP = {
@@ -73,5 +73,29 @@ describe("explanationFor", () => {
     expect(await explanationFor(DATA, STEP.id, store, CONFIG, failing)).toMatchObject({
       status: "error",
     });
+  });
+});
+
+describe("storedExplanation", () => {
+  it("is null until the explanation has been generated", async () => {
+    const store = new SessionStore(":memory:");
+    expect(storedExplanation(DATA, STEP.id, store, CONFIG)).toBeNull();
+  });
+
+  it("returns the explanation the model wrote, without asking again", async () => {
+    const store = new SessionStore(":memory:");
+    const { fetchImpl, calls } = countingFetch();
+    const generated = await explanationFor(DATA, STEP.id, store, CONFIG, fetchImpl);
+    expect(storedExplanation(DATA, STEP.id, store, CONFIG)).toEqual(
+      generated.status === "ready" ? generated.explanation : null,
+    );
+    expect(calls()).toBe(1);
+  });
+
+  it("is null for a different model", async () => {
+    const store = new SessionStore(":memory:");
+    const { fetchImpl } = countingFetch();
+    await explanationFor(DATA, STEP.id, store, CONFIG, fetchImpl);
+    expect(storedExplanation(DATA, STEP.id, store, { ...CONFIG, model: "other" })).toBeNull();
   });
 });

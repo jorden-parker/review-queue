@@ -11,7 +11,11 @@ function parsedJson(raw: string): unknown {
   }
 }
 
-function validCached<T>(store: SessionStore, key: string, schema: z.ZodType<T>): T | null {
+export function storedModelResult<T>(
+  store: SessionStore,
+  key: string,
+  schema: z.ZodType<T>,
+): T | null {
   const raw = store.getCached(key);
   if (raw === null) return null;
   const parsed = schema.safeParse(parsedJson(raw));
@@ -39,7 +43,7 @@ export function cachedModelResult<T>(
   schema: z.ZodType<T>,
   generate: () => Promise<T>,
 ): Promise<T> {
-  const cached = validCached(store, key, schema);
+  const cached = storedModelResult(store, key, schema);
   if (cached !== null) return Promise.resolve(cached);
   const existing = inFlight.get(key);
   if (existing) return existing as Promise<T>;
