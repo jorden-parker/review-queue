@@ -30,7 +30,7 @@
   --del-foreground: oklch(0.52 0.18 25);
   --severity-high: oklch(0.58 0.2 30);
   --severity-medium: oklch(0.68 0.15 70);
-  --severity-low: oklch(0.6 0.03 250);
+  --severity-low: oklch(0.58 0.15 240);
   --callout: oklch(0.96 0.06 95);
   --callout-foreground: oklch(0.42 0.09 80);
   --whimsy-from: oklch(0.62 0.2 259);
@@ -64,7 +64,7 @@
     --del-foreground: oklch(0.8 0.12 25);
     --severity-high: oklch(0.72 0.16 30);
     --severity-medium: oklch(0.8 0.13 75);
-    --severity-low: oklch(0.72 0.03 250);
+    --severity-low: oklch(0.74 0.13 240);
     --callout: oklch(0.3 0.05 90);
     --callout-foreground: oklch(0.88 0.1 90);
   }
