@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import type { ReactNode } from "react";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -71,28 +72,44 @@ async function loadInbox(): Promise<Inbox> {
   }
 }
 
+function QueueSection({ count, children }: { count: number; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-bold">
+        Waiting for you <span className="text-muted-foreground">({count})</span>
+      </h2>
+      {children}
+    </section>
+  );
+}
+
 export async function InboxList() {
   await connection();
   const { requests, progress, error } = await loadInbox();
   if (error) {
     return (
-      <Card className="gap-2 px-5 text-sm ring-destructive/40">
-        <p>
-          🔌 Couldn&apos;t reach GitHub through <code className="font-mono">gh</code>. Is it
-          installed and logged in?
-        </p>
-        <p className="font-mono text-xs text-muted-foreground">{error}</p>
-      </Card>
+      <QueueSection count={0}>
+        <Card className="gap-2 px-5 text-sm ring-destructive/40">
+          <p>
+            🔌 Couldn&apos;t reach GitHub through <code className="font-mono">gh</code>. Is it
+            installed and logged in?
+          </p>
+          <p className="font-mono text-xs text-muted-foreground">{error}</p>
+        </Card>
+      </QueueSection>
     );
   }
   if (requests.length === 0) {
-    return <EmptyState emoji="🌴">Nothing is waiting for your review. Enjoy it.</EmptyState>;
+    return (
+      <QueueSection count={0}>
+        <div className="rounded-xl bg-card ring-1 ring-border">
+          <EmptyState emoji="🌴">Nothing is waiting for your review. Enjoy it.</EmptyState>
+        </div>
+      </QueueSection>
+    );
   }
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-bold">
-        Waiting for you <span className="text-muted-foreground">({requests.length})</span>
-      </h2>
+    <QueueSection count={requests.length}>
       <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
         {requests.map((request) => (
           <InboxRow
@@ -102,6 +119,6 @@ export async function InboxList() {
           />
         ))}
       </ul>
-    </section>
+    </QueueSection>
   );
 }
