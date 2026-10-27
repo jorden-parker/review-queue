@@ -3,8 +3,10 @@
 import { Check, Circle, Play, RotateCcw } from "lucide-react";
 import { cn } from "cn";
 import { Celebration } from "@/components/common/celebration";
+import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
+import { PaneRow } from "@/components/common/pane-row";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { plural } from "@/lib/plural";
@@ -99,48 +101,44 @@ function StepItem({ step, index, path }: StepItemProps) {
   const current = step.id === path.currentStepId;
   const reopened = path.reopenedStepIds.includes(step.id);
   return (
-    <li>
-      <div
-        className={cn(
-          "flex items-start gap-2 rounded-lg border-l-3 px-2 py-2 transition-colors duration-calm",
-          current ? "border-marker bg-accent" : "border-transparent hover:bg-muted",
-        )}
+    <PaneRow
+      active={current}
+      className={cn("border-l-3", current ? "border-marker" : "border-transparent")}
+    >
+      <span className="flex h-5 shrink-0 items-center">
+        <DoneToggle done={done} reopened={reopened} onToggle={() => path.onToggleDone(step.id)} />
+      </span>
+      <button
+        onClick={() => path.onSelect(step.id)}
+        className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
       >
-        <span className="flex h-5 shrink-0 items-center">
-          <DoneToggle done={done} reopened={reopened} onToggle={() => path.onToggleDone(step.id)} />
-        </span>
-        <button
-          onClick={() => path.onSelect(step.id)}
-          className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
+        <span
+          className={cn(
+            "text-sm wrap-anywhere",
+            done ? "text-muted-foreground line-through" : "font-bold",
+            current && "text-accent-foreground",
+          )}
         >
-          <span
-            className={cn(
-              "text-sm wrap-anywhere",
-              done ? "text-muted-foreground line-through" : "font-bold",
-              current && "text-accent-foreground",
-            )}
-          >
-            {index + 1}. {step.title}
-          </span>
-          <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-            <span>{step.role}</span>
-            <span>{plural(step.changedLines, "line")}</span>
-          </span>
-          <StepNotes
-            reason={path.reasons[step.id]}
-            start={step.id === path.startStepId}
-            reopened={reopened}
-          />
-        </button>
-      </div>
-    </li>
+          {index + 1}. {step.title}
+        </span>
+        <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+          <span>{step.role}</span>
+          <span>{plural(step.changedLines, "line")}</span>
+        </span>
+        <StepNotes
+          reason={path.reasons[step.id]}
+          start={step.id === path.startStepId}
+          reopened={reopened}
+        />
+      </button>
+    </PaneRow>
   );
 }
 
 export const ORDERING_MESSAGE = "Local model is ordering the steps…";
 
 export function ReadingPath(props: ReadingPathProps) {
-  if (props.ordering) return <p className="text-sm text-muted-foreground">{ORDERING_MESSAGE}</p>;
+  if (props.ordering) return <EmptyState emoji="🧭">{ORDERING_MESSAGE}</EmptyState>;
   const doneCount = props.steps.filter((step) => props.doneSteps.includes(step.id)).length;
   return (
     <div className="flex flex-col gap-4">
@@ -150,7 +148,7 @@ export function ReadingPath(props: ReadingPathProps) {
           Built-in order. The local model couldn&apos;t order these.
         </p>
       )}
-      <ol aria-label="Reading path" className="flex flex-col gap-1">
+      <ol aria-label="Reading path" className="flex flex-col gap-0.5">
         {props.steps.map((step, index) => (
           <StepItem key={step.id} step={step} index={index} path={props} />
         ))}
