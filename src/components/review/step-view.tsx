@@ -14,7 +14,7 @@ import { CodeLine, type LineHandlers } from "./code-line";
 import { FileAskButton } from "./file-ask-button";
 import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
-import { isSameLine, lineElementId, type LineTarget } from "./locate";
+import { isInTarget, isSameLine, lineElementId, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
 import { occurrenceAt, type Occurrences } from "./occurrences";
 import { ReferenceLens } from "./reference-lens";
@@ -104,7 +104,7 @@ function HunkBlock({
         const lineNumber = line.newLine;
         const target = lineNumber !== null ? { path: file.path, line: lineNumber } : null;
         const composing = target && isSameLine(context.composer, target.path, target.line);
-        const landed = target && isSameLine(context.landed, target.path, target.line);
+        const landed = target && isInTarget(context.landed, target.path, target.line);
         const lens = lineNumber !== null ? lenses.get(lineNumber) : undefined;
         return (
           <div key={lineIndex}>

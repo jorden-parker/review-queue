@@ -1,8 +1,22 @@
+import type { ComponentProps } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import { sanitize } from "hast-util-sanitize";
 import { toJsxRuntime, type Components } from "hast-util-to-jsx-runtime";
 
 type HastTree = Parameters<typeof sanitize>[0];
+
+export function RichLink({ children, href }: ComponentProps<"a">) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-primary underline-offset-4 hover:underline"
+    >
+      {children}
+    </a>
+  );
+}
 
 const RICH_TEXT_ELEMENTS: Partial<Components> = {
   h1: ({ children }) => <h3 className="font-semibold text-foreground">{children}</h3>,
@@ -18,18 +32,14 @@ const RICH_TEXT_ELEMENTS: Partial<Components> = {
   pre: ({ children }) => (
     <pre className="overflow-x-auto rounded-lg bg-muted p-3 [&_code]:p-0">{children}</pre>
   ),
-  a: ({ children, href }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="text-primary underline-offset-4 hover:underline"
-    >
-      {children}
-    </a>
-  ),
+  a: RichLink,
 };
 
-export function renderHast(tree: HastTree) {
-  return toJsxRuntime(sanitize(tree), { Fragment, jsx, jsxs, components: RICH_TEXT_ELEMENTS });
+export function renderHast(tree: HastTree, components?: Partial<Components>) {
+  return toJsxRuntime(sanitize(tree), {
+    Fragment,
+    jsx,
+    jsxs,
+    components: { ...RICH_TEXT_ELEMENTS, ...components },
+  });
 }

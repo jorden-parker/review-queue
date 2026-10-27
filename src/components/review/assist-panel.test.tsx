@@ -40,8 +40,10 @@ function panel({ thread, assist }: { thread: AssistThread; assist: Assist }) {
       thread={thread}
       label="src/a.ts"
       commentLine={null}
+      citationsOf={() => []}
       onSaveNote={vi.fn()}
       onShowLines={vi.fn()}
+      onShowCitation={vi.fn()}
     />
   );
 }
