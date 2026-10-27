@@ -3,7 +3,11 @@ import { addedHunk, fileDiff, removedHunk } from "@/test/diff-builders";
 import { checksFor } from "./checks";
 import { findHotspots } from "./find-hotspots";
 
-const EMPTY = { churn: new Map<string, number>(), callerCounts: new Map<string, number>() };
+const EMPTY = {
+  churn: new Map<string, number>(),
+  callerCounts: new Map<string, number>(),
+  touchedDefinitions: new Map(),
+};
 
 describe("checksFor", () => {
   it("gives every built-in rule something to check", () => {
