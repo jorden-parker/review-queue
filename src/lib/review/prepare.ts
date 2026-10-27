@@ -4,12 +4,13 @@ import type { PullRequest } from "@/lib/github/gh";
 import { highlightFile, type HighlightedHunk } from "@/lib/highlight";
 import { findHotspots } from "@/lib/hotspots/find-hotspots";
 import { changedSignatureNames } from "@/lib/hotspots/rules";
+import { buildChangeMap } from "@/lib/map/change-map";
 import { buildReadingPath, estimateMinutes } from "@/lib/plan/reading-path";
 import { prKey } from "@/lib/pr-ref";
 import type { Session, SessionStore } from "@/lib/session/store";
 import { SymbolIndex } from "@/lib/symbols/symbol-index";
 import { languageClients, type ClientFor } from "@/lib/lsp/pool";
-import type { FileDiff, Hotspot, PullRequestRef, Step } from "@/lib/types";
+import type { ChangeMap, FileDiff, Hotspot, PullRequestRef, Step } from "@/lib/types";
 
 export type ReviewDeps = {
   fetchPullRequest: (ref: PullRequestRef) => Promise<PullRequest>;
@@ -28,6 +29,7 @@ export type ReviewData = {
   startStepId: string | null;
   hotspots: Hotspot[];
   estimateMinutes: number;
+  changeMap: ChangeMap;
 };
 
 export type PreparedReview = {
@@ -74,6 +76,7 @@ async function build(pr: PullRequest, deps: ReviewDeps): Promise<PreparedReview>
   const diffs = await diffCheckout(checkout);
   const index = await SymbolIndex.build(checkout.worktreePath, checkout.run);
   const { steps, startStepId } = buildReadingPath(diffs, index);
+  const changeMap = buildChangeMap(diffs, index, steps);
   const hotspots = findHotspots(diffs, {
     churn: await fileChurn(checkout),
     callerCounts: await callerCounts(diffs, index),
@@ -93,6 +96,7 @@ async function build(pr: PullRequest, deps: ReviewDeps): Promise<PreparedReview>
     startStepId,
     hotspots,
     estimateMinutes: estimateMinutes(steps.reduce((sum, step) => sum + step.changedLines, 0)),
+    changeMap,
   };
   const clientFor = (deps.languageClients ?? languageClients)(index.root, (file) =>
     index.readFile(file),

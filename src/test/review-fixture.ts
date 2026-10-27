@@ -119,6 +119,7 @@ export function reviewPayload(session: Session = emptySession()): ReviewPayload 
       },
     ],
     estimateMinutes: 2,
+    changeMap: { nodes: [], edges: [], threads: [], orphanIds: [] },
     session,
     reopenedStepIds: [],
   };
