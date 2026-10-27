@@ -12,7 +12,10 @@ export type LinePosition = { hunk: number; line: number };
 
 export type LineRange = { path: string; from: LinePosition; to: LinePosition };
 
-export type AssistTarget = { kind: "lines"; range: LineRange } | { kind: "file"; path: string };
+type StepCheckTarget = { kind: "check"; stepId: string; check: number; path: string };
+
+export type AssistTarget =
+  { kind: "lines"; range: LineRange } | { kind: "file"; path: string } | StepCheckTarget;
 
 export type AssistTurn = { role: "reviewer" | "model"; text: string };
 
@@ -73,8 +76,14 @@ export function targetPath(target: AssistTarget): string {
   return target.kind === "lines" ? target.range.path : target.path;
 }
 
+function shortLabel(target: Exclude<AssistTarget, { kind: "lines" }>): string {
+  return target.kind === "file"
+    ? `${target.path} (whole file)`
+    : `${target.path} (step check ${target.check + 1})`;
+}
+
 export function targetLabel(hunks: Hunk[], target: AssistTarget): string {
-  return target.kind === "lines" ? rangeLabel(hunks, target.range) : `${target.path} (whole file)`;
+  return target.kind === "lines" ? rangeLabel(hunks, target.range) : shortLabel(target);
 }
 
 export function targetCommentLine(hunks: Hunk[], target: AssistTarget): number | null {

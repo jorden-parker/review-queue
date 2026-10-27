@@ -8,8 +8,14 @@ import {
 import type { Message } from "@/lib/llm/client";
 import type { AssistRequest } from "@/lib/review/assist-request";
 
+const SUBJECTS: Record<AssistTarget["kind"], string> = {
+  lines: "these lines",
+  file: "this file",
+  check: "this check",
+};
+
 function subject(target: AssistTarget): string {
-  return target.kind === "file" ? "this file" : "these lines";
+  return SUBJECTS[target.kind];
 }
 
 export function actionLabel(action: AssistAction, target: AssistTarget): string {
