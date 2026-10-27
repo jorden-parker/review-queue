@@ -162,6 +162,30 @@ describe("buildPrompt", () => {
     expect(prompt.length).toBeLessThan(50_000);
   });
 
+  it("lists only the first steps and hotspots of a huge PR and says how many it left out", () => {
+    const steps = Array.from({ length: 500 }, (_, index) => ({ ...STEP, id: `core:s${index}:0` }));
+    const hotspots = Array.from({ length: 200 }, (_, index) => ({
+      ...HOTSPOT,
+      id: `todo:h${index}:1`,
+    }));
+    const prompt = buildPrompt({ ...INPUT, steps, hotspots });
+    expect(prompt).toContain("core:s0:0 |");
+    expect(prompt).not.toContain("core:s499:0 |");
+    expect(prompt).toContain("more steps not listed)");
+    expect(prompt).not.toContain("todo:h199:1 |");
+    expect(prompt).toContain("more hotspots not listed)");
+  });
+
+  it("keeps room for the diff when a PR has thousands of steps", () => {
+    const steps = Array.from({ length: 5000 }, (_, index) => ({
+      ...STEP,
+      id: `core:src/deeply/nested/file-${index}.ts:0`,
+    }));
+    const prompt = buildPrompt({ ...INPUT, steps });
+    expect(prompt).toContain("+cache()");
+    expect(prompt.length).toBeLessThan(50_000);
+  });
+
   it("fences author-written text so it cannot break out of its block", () => {
     const prompt = buildPrompt({
       ...INPUT,
