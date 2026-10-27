@@ -310,4 +310,34 @@ describe("SessionStore", () => {
       at: "2026-10-26T10:00:00.000Z",
     });
   });
+
+  it("adds the title and finished columns to a database created before them", () => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "review-queue-")), "old.db");
+    const old = new DatabaseSync(file);
+    old.exec(
+      "CREATE TABLE sessions (pr_key TEXT PRIMARY KEY, current_step TEXT, head_sha TEXT, pause_note TEXT, paused_at TEXT, updated_at TEXT NOT NULL)",
+    );
+    old.close();
+    const upgraded = new SessionStore(file);
+    upgraded.rememberTitle(KEY, "Add retry");
+    expect(upgraded.inProgress()).toEqual([]);
+  });
+
+  it("remembers the PR title and lists sessions with progress that are not finished", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.setStepDone(KEY, "s1", true);
+    store.rememberTitle("acme/app#8", "Only opened");
+    store.rememberTitle("acme/app#9", "Posted");
+    store.addNote("acme/app#9", { path: null, line: null, kind: "nit", body: "x" });
+    store.markFinished("acme/app#9");
+    expect(store.inProgress()).toEqual([
+      {
+        key: KEY,
+        title: "Add retry",
+        doneCount: 1,
+        pauseNote: null,
+        updatedAt: "2026-10-26T10:00:00.000Z",
+      },
+    ]);
+  });
 });
