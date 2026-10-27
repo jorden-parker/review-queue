@@ -118,5 +118,6 @@ export async function referencesAt(
   position: SymbolPosition,
 ): Promise<ReferenceWithCode[]> {
   const found = await serverReferences(navigation, position).catch(() => null);
-  return found ?? referencesWithCode(navigation.index, position.name);
+  if (found && found.length > 0) return found;
+  return referencesWithCode(navigation.index, position.name);
 }
