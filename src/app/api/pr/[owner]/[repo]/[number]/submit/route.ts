@@ -29,5 +29,6 @@ export async function POST(request: Request, context: PrRouteContext) {
     return jsonError(error instanceof Error ? error.message : String(error), 502);
   }
   for (const note of chosen) store.deleteNote(key, note.id);
+  store.markFinished(key);
   return Response.json(store.getSession(key));
 }

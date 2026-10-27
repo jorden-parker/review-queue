@@ -85,6 +85,12 @@ describe("loadReview", () => {
     expect(navigable).toMatchObject({ "scripts/run.sh": false, "src/retry.ts": true });
   });
 
+  it("remembers the PR title so the inbox can show it later", async () => {
+    await loadReview(REF, deps);
+    deps.store.setStepDone(prKey(REF), "s1", true);
+    expect(deps.store.inProgress()[0]).toMatchObject({ key: prKey(REF), title: "Add retry" });
+  });
+
   it("returns the latest description for an unchanged head", async () => {
     await loadReview(REF, deps);
     const head = headOf(fixture, REF.number);
