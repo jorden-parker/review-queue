@@ -126,8 +126,19 @@ describe("referencesAt", () => {
     expect(references).toHaveBeenCalledWith("src/app.ts", 2, 9, ["src/store.ts", "test/store.ts"]);
   });
 
-  it("falls back to text search without a server", async () => {
-    const [reference] = await referencesAt(navigationWith(null), POSITION);
-    expect(reference.path).toBe("src/store.ts");
+  it("falls back to text search when the server is missing, empty or failing", async () => {
+    const failing = stubClient({
+      references: async () => {
+        throw new Error("timed out");
+      },
+    });
+    for (const navigation of [
+      navigationWith(null),
+      navigationWith(stubClient({})),
+      navigationWith(failing),
+    ]) {
+      const [reference] = await referencesAt(navigation, POSITION);
+      expect(reference.path).toBe("src/store.ts");
+    }
   });
 });
