@@ -1,9 +1,9 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { cn } from "cn";
 import { EmptyState } from "@/components/common/empty-state";
 import { InlineMarkdown } from "@/components/common/markdown-text";
+import { PaneRow } from "@/components/common/pane-row";
 import { PathLabel } from "@/components/common/path-label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Hotspot, Severity } from "@/lib/types";
@@ -29,8 +29,8 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
   }
   const remaining = hotspots.filter((hotspot) => !checked.includes(hotspot.id)).length;
   return (
-    <div className="flex flex-col gap-3">
-      <p className="px-2 text-sm text-muted-foreground">
+    <div className="flex flex-col gap-2">
+      <p className="text-sm text-muted-foreground">
         {remaining === 0
           ? "✨ All checked. Lovely."
           : `${remaining} still to look at. Tick them off as you check.`}
@@ -39,13 +39,7 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
         {hotspots.map((hotspot) => {
           const isChecked = checked.includes(hotspot.id);
           return (
-            <li
-              key={hotspot.id}
-              className={cn(
-                "flex items-start gap-2 rounded-lg px-2 py-1.5 transition-[background-color,opacity] duration-calm hover:bg-muted",
-                isChecked && "opacity-50",
-              )}
-            >
+            <PaneRow key={hotspot.id} className={isChecked ? "opacity-50" : undefined}>
               <span className="flex h-5 shrink-0 items-center">
                 <Checkbox
                   checked={isChecked}
@@ -72,7 +66,7 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
                   <InlineMarkdown text={hotspot.note ?? hotspot.why} />
                 </span>
               </button>
-            </li>
+            </PaneRow>
           );
         })}
       </ul>

@@ -3,6 +3,7 @@
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "@/components/common/empty-state";
+import { PaneRow } from "@/components/common/pane-row";
 import { PathLabel } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ export function NotesPanel({ notes, onPark, onOpen, onDelete, parkingRef }: Note
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <form onSubmit={park} className="flex flex-col gap-2">
         <label htmlFor="parking" className="text-sm font-bold">
           Parking lot
@@ -77,7 +78,7 @@ function NoteRow({
   onDelete: (id: number) => void;
 }) {
   return (
-    <li className="group flex items-start gap-2 rounded-lg p-2 transition-colors duration-calm hover:bg-muted">
+    <PaneRow className="group">
       <NoteKindBadge kind={note.kind} />
       <button
         onClick={() => onOpen(note)}
@@ -95,6 +96,6 @@ function NoteRow({
       >
         <Trash2 />
       </Button>
-    </li>
+    </PaneRow>
   );
 }
