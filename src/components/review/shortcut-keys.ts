@@ -9,6 +9,7 @@ export type ShortcutAction =
   | "pin-symbol"
   | "open-context"
   | "open-outline"
+  | "open-map"
   | "back"
   | "note"
   | "ask-model"
@@ -42,7 +43,13 @@ const SINGLE_KEYS: Record<string, ShortcutAction> = {
 };
 
 const CHORDS: Record<string, Record<string, ShortcutAction>> = {
-  g: { d: "peek-definition", r: "peek-references", c: "open-context", o: "open-outline" },
+  g: {
+    d: "peek-definition",
+    r: "peek-references",
+    c: "open-context",
+    o: "open-outline",
+    m: "open-map",
+  },
 };
 
 export function resolveShortcut(
