@@ -37,7 +37,7 @@ const CONFIG = {
   thinking: false,
   timeoutMs: 1000,
 };
-const REPLY = { parts: [{ id: "a.ts#save", part: "Persists the setting.", weight: "essential" }] };
+const REPLY = { parts: [{ id: "c1", part: "Persists the setting.", weight: "essential" }] };
 
 function countingFetch() {
   let calls = 0;
