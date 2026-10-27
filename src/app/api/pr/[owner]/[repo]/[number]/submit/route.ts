@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { submitReview } from "@/lib/github/gh";
+import { getPullRequest, submitReview } from "@/lib/github/gh";
 import { prKey } from "@/lib/pr-ref";
 import { jsonError, routeRef, type PrRouteContext } from "@/lib/review/route-context";
-import { reviewDeps, sessionStore } from "@/lib/review/services";
+import { sessionStore } from "@/lib/review/services";
 import { buildSubmission } from "@/lib/review/submission";
 
 const STALE_HEAD_MESSAGE =
@@ -24,7 +24,7 @@ export async function POST(request: Request, context: PrRouteContext) {
   const key = prKey(ref);
   const chosen = store.getSession(key).notes.filter((note) => input.data.noteIds.includes(note.id));
   try {
-    const current = await reviewDeps().fetchPullRequest(ref);
+    const current = await getPullRequest(ref, sessionStore());
     if (current.headSha !== input.data.headSha) {
       return jsonError(STALE_HEAD_MESSAGE, 409);
     }
