@@ -73,4 +73,11 @@ describe("CodeLine", () => {
     expect(container.querySelector("[data-line]")?.contains(flags)).toBe(false);
     expect(flags.textContent).toBe(FLAG.title);
   });
+
+  it("keeps the flag row in the same hover group as its line", () => {
+    const { container } = renderLine(null, [FLAG]);
+    const flags = screen.getByRole("button", { name: /1 flag/ });
+    const lineGroup = container.querySelector("[data-line]")?.closest(".group");
+    expect(lineGroup?.contains(flags)).toBe(true);
+  });
 });

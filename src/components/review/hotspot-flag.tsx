@@ -84,15 +84,13 @@ function FlagChip({ hotspot, isChecked }: { hotspot: DisplayHotspot; isChecked: 
     <span
       data-checked={isChecked}
       className={cn(
-        "flex min-w-0 items-start gap-1.5 rounded-xl border px-2 py-0.5 font-medium wrap-anywhere transition-colors duration-150",
+        "inline-flex min-w-0 items-start gap-1 rounded-sm border px-1.5 py-px leading-4 font-medium wrap-anywhere transition-colors duration-150",
         isChecked ? DONE_CHIP : CHIP_STYLES[hotspot.severity],
       )}
     >
-      {isChecked ? (
-        <Check size={12} className="mt-0.5 shrink-0" />
-      ) : (
-        <Flag size={12} className="mt-0.5 shrink-0" />
-      )}
+      <span className="flex h-4 shrink-0 items-center">
+        {isChecked ? <Check size={11} /> : <Flag size={11} />}
+      </span>
       <InlineMarkdown text={hotspot.title} />
     </span>
   );
@@ -112,7 +110,7 @@ function FlagTrigger({
       aria-label={label}
       className={cn(
         className,
-        "flex max-w-full flex-wrap gap-1.5 rounded-xl text-left font-sans text-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        "flex max-w-full flex-wrap items-start gap-1 rounded-sm text-left font-sans text-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
       )}
     >
       {ordered.map((hotspot) => (
