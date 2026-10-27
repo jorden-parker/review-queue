@@ -45,6 +45,12 @@ export const SessionActionSchema = z.discriminatedUnion("type", [
     kind: NoteKindSchema,
     body: z.string().trim().min(1),
   }),
+  z.object({
+    type: z.literal("note-edit"),
+    id: z.number().int(),
+    kind: NoteKindSchema,
+    body: z.string().trim().min(1),
+  }),
   z.object({ type: z.literal("note-delete"), id: z.number().int() }),
   z.object({ type: z.literal("pause"), note: z.string() }),
   z.object({ type: z.literal("resume") }),
@@ -79,6 +85,7 @@ const HANDLERS: Handlers = {
   "note-add": (store, key, action) => {
     store.addNote(key, action);
   },
+  "note-edit": (store, key, action) => store.updateNote(key, action.id, action),
   "note-delete": (store, key, action) => store.deleteNote(key, action.id),
   pause: (store, key, action) => store.pause(key, action.note),
   resume: (store, key) => store.resume(key),

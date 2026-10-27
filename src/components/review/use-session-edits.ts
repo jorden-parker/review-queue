@@ -47,6 +47,15 @@ export function useSessionEdits(
     [act],
   );
 
+  const editNote = useCallback(
+    (id: number, kind: NoteKind, body: string) =>
+      act({ type: "note-edit", id, kind, body }, (current) => ({
+        ...current,
+        notes: current.notes.map((note) => (note.id === id ? { ...note, kind, body } : note)),
+      })),
+    [act],
+  );
+
   const pause = useCallback(
     (note: string) =>
       act({ type: "pause", note }, (current) => ({
@@ -77,5 +86,5 @@ export function useSessionEdits(
     [ref, headSha],
   );
 
-  return { toggleHotspot, saveNote, deleteNote, pause, resume, submit, draftSummary };
+  return { toggleHotspot, saveNote, deleteNote, editNote, pause, resume, submit, draftSummary };
 }

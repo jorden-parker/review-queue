@@ -37,6 +37,8 @@ export type Session = {
 
 export type NewNote = { path: string | null; line: number | null; kind: NoteKind; body: string };
 
+export type NoteChange = Pick<Note, "kind" | "body">;
+
 export type ProgressSummary = { doneCount: number; lastHeadSha: string | null; updatedAt: string };
 
 type SessionRow = {
@@ -278,6 +280,13 @@ export class SessionStore {
       )
       .run(key, note.path, note.line, note.kind, note.body, createdAt);
     return { ...note, id: Number(result.lastInsertRowid), createdAt };
+  }
+
+  updateNote(key: string, id: number, change: NoteChange): void {
+    this.touch(key);
+    this.db
+      .prepare("UPDATE notes SET kind = ?, body = ? WHERE pr_key = ? AND id = ?")
+      .run(change.kind, change.body, key, id);
   }
 
   deleteNote(key: string, id: number): void {
