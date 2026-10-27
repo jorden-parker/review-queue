@@ -33,6 +33,7 @@ const SOURCE: AssistSource = {
     },
   },
   explanationOf: () => null,
+  suggestedHotspots: () => [],
 };
 
 const CHECK_STEP: Step = {
@@ -147,6 +148,14 @@ describe("assistInputFrom", () => {
     expect(result.input.flags).toEqual([
       { title: FLAG.title, why: FLAG.why, checks: checksFor(FLAG.rule) },
     ]);
+  });
+
+  it("sends the model's own suggested flags on the selected lines with a check", () => {
+    const suggested = { path: "src/a.ts", line: 2, title: "Odd retry", why: "Loops forever." };
+    const flagged = { ...SOURCE, suggestedHotspots: () => [suggested] };
+    const result = assistInputFrom(flagged, { ...withRange([0, 1], [0, 1]), action: "check" });
+    if (!result.ok) throw new Error(result.error);
+    expect(result.input.flags).toEqual([{ title: "Odd retry", why: "Loops forever.", checks: [] }]);
   });
 
   it("rejects a check on lines that have no flags", () => {
