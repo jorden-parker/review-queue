@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { HotspotFlag, type HotspotFlagProps } from "./hotspot-flag";
+import { flagLineTint, HotspotFlag, type HotspotFlagProps } from "./hotspot-flag";
 import type { DisplayHotspot } from "./hotspot-list";
 
 const DEBUG: DisplayHotspot = {
@@ -50,6 +50,25 @@ describe("HotspotFlag", () => {
       .getByRole("button", { name: /2 flags/ })
       .querySelectorAll("[data-checked]");
     expect([...chips].map((chip) => chip.getAttribute("data-checked"))).toEqual(["false", "true"]);
+  });
+
+  it("shows a diagnostic icon for each severity, and a tick once checked", () => {
+    const WARNING = { ...DEBUG, id: "todo:src/app.ts:7", severity: "medium" as const };
+    renderFlag({ hotspots: [DEBUG, SECRET, WARNING], checked: [DEBUG.id] });
+    const icons = screen
+      .getByRole("button", { name: /3 flags/ })
+      .querySelectorAll("[data-checked] > svg");
+    expect([...icons].map((icon) => icon.getAttribute("data-icon"))).toEqual([
+      "error",
+      "warning",
+      "checked",
+    ]);
+  });
+
+  it("tints the line by its worst unchecked flag, and not at all once every flag is checked", () => {
+    expect(flagLineTint([DEBUG, SECRET], [])).toBe("bg-severity-high/10");
+    expect(flagLineTint([DEBUG, SECRET], [SECRET.id])).toBe("bg-severity-low/10");
+    expect(flagLineTint([DEBUG, SECRET], [DEBUG.id, SECRET.id])).toBe("");
   });
 
   it("opens the reasons and what to check for every flag", async () => {

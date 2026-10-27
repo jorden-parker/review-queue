@@ -7,17 +7,13 @@ import type { ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
 import { hotspotsInStep } from "./display-hotspots";
 import { HotspotList } from "./hotspot-list";
-import { OrientationCard } from "./orientation-card";
 import { StepExplanation } from "./step-explanation";
-import type { OrientationState } from "./use-review";
 import type { Workspace } from "./use-workspace";
 
 type StepSummaryProps = {
   review: ReviewPayload;
   session: Session;
   workspace: Workspace;
-  orientation: OrientationState;
-  fresh: boolean;
 };
 
 function CurrentStep({
@@ -67,7 +63,7 @@ function StepHotspots({ session, workspace }: { session: Session; workspace: Wor
   if (hotspots.length === 0) return null;
   return (
     <section aria-label="Hotspots in this step" className="flex flex-col gap-2">
-      <h2 className="px-1 text-xs font-medium text-muted-foreground">Hotspots in this step</h2>
+      <h2 className="px-2 text-xs font-medium text-muted-foreground">Hotspots in this step</h2>
       <HotspotList
         hotspots={hotspots}
         checked={session.checkedHotspots}
@@ -78,17 +74,11 @@ function StepHotspots({ session, workspace }: { session: Session; workspace: Wor
   );
 }
 
-export function StepSummary({ review, session, workspace, orientation, fresh }: StepSummaryProps) {
+export function StepSummary({ review, session, workspace }: StepSummaryProps) {
   return (
     <div className="flex flex-col gap-3">
       <CurrentStep review={review} session={session} workspace={workspace} />
       <StepHotspots session={session} workspace={workspace} />
-      <OrientationCard
-        key={fresh ? "fresh" : "started"}
-        review={review}
-        orientation={orientation}
-        fresh={fresh}
-      />
     </div>
   );
 }

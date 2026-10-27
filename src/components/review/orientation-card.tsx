@@ -1,11 +1,11 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Compass, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { PrDescription } from "@/components/common/pr-description";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { OrientationState } from "./use-review";
 
@@ -40,7 +40,9 @@ function AiSummary({ orientation }: { orientation: OrientationState }) {
         The model&apos;s guess, unverified. The PR author can sway it.
       </p>
       <div className="flex items-start gap-1.5 font-medium">
-        <Sparkles size={14} className="mt-0.5 shrink-0 text-primary" />
+        <span className="flex h-5 shrink-0 items-center">
+          <Sparkles className="size-3.5 text-primary" />
+        </span>
         <Markdown text={summary} className="flex flex-col gap-1.5" />
       </div>
       <p>
@@ -59,7 +61,7 @@ function AiSummaryLine({ orientation }: { orientation: OrientationState }) {
   const { summary, risk } = orientation.orientation;
   return (
     <p className="flex items-center gap-1.5 text-sm">
-      <Sparkles size={14} className="shrink-0 text-primary" />
+      <Sparkles className="size-3.5 shrink-0 text-primary" />
       <span className="truncate">
         <InlineMarkdown text={summary} />
       </span>
@@ -103,14 +105,11 @@ export function OrientationCard({ review, orientation, fresh }: OrientationCardP
   const [expanded, setExpanded] = useState(fresh);
   return (
     <Card size={expanded ? "default" : "sm"}>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <CardDescription className="flex items-center gap-2">
-            <Compass size={16} className="animate-float text-primary" />
-            {fresh ? "Before you start" : "About this PR"}
-          </CardDescription>
-          <DetailsToggle expanded={expanded} onToggle={() => setExpanded(!expanded)} />
-        </div>
+      <CardHeader className="flex items-center justify-between gap-2">
+        <CardTitle className="font-semibold tracking-tight">
+          {fresh ? "Before you start" : "About this PR"}
+        </CardTitle>
+        <DetailsToggle expanded={expanded} onToggle={() => setExpanded(!expanded)} />
       </CardHeader>
       <CardContent className={`flex flex-col ${expanded ? "gap-4" : "gap-2"}`}>
         {expanded && review.pr.bodyHtml.trim() && <PrDescription html={review.pr.bodyHtml} />}

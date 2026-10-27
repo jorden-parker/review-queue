@@ -7,7 +7,7 @@ import type { LineRange } from "@/lib/assist-protocol";
 import type { Token } from "@/lib/highlight";
 import type { DiffLine, Note, SymbolPosition } from "@/lib/types";
 import { CodeTokens, type IdentifierTarget } from "./code-tokens";
-import { HotspotFlag } from "./hotspot-flag";
+import { flagLineTint, HotspotFlag } from "./hotspot-flag";
 import type { DisplayHotspot } from "./hotspot-list";
 import type { LineTarget } from "./locate";
 import { NoteKindBadge } from "./note-kind-badge";
@@ -132,16 +132,18 @@ function LineFlagRow({
 }) {
   const { onCheckFlag } = handlers;
   return (
-    <div className={cn("flex py-1 transition-colors duration-150", ROW_STYLES[kind])}>
-      <GutterSpacer />
-      <div className="min-w-0 flex-1 pr-4 max-sm:pr-2">
-        <HotspotFlag
-          hotspots={hotspots}
-          checked={checked}
-          onToggleChecked={handlers.onToggleHotspot}
-          onAddNote={onAddNote}
-          onCheck={onCheckFlag ? () => onCheckFlag(range) : null}
-        />
+    <div className={cn("transition-colors duration-150", ROW_STYLES[kind])}>
+      <div className={cn("flex py-1", flagLineTint(hotspots, checked))}>
+        <GutterSpacer />
+        <div className="min-w-0 flex-1 pr-4 max-sm:pr-2">
+          <HotspotFlag
+            hotspots={hotspots}
+            checked={checked}
+            onToggleChecked={handlers.onToggleHotspot}
+            onAddNote={onAddNote}
+            onCheck={onCheckFlag ? () => onCheckFlag(range) : null}
+          />
+        </div>
       </div>
     </div>
   );
