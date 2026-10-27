@@ -12,6 +12,7 @@ vi.mock("@/lib/github/gh", () => ({
   submitReview: async (_ref: unknown, submission: ReviewSubmission) => {
     if (github.failure) throw new Error(github.failure);
     github.sent.push(submission);
+    return { id: 42, url: REVIEW_URL };
   },
   getPullRequest: async () => ({ headSha: github.head }),
 }));
@@ -21,6 +22,7 @@ process.env.REVIEW_QUEUE_DB = ":memory:";
 const { POST } = await import("./route");
 
 const KEY = "acme/app#7";
+const REVIEW_URL = "https://github.com/acme/app/pull/7#pullrequestreview-42";
 
 function context(number = "7") {
   return { params: Promise.resolve({ owner: "acme", repo: "app", number }) };
@@ -58,6 +60,20 @@ describe("POST submit", () => {
       { path: "a.ts", line: 2, body: "**nitpick:** rename" },
     ]);
     expect(sessionStore().getSession(KEY).notes).toEqual([]);
+  });
+
+  it("records a receipt with the review link", async () => {
+    const response = await POST(request({ ...VALID, summary: "Ship it" }), context());
+    const session = await response.json();
+    expect(session.submissions[0]).toEqual(
+      expect.objectContaining({
+        reviewId: 42,
+        url: REVIEW_URL,
+        event: "COMMENT",
+        headSha: "sha1",
+        body: "Ship it",
+      }),
+    );
   });
 
   it("refuses when the head moved since the review was loaded", async () => {
