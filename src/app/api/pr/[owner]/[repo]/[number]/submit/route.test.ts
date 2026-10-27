@@ -62,9 +62,17 @@ describe("POST submit", () => {
 
   it("refuses when the head moved since the review was loaded", async () => {
     github.head = "sha2";
-    const response = await POST(request(VALID), context("8"));
+    const response = await POST(request(VALID), context());
     expect(response.status).toBe(409);
     expect(github.sent).toEqual([]);
+  });
+
+  it("refuses a second submit after the head moved, even though the first one posted", async () => {
+    expect((await POST(request(VALID), context())).status).toBe(200);
+    github.head = "sha2";
+    const response = await POST(request(VALID), context());
+    expect(response.status).toBe(409);
+    expect(github.sent).toHaveLength(1);
   });
 
   it("keeps notes and reports the error when GitHub fails", async () => {
