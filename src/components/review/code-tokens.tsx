@@ -18,7 +18,7 @@ function ignore(): void {}
 
 function IdentifierName({ name, emphasis }: { name: string; emphasis?: string }) {
   return name === emphasis ? (
-    <mark className="rounded-sm bg-callout text-callout-foreground">{name}</mark>
+    <mark className="rounded-xs bg-primary/20 text-inherit ring-1 ring-primary/60">{name}</mark>
   ) : (
     name
   );

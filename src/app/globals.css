@@ -137,7 +137,7 @@
 
   @keyframes line-arrive {
     from {
-      background-color: var(--callout);
+      background-color: color-mix(in oklch, var(--primary) 35%, transparent);
     }
   }
 
