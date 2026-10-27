@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { addedHunk, fileDiff } from "@/test/diff-builders";
 import { reviewPayload } from "@/test/review-fixture";
 import { checksFor } from "@/lib/hotspots/checks";
-import type { FileDiff, Hotspot } from "@/lib/types";
+import type { FileDiff, Hotspot, Step } from "@/lib/types";
 import {
   type AssistRequest,
   AssistRequestSchema,
@@ -32,7 +32,33 @@ const SOURCE: AssistSource = {
       return text;
     },
   },
+  explanationOf: () => null,
 };
+
+const CHECK_STEP: Step = {
+  id: "core:src/a.ts:0",
+  title: "a.ts",
+  role: "core",
+  reason: "Holds a.",
+  changedLines: 5,
+  files: [{ path: "src/a.ts", hunkIndexes: [0] }],
+};
+
+const EXPLANATION = { model: "m", what: "w", checks: ["Is the key stable?"] };
+
+const CHECK_SOURCE: AssistSource = {
+  ...SOURCE,
+  data: { ...SOURCE.data, steps: [CHECK_STEP] },
+  explanationOf: () => EXPLANATION,
+};
+
+function checkRequest(check: number, action: AssistRequest["action"] = "explain"): AssistRequest {
+  return {
+    ...REQUEST,
+    action,
+    target: { kind: "check", stepId: CHECK_STEP.id, check, path: "src/a.ts" },
+  };
+}
 
 const LINES = {
   kind: "lines" as const,
@@ -143,6 +169,77 @@ describe("assistInputFrom", () => {
       ok: false,
       error: "Binary files cannot be sent to the model",
     });
+  });
+});
+
+describe("assistInputFrom for a step check", () => {
+  it("sends the check text and only the step's own hunks", () => {
+    const result = assistInputFrom(CHECK_SOURCE, checkRequest(0));
+    if (!result.ok) throw new Error(result.error);
+    expect(result.input.scope).toBe("check");
+    expect(result.input.stepCheck?.text).toBe("Is the key stable?");
+    expect(result.input.stepCheck?.step).toEqual(CHECK_STEP);
+    const hunks = result.input.stepCheck?.diffs.flatMap((diff) => diff.hunks) ?? [];
+    expect(hunks).toHaveLength(1);
+    expect(hunks[0].lines.map((line) => line.text)).toEqual(["a1", "a2", "a3"]);
+  });
+
+  it("allows only explain and ask", () => {
+    expect(assistInputFrom(CHECK_SOURCE, checkRequest(0, "simplify"))).toEqual({
+      ok: false,
+      error: "Only explain and ask work on a step check",
+    });
+    expect(assistInputFrom(CHECK_SOURCE, checkRequest(0, "comment")).ok).toBe(false);
+    expect(assistInputFrom(CHECK_SOURCE, checkRequest(0, "check")).ok).toBe(false);
+  });
+
+  it("rejects a step that is not in the review", () => {
+    const request = checkRequest(0);
+    const target = { ...request.target, stepId: "nope" } as AssistRequest["target"];
+    expect(assistInputFrom(CHECK_SOURCE, { ...request, target })).toEqual({
+      ok: false,
+      error: "Unknown step",
+    });
+  });
+
+  it("rejects a file that is not part of the step", () => {
+    const request = checkRequest(0);
+    const target = { ...request.target, path: "src/gone.ts" } as AssistRequest["target"];
+    expect(assistInputFrom(CHECK_SOURCE, { ...request, target })).toEqual({
+      ok: false,
+      error: "That file is not in this step",
+    });
+  });
+
+  it("asks the reviewer to open the step again when its explanation is not cached", () => {
+    const uncached = { ...CHECK_SOURCE, explanationOf: () => null };
+    expect(assistInputFrom(uncached, checkRequest(0))).toEqual({
+      ok: false,
+      error: "Open the step again to get its explanation",
+    });
+  });
+
+  it("rejects a check index the explanation does not have", () => {
+    expect(assistInputFrom(CHECK_SOURCE, checkRequest(1))).toEqual({
+      ok: false,
+      error: "That check is not in the step explanation",
+    });
+  });
+});
+
+describe("AssistRequestSchema check target", () => {
+  const checkTarget = (check: number) => ({
+    ...checkRequest(0),
+    target: { kind: "check", stepId: "s", check, path: "src/a.ts" },
+  });
+
+  it("accepts a check index", () => {
+    expect(AssistRequestSchema.safeParse(checkTarget(0)).success).toBe(true);
+  });
+
+  it("rejects a negative or fractional check index", () => {
+    expect(AssistRequestSchema.safeParse(checkTarget(-1)).success).toBe(false);
+    expect(AssistRequestSchema.safeParse(checkTarget(1.5)).success).toBe(false);
   });
 });
 

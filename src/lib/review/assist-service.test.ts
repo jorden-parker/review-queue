@@ -10,7 +10,11 @@ const CONFIG = {
   thinking: true,
   timeoutMs: 1000,
 };
-const DATA = { data: reviewPayload(), index: { readFile: () => "export const client = 1;" } };
+const DATA = {
+  data: reviewPayload(),
+  index: { readFile: () => "export const client = 1;" },
+  explanationOf: () => null,
+};
 const RANGE = { path: "src/client.ts", from: { hunk: 0, line: 0 }, to: { hunk: 0, line: 1 } };
 const BODY = {
   action: "explain",
