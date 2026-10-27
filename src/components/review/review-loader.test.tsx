@@ -189,6 +189,28 @@ describe("ReviewLoader", () => {
     expect(within(rail).getByText("Is retries optional?")).toBeTruthy();
   });
 
+  it("asks the model more about a step check", async () => {
+    const { api, user } = await renderReview(reviewPayload(), MODEL_ON);
+    const rail = screen.getByRole("region", { name: "Step" });
+    await user.click(
+      await within(rail).findByRole("button", { name: "Ask more about: Is retries optional?" }),
+    );
+    const chat = await screen.findByRole("region", { name: "Ask the model" });
+    expect(within(chat).getByText("Tell me more: Is retries optional?")).toBeTruthy();
+    await waitFor(() =>
+      expect(api.calls.filter((call) => call.url.includes("/assist")).at(-1)?.body).toMatchObject({
+        action: "explain",
+        target: { kind: "check", check: 0 },
+        history: [],
+      }),
+    );
+  });
+
+  it("offers no ask-more button when the model is off", async () => {
+    await renderReview();
+    expect(screen.queryByRole("button", { name: /Ask more/ })).toBeNull();
+  });
+
   it("asks for no explanation when the model is off", async () => {
     const { api } = await renderReview();
     expect(api.calls.some((call) => call.url.includes("/explanation"))).toBe(false);
