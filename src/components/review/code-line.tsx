@@ -41,6 +41,8 @@ const ROW_STYLES = {
   del: "bg-del",
   context: "group-hover:bg-muted/60",
 };
+const LANDED_LINE =
+  "relative before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary after:pointer-events-none after:absolute after:inset-0 after:bg-primary/15";
 const MARKER_STYLES = {
   add: "text-add-foreground",
   del: "text-del-foreground",
@@ -179,7 +181,7 @@ export function CodeLine({
           className={cn(
             "flex scroll-mt-32 transition-colors duration-150",
             ROW_STYLES[line.kind],
-            landed && "ring-2 ring-primary ring-inset",
+            landed && LANDED_LINE,
           )}
         >
           <LineNumber value={line.oldLine} />
