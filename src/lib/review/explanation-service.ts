@@ -6,7 +6,7 @@ import {
 } from "@/lib/llm/step-explanation";
 import { prKey } from "@/lib/pr-ref";
 import type { SessionStore } from "@/lib/session/store";
-import { cachedModelResult } from "./model-cache";
+import { cachedModelResult, storedModelResult } from "./model-cache";
 import type { ReviewData } from "./prepare";
 
 export type ExplanationResult =
@@ -18,6 +18,15 @@ const EXPLANATION_CACHE_VERSION = 1;
 
 function cacheKey(data: ReviewData, stepId: string, config: LlmConfig): string {
   return `explanation:v${EXPLANATION_CACHE_VERSION}:${prKey(data.pr.ref)}:${data.headSha}:${config.model}:${stepId}`;
+}
+
+export function storedExplanation(
+  data: ReviewData,
+  stepId: string,
+  store: SessionStore,
+  config: LlmConfig,
+): StepExplanation | null {
+  return storedModelResult(store, cacheKey(data, stepId, config), StepExplanationRecordSchema);
 }
 
 export async function explanationFor(
