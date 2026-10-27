@@ -10,7 +10,7 @@ export type ChangePartsResult =
   | { status: "disabled" }
   | { status: "error"; message: string };
 
-const CHANGE_PARTS_CACHE_VERSION = 1;
+const CHANGE_PARTS_CACHE_VERSION = 2;
 
 function cacheKey(data: ReviewData, config: LlmConfig): string {
   return `change-parts:v${CHANGE_PARTS_CACHE_VERSION}:${prKey(data.pr.ref)}:${data.headSha}:${config.model}`;
