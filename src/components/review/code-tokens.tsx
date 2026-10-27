@@ -1,24 +1,50 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { cn } from "cn";
 import type { Token } from "@/lib/highlight";
+import type { OccurrenceKind } from "./occurrences";
 
 const IDENTIFIER_SPLIT = /([A-Za-z_$][\w$]*)/;
 const IDENTIFIER = /^[A-Za-z_$]/;
 
 export type IdentifierTarget = { name: string; character: number };
 
+type EmphasisKind = "landed" | OccurrenceKind;
+
 type IdentifierHandlers = {
   onIdentifier?: (target: IdentifierTarget) => void;
   onHover?: (target: IdentifierTarget | null) => void;
   emphasis?: string;
+  emphasisKind?: EmphasisKind;
+};
+
+const EMPHASIS_RINGS: Record<EmphasisKind, string> = {
+  landed: "bg-primary/20 ring-1 ring-primary/60",
+  definition: "bg-primary/20 ring-1 ring-primary/60",
+  reference: "bg-primary/10 ring-1 ring-primary/30",
 };
 
 function ignore(): void {}
 
-function IdentifierName({ name, emphasis }: { name: string; emphasis?: string }) {
+function IdentifierName({
+  name,
+  emphasis,
+  emphasisKind = "landed",
+}: {
+  name: string;
+  emphasis?: string;
+  emphasisKind?: EmphasisKind;
+}) {
   return name === emphasis ? (
-    <mark className="rounded-xs bg-primary/20 text-inherit ring-1 ring-primary/60">{name}</mark>
+    <mark
+      className={cn(
+        "rounded-xs text-inherit transition-colors duration-calm",
+        EMPHASIS_RINGS[emphasisKind],
+      )}
+    >
+      {name}
+    </mark>
   ) : (
     name
   );
@@ -29,6 +55,7 @@ function IdentifierButton({
   onIdentifier,
   onHover = ignore,
   emphasis,
+  emphasisKind,
 }: { target: IdentifierTarget } & Required<Pick<IdentifierHandlers, "onIdentifier">> &
   IdentifierHandlers) {
   return (
@@ -38,13 +65,13 @@ function IdentifierButton({
       onMouseLeave={() => onHover(null)}
       className="cursor-pointer rounded-sm underline decoration-dotted decoration-1 underline-offset-4 transition-colors duration-150 hover:bg-accent"
     >
-      <IdentifierName name={target.name} emphasis={emphasis} />
+      <IdentifierName name={target.name} emphasis={emphasis} emphasisKind={emphasisKind} />
     </button>
   );
 }
 
 function identifierParts(text: string, start: number, handlers: IdentifierHandlers) {
-  const { onIdentifier, emphasis } = handlers;
+  const { onIdentifier, emphasis, emphasisKind } = handlers;
   let character = start;
   return text.split(IDENTIFIER_SPLIT).map((part, index) => {
     const target = { name: part, character };
@@ -57,9 +84,10 @@ function identifierParts(text: string, start: number, handlers: IdentifierHandle
         onIdentifier={onIdentifier}
         onHover={handlers.onHover}
         emphasis={emphasis}
+        emphasisKind={emphasisKind}
       />
     ) : (
-      <IdentifierName key={index} name={part} emphasis={emphasis} />
+      <IdentifierName key={index} name={part} emphasis={emphasis} emphasisKind={emphasisKind} />
     );
   });
 }

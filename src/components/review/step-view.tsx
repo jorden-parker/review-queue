@@ -16,6 +16,7 @@ import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
 import { isSameLine, lineElementId, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
+import { occurrenceAt, type Occurrences } from "./occurrences";
 import { ReferenceLens } from "./reference-lens";
 
 export type StepViewContext = {
@@ -25,6 +26,7 @@ export type StepViewContext = {
   notes: Note[];
   composer: LineTarget | null;
   landed: LineTarget | null;
+  occurrences: Occurrences | null;
   activeHunkId: string | null;
   referenceCounts: ReadonlyMap<string, ReferenceCount[]>;
   onAskFile: ((path: string, action: AssistAction) => void) | null;
@@ -127,6 +129,8 @@ function HunkBlock({
               )}
               elementId={target ? lineElementId(target) : undefined}
               landed={landed ? context.landed : null}
+              occurrence={occurrenceAt(context.occurrences, file.path, lineNumber)}
+              occurrenceName={context.occurrences?.name ?? null}
               handlers={context.handlers}
             />
             {composing && target && (

@@ -53,4 +53,28 @@ describe("CodeTokens", () => {
     expect(container.querySelector("mark")?.textContent).toBe("id");
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  it("gives a definition the strong landed ring", () => {
+    const { container } = render(
+      <CodeTokens
+        tokens={[{ text: "load(id)" }]}
+        onIdentifier={vi.fn()}
+        emphasis="id"
+        emphasisKind="definition"
+      />,
+    );
+    expect(container.querySelector("mark")?.className).toContain("ring-primary/60");
+  });
+
+  it("gives a reference the faint ring", () => {
+    const { container } = render(
+      <CodeTokens
+        tokens={[{ text: "load(id)" }]}
+        onIdentifier={vi.fn()}
+        emphasis="id"
+        emphasisKind="reference"
+      />,
+    );
+    expect(container.querySelector("mark")?.className).toContain("ring-primary/30");
+  });
 });
