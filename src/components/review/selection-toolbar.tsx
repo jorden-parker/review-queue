@@ -17,7 +17,7 @@ export function SelectionToolbar({
       role="toolbar"
       aria-label="Ask the model about the selected lines"
       style={{ top: selection.top, left: selection.left }}
-      className="fixed z-30 flex animate-step-enter gap-1 rounded-lg border bg-popover p-1 shadow-md"
+      className="fixed z-30 flex animate-step-enter items-center gap-1 rounded-lg border bg-popover p-1 shadow-md"
       onMouseDown={(event) => event.preventDefault()}
     >
       {ASSIST_ACTION_BUTTONS.map(({ action, label, icon }) => (

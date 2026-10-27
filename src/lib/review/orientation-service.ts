@@ -7,7 +7,7 @@ import {
 } from "@/lib/llm/orientation";
 import { prKey } from "@/lib/pr-ref";
 import type { SessionStore } from "@/lib/session/store";
-import { cachedModelResult } from "./model-cache";
+import { cachedModelResult, storedModelResult } from "./model-cache";
 import type { ReviewData } from "./prepare";
 
 export type OrientationResult =
@@ -29,6 +29,14 @@ function orientationInput(data: ReviewData): OrientationInput {
     steps: data.steps,
     hotspots: data.hotspots,
   };
+}
+
+export function storedOrientation(
+  data: ReviewData,
+  store: SessionStore,
+  config: LlmConfig,
+): Orientation | null {
+  return storedModelResult(store, cacheKey(data, config), OrientationRecordSchema);
 }
 
 export async function orientationFor(

@@ -9,7 +9,7 @@ export function Celebration() {
       {Array.from({ length: PIECES }, (_, index) => (
         <span
           key={index}
-          className={`absolute top-1/2 left-1/2 size-1.5 animate-confetti rounded-full ${COLORS[index % COLORS.length]}`}
+          className={`absolute top-1/2 left-1/2 -mt-0.75 -ml-0.75 size-1.5 animate-confetti rounded-full ${COLORS[index % COLORS.length]}`}
           style={{ "--angle": `${(360 / PIECES) * index}deg` } as CSSProperties}
         />
       ))}

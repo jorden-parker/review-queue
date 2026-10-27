@@ -28,7 +28,7 @@ const SHORTCUTS: [string[], string][] = [
 
 export function ShortcutHelp({ onClose }: { onClose: () => void }) {
   return (
-    <AppDialog title="Keyboard" onClose={onClose} className="sm:max-w-sm">
+    <AppDialog title="Keyboard" onClose={onClose} wide>
       <dl className="grid grid-cols-keys items-center gap-x-4 gap-y-2 text-sm">
         {SHORTCUTS.map(([keys, description]) => (
           <div key={description} className="contents">

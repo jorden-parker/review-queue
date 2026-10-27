@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { plural } from "@/lib/plural";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
 import { hotspotsInStep } from "./display-hotspots";
@@ -29,38 +29,40 @@ function CurrentStep({
   if (!step) return null;
   const done = session.doneSteps.includes(step.id);
   return (
-    <Card>
-      <CardHeader>
-        <CardDescription className="font-mono text-xs">
-          Step {workspace.currentIndex + 1} of {review.steps.length} · {step.role} ·{" "}
-          {step.changedLines} lines
-        </CardDescription>
-        <CardTitle className="text-lg font-semibold tracking-tight">{step.title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <p className="text-sm text-muted-foreground">{step.reason}</p>
-        {done && (
-          <Badge className="animate-pop bg-add text-add-foreground">
-            <Check /> Done
-          </Badge>
-        )}
-        {workspace.aiEnabled && (
-          <StepExplanation
-            key={step.id}
-            pullRequest={review.pr.ref}
-            headSha={review.headSha}
-            stepId={step.id}
-            onAskMore={(check, text) =>
-              workspace.assist.open(
-                { kind: "check", stepId: step.id, check, path: step.files[0].path },
-                "explain",
-                `Tell me more: ${text}`,
-              )
-            }
-          />
-        )}
-      </CardContent>
-    </Card>
+    <section aria-label="Current step" className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+          <span>
+            Step {workspace.currentIndex + 1} of {review.steps.length}
+          </span>
+          <span>
+            {step.role}, {plural(step.changedLines, "line")}
+          </span>
+        </p>
+        <h2 className="text-lg font-bold">{step.title}</h2>
+      </div>
+      <p className="text-sm text-muted-foreground">{step.reason}</p>
+      {done && (
+        <Badge className="animate-pop bg-add text-add-foreground">
+          <Check /> Done
+        </Badge>
+      )}
+      {workspace.aiEnabled && (
+        <StepExplanation
+          key={step.id}
+          pullRequest={review.pr.ref}
+          headSha={review.headSha}
+          stepId={step.id}
+          onAskMore={(check, text) =>
+            workspace.assist.open(
+              { kind: "check", stepId: step.id, check, path: step.files[0].path },
+              "explain",
+              `Tell me more: ${text}`,
+            )
+          }
+        />
+      )}
+    </section>
   );
 }
 
@@ -70,7 +72,7 @@ function StepHotspots({ session, workspace }: { session: Session; workspace: Wor
   if (hotspots.length === 0) return null;
   return (
     <section aria-label="Hotspots in this step" className="flex flex-col gap-2">
-      <h2 className="px-2 text-xs font-medium text-muted-foreground">Hotspots in this step</h2>
+      <h2 className="text-sm font-bold">Hotspots in this step</h2>
       <HotspotList
         hotspots={hotspots}
         checked={session.checkedHotspots}
@@ -83,7 +85,7 @@ function StepHotspots({ session, workspace }: { session: Session; workspace: Wor
 
 export function StepSummary({ review, session, workspace }: StepSummaryProps) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <CurrentStep review={review} session={session} workspace={workspace} />
       <StepHotspots session={session} workspace={workspace} />
     </div>

@@ -67,7 +67,7 @@ function FlagDetails({
   const checks = checksFor(hotspot.rule);
   return (
     <section
-      className={cn("flex gap-2 transition-opacity duration-150", isChecked && "opacity-50")}
+      className={cn("flex gap-2 transition-opacity duration-calm", isChecked && "opacity-50")}
     >
       <span className="flex h-5 shrink-0 items-center">
         <Checkbox
@@ -117,7 +117,7 @@ function FlagChip({ hotspot, isChecked }: { hotspot: DisplayHotspot; isChecked: 
       <span
         className={cn(
           "decoration-current/50 underline-offset-2 group-hover/flag:underline",
-          isChecked ? "line-through" : "font-semibold",
+          isChecked ? "line-through" : "font-medium",
         )}
       >
         <InlineMarkdown text={hotspot.title} />

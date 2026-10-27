@@ -21,11 +21,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
 import {
   type AssistTarget,
@@ -35,6 +35,7 @@ import {
   targetPath,
 } from "@/lib/assist-protocol";
 import { prKey } from "@/lib/pr-ref";
+import { cn } from "cn";
 import type { PreparedFile, ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
 import type { PullRequestRef, Step } from "@/lib/types";
@@ -91,10 +92,10 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
 
 function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
   return (
-    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/80 px-3 py-2.5 backdrop-blur-md sm:px-4">
+    <header className="flex h-14 items-center gap-2 border-b bg-background pr-2 pl-1.5 sm:gap-4 sm:pr-4 sm:pl-4.5">
       <HintButton
         variant="ghost"
-        size="icon-sm"
+        size="icon"
         hint="Back to inbox"
         aria-label="Back to inbox"
         asChild
@@ -103,46 +104,52 @@ function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Works
           <ArrowLeft />
         </Link>
       </HintButton>
-      <div className="flex min-w-48 flex-1 flex-col">
-        <span className="truncate text-sm font-semibold">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-base/tight font-bold">
           <InlineMarkdown text={review.pr.title} />
         </span>
-        <span className="truncate font-mono text-xs text-muted-foreground">
-          {prKey(review.pr.ref)} · {review.pr.author} · {review.headSha.slice(0, 7)}
+        <span className="flex min-w-0 gap-2 truncate text-xs text-muted-foreground">
+          <span>{prKey(review.pr.ref)}</span>
+          <span>by {review.pr.author}</span>
+          <span className="font-mono max-sm:hidden">{review.headSha.slice(0, 7)}</span>
         </span>
       </div>
-      <FocusTimer onFinished={() => workspace.setBreakDue(true)} />
-      <HintButton
-        variant="ghost"
-        size="icon-sm"
-        hint="Start over"
-        aria-label="Start over"
-        onClick={() => workspace.setDialog("start-over")}
-      >
-        <RotateCcw />
-      </HintButton>
-      <HintButton
-        variant="ghost"
-        size="sm"
-        hint="Pause with a note"
-        shortcut="."
-        onClick={() => workspace.setDialog("pause")}
-      >
-        <Coffee /> <span className="max-sm:sr-only">Pause</span>
-      </HintButton>
-      <Button size="sm" onClick={() => workspace.setDialog("finish")}>
-        <Send /> <span className="max-sm:sr-only">Finish</span>
-      </Button>
-      <HintButton
-        variant="ghost"
-        size="icon-sm"
-        hint="Keyboard shortcuts"
-        shortcut="?"
-        aria-label="Keyboard shortcuts"
-        onClick={() => workspace.setDialog("help")}
-      >
-        <CircleHelp />
-      </HintButton>
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+        <FocusTimer onFinished={() => workspace.setBreakDue(true)} />
+        <span aria-hidden className="mx-1 h-5 w-px bg-border max-sm:hidden" />
+        <HintButton
+          variant="ghost"
+          size="icon"
+          hint="Start over"
+          aria-label="Start over"
+          onClick={() => workspace.setDialog("start-over")}
+        >
+          <RotateCcw />
+        </HintButton>
+        <HintButton
+          variant="ghost"
+          size="icon"
+          hint="Keyboard shortcuts"
+          shortcut="?"
+          aria-label="Keyboard shortcuts"
+          className="max-sm:hidden"
+          onClick={() => workspace.setDialog("help")}
+        >
+          <CircleHelp />
+        </HintButton>
+        <HintButton
+          variant="outline"
+          hint="Pause with a note"
+          shortcut="."
+          className="ml-1"
+          onClick={() => workspace.setDialog("pause")}
+        >
+          <Coffee /> <span className="max-sm:sr-only">Pause</span>
+        </HintButton>
+        <Button onClick={() => workspace.setDialog("finish")}>
+          <Send /> <span className="max-sm:sr-only">Finish</span>
+        </Button>
+      </div>
     </header>
   );
 }
@@ -312,43 +319,85 @@ const PANE_CONTENT: Record<PaneId, (props: PaneProps) => PaneContent> = {
   outline: (props) => ({ body: <OutlinePane {...props} /> }),
 };
 
-function StepBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
+function StepTrack({ steps, currentIndex, doneSteps }: StepTrackProps) {
+  return (
+    <ol aria-hidden className="flex gap-1">
+      {steps.map((step, index) => (
+        <li
+          key={step.id}
+          className={cn(
+            "h-1.5 flex-1 rounded-full bg-border transition-colors duration-calm",
+            doneSteps.includes(step.id) && "bg-primary",
+            index === currentIndex && "bg-marker",
+          )}
+        />
+      ))}
+    </ol>
+  );
+}
+
+type StepTrackProps = { steps: Step[]; currentIndex: number; doneSteps: string[] };
+
+function StepBar({
+  review,
+  session,
+  workspace,
+}: {
+  review: ReviewPayload;
+  session: Session;
+  workspace: Workspace;
+}) {
   const step = workspace.currentStep;
   if (!step) return null;
   const isLast = workspace.currentIndex >= review.steps.length - 1;
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="min-w-48 flex-1 truncate text-sm">
-        <span className="font-mono text-xs text-muted-foreground">
-          {workspace.currentIndex + 1}/{review.steps.length}
-        </span>{" "}
-        <span className="font-medium">{workspace.showAll ? "Whole PR" : step.title}</span>
-      </span>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => workspace.setShowAll(!workspace.showAll)}
-        className="text-muted-foreground"
-      >
-        <Layers />
-        {workspace.showAll ? "Back to one step at a time" : "Show whole PR"} (a)
-      </Button>
-      {!workspace.showAll && (
-        <>
+    <div className="flex flex-col gap-3">
+      <StepTrack
+        steps={review.steps}
+        currentIndex={workspace.showAll ? -1 : workspace.currentIndex}
+        doneSteps={session.doneSteps}
+      />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h2 className="flex min-w-48 flex-1 items-baseline gap-3 truncate">
+          <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
+            {workspace.currentIndex + 1} of {review.steps.length}
+          </span>
+          <span className="truncate text-lg font-bold">
+            {workspace.showAll ? "Whole PR" : step.title}
+          </span>
+        </h2>
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
-            size="sm"
-            onClick={() => workspace.moveStep(-1)}
-            disabled={workspace.currentIndex <= 0}
+            onClick={() => workspace.setShowAll(!workspace.showAll)}
+            className="text-muted-foreground"
           >
-            <ArrowLeft /> Previous (p)
+            <Layers />
+            <span className="max-sm:sr-only">
+              {workspace.showAll ? "Back to one step at a time" : "Show whole PR"}
+            </span>
+            <Kbd className="max-sm:hidden">a</Kbd>
           </Button>
-          <Button size="sm" onClick={workspace.doneAndNext}>
-            {isLast ? "Done with this step" : "Done, next step"} <ArrowRight />
-            <Kbd className="bg-primary-foreground/20 text-primary-foreground">x</Kbd>
-          </Button>
-        </>
-      )}
+          {!workspace.showAll && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => workspace.moveStep(-1)}
+                disabled={workspace.currentIndex <= 0}
+              >
+                <ArrowLeft /> <span className="max-sm:sr-only">Previous</span>
+                <Kbd className="max-sm:hidden">p</Kbd>
+              </Button>
+              <Button onClick={workspace.doneAndNext}>
+                {isLast ? "Done with this step" : "Done, next step"} <ArrowRight />
+                <Kbd className="bg-primary-foreground/20 text-primary-foreground max-sm:hidden">
+                  x
+                </Kbd>
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -356,9 +405,10 @@ function StepBar({ review, workspace }: { review: ReviewPayload; workspace: Work
 function BreakBanner({ workspace }: { workspace: Workspace }) {
   if (!workspace.breakDue) return null;
   return (
-    <Card className="animate-step-enter flex-row items-center justify-between gap-3 bg-callout px-4 text-callout-foreground ring-0">
-      <span className="text-sm">
-        ☕ 25 minutes of focus. Nice. Take five? Leave yourself a note first.
+    <Callout className="animate-step-enter flex flex-wrap items-center justify-between gap-3">
+      <span className="flex items-center gap-2">
+        <Coffee className="size-4 shrink-0" />
+        25 minutes of focus. Nice. Take five? Leave yourself a note first.
       </span>
       <span className="flex gap-2">
         <Button size="sm" variant="secondary" onClick={() => workspace.setDialog("pause")}>
@@ -368,7 +418,7 @@ function BreakBanner({ workspace }: { workspace: Workspace }) {
           Keep going
         </Button>
       </span>
-    </Card>
+    </Callout>
   );
 }
 
@@ -577,30 +627,24 @@ export function ReviewWorkspace({
           fresh={fresh}
         />
         <div className="relative flex min-h-0 min-w-0 flex-col">
-          <div className="shrink-0 border-b bg-background px-3 py-2 sm:px-8">
-            <div className="mx-auto flex max-w-5xl flex-col gap-2">
-              <StepBar review={review} workspace={workspace} />
+          <div className="shrink-0 border-b bg-background px-3 py-4 sm:px-8">
+            <div className="mx-auto flex max-w-5xl flex-col gap-3">
+              <StepBar review={review} session={session} workspace={workspace} />
               {controls.actionError && (
-                <p className="rounded-lg bg-del px-3 py-2 text-sm text-del-foreground">
-                  Couldn&apos;t save: {controls.actionError}
-                </p>
+                <Callout tone="error">Couldn&apos;t save: {controls.actionError}</Callout>
               )}
               <BreakBanner workspace={workspace} />
             </div>
           </div>
-          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-16 sm:px-8">
-            <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-4 pt-5">
+          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-24 sm:px-8">
+            <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-6 pt-6">
               <div
                 key={workspace.showAll ? "all" : workspace.currentStep?.id}
-                className="flex animate-step-enter flex-col gap-4"
+                className="flex animate-step-enter flex-col gap-8"
               >
                 {workspace.visibleSteps.map((step) => (
-                  <div key={step.id} className="flex flex-col gap-2">
-                    {workspace.showAll && (
-                      <h3 className="pt-4 text-sm font-medium text-muted-foreground">
-                        {step.title}
-                      </h3>
-                    )}
+                  <div key={step.id} className="flex flex-col gap-3">
+                    {workspace.showAll && <h3 className="text-base font-bold">{step.title}</h3>}
                     <StepView step={step} context={context} />
                   </div>
                 ))}
@@ -608,7 +652,7 @@ export function ReviewWorkspace({
               <NoSteps review={payload} orientation={orientation} />
             </div>
           </main>
-          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3">
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
             <JumpTrail
               jumps={session.jumps}
               onBack={workspace.back}

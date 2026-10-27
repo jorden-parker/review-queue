@@ -1,29 +1,38 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "cn";
+import { splitPath } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
 import type { Citation } from "./citations";
 
+function lineRange({ line, endLine }: Citation): string {
+  return endLine > line ? `:${line}-${endLine}` : `:${line}`;
+}
+
 export function CitationChip({
-  index,
   citation,
   active,
   onShow,
 }: {
-  index: number;
   citation: Citation;
   active: boolean;
   onShow: () => void;
 }) {
+  const { directory, name } = splitPath(citation.path);
   return (
     <button
       type="button"
       disabled={!citation.inDiff}
-      title={citation.inDiff ? undefined : "Not in this diff"}
+      title={citation.inDiff ? citation.path : "Not in this diff"}
       aria-pressed={active}
       onClick={onShow}
-      className="rounded bg-muted px-1 font-mono text-xs text-foreground hover:bg-accent disabled:text-muted-foreground disabled:opacity-60"
+      className={cn(
+        "cursor-pointer font-mono text-code wrap-anywhere underline decoration-dotted decoration-1 underline-offset-4 transition-colors duration-calm hover:decoration-primary disabled:cursor-default disabled:text-muted-foreground disabled:no-underline",
+        active ? "text-primary decoration-primary" : "decoration-foreground/25",
+      )}
     >
-      <span className="mr-1 text-primary">{index + 1}</span>
-      {citation.code}
+      <span className="text-muted-foreground">{directory}</span>
+      <span className="font-medium">{name}</span>
+      <span className="text-muted-foreground">{lineRange(citation)}</span>
     </button>
   );
 }

@@ -20,25 +20,28 @@ export function OpenPullRequestForm() {
   }
 
   return (
-    <form onSubmit={open} className="flex flex-col gap-2">
-      <label htmlFor="pr" className="text-sm font-medium">
-        Open any PR
-      </label>
-      <div className="flex gap-2">
-        <Input
-          id="pr"
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="https://github.com/owner/repo/pull/123 or owner/repo#123"
-          className="flex-1 font-mono"
-        />
-        <Button type="submit">
-          Open <ArrowRight />
-        </Button>
+    <form onSubmit={open} className="flex flex-col gap-3">
+      <h2 className="text-lg font-bold">Open any PR</h2>
+      <div className="flex flex-col gap-2">
+        <label htmlFor="pr" className="sr-only">
+          PR link or owner/repo#number
+        </label>
+        <div className="flex gap-2">
+          <Input
+            id="pr"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder="https://github.com/owner/repo/pull/123 or owner/repo#123"
+            className="flex-1 font-mono"
+          />
+          <Button type="submit">
+            Open <ArrowRight />
+          </Button>
+        </div>
+        {invalid && (
+          <p className="text-sm text-destructive">That doesn&apos;t look like a PR link.</p>
+        )}
       </div>
-      {invalid && (
-        <p className="text-sm text-destructive">That doesn&apos;t look like a PR link.</p>
-      )}
     </form>
   );
 }

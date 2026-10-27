@@ -11,6 +11,7 @@ import {
 import { checksFor } from "@/lib/hotspots/checks";
 import type { AssistFlag, AssistInput } from "@/lib/llm/assist";
 import type { Message } from "@/lib/llm/client";
+import type { SuggestedHotspot } from "@/lib/llm/orientation";
 import { type StepExplanation, stepDiffs } from "@/lib/llm/step-explanation";
 import type { SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { DiffLine, Hotspot, Hunk } from "@/lib/types";
@@ -67,6 +68,7 @@ export type AssistSource = {
   data: ReviewData;
   index: Pick<SymbolIndex, "readFile">;
   explanationOf: (stepId: string) => StepExplanation | null;
+  suggestedHotspots: () => SuggestedHotspot[];
 };
 
 type AssistInputResult = { ok: true; input: AssistInput } | { ok: false; error: string };
@@ -157,15 +159,26 @@ function contentFor(
   return fileContent(source.index, file);
 }
 
-function flagsOn(hotspots: Hotspot[], path: string, selected: DiffLine[]): AssistFlag[] {
+const SUGGESTED_RULE = "ai";
+
+function flagsOn(source: AssistSource, path: string, selected: DiffLine[]): AssistFlag[] {
   const lines = new Set(selected.map((line) => line.newLine));
-  return hotspots
-    .filter((hotspot) => hotspot.path === path && lines.has(hotspot.line))
+  const onSelectedLines = (hotspot: Hotspot | SuggestedHotspot) =>
+    hotspot.path === path && lines.has(hotspot.line ?? null);
+  const found = source.data.hotspots.filter(onSelectedLines).map((hotspot) => ({
+    title: hotspot.title,
+    why: hotspot.why,
+    checks: checksFor(hotspot.rule),
+  }));
+  const suggested = source
+    .suggestedHotspots()
+    .filter(onSelectedLines)
     .map((hotspot) => ({
       title: hotspot.title,
       why: hotspot.why,
-      checks: checksFor(hotspot.rule),
+      checks: checksFor(SUGGESTED_RULE),
     }));
+  return [...found, ...suggested];
 }
 
 export function assistInputFrom(source: AssistSource, request: AssistRequest): AssistInputResult {
@@ -175,9 +188,7 @@ export function assistInputFrom(source: AssistSource, request: AssistRequest): A
   const result = contentFor(source, request, file);
   if (!result.ok) return result;
   const flags =
-    request.action === "check"
-      ? flagsOn(source.data.hotspots, file.path, result.content.selected)
-      : [];
+    request.action === "check" ? flagsOn(source, file.path, result.content.selected) : [];
   if (request.action === "check" && flags.length === 0)
     return { ok: false, error: "Those lines have no flags" };
   return {
