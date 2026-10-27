@@ -8,7 +8,6 @@ import { PaneRow } from "@/components/common/pane-row";
 import { PathLabel } from "@/components/common/path-label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -109,17 +108,17 @@ function DefinitionCode({
   );
 }
 
-function DefinitionCard(props: PanelBodyProps & { definition: DefinitionWithCode }) {
+function DefinitionBlock(props: PanelBodyProps & { definition: DefinitionWithCode }) {
   const { definition } = props;
   return (
-    <Card className="gap-0 py-0">
+    <section className="flex flex-col overflow-hidden rounded-lg border">
       <DefinitionHeader {...props} />
       {definition.scope === "external" ? (
         <Markdown text={definition.hover ?? definition.signature} className="px-3 py-2 text-sm" />
       ) : (
         <DefinitionCode definition={definition} onIdentifier={props.onIdentifier} />
       )}
-    </Card>
+    </section>
   );
 }
 
@@ -131,7 +130,7 @@ function Definitions(props: PanelBodyProps) {
   return (
     <div className="flex flex-col gap-4">
       {definitions.map((definition) => (
-        <DefinitionCard
+        <DefinitionBlock
           key={`${definition.path}:${definition.line}`}
           definition={definition}
           {...props}
