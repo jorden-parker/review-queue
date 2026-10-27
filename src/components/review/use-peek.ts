@@ -28,16 +28,9 @@ export function usePeek(ref: PullRequestRef, headSha: string | null, onDefinitio
     [],
   );
 
-  const showReferences = useCallback(
+  const loadReferences = useCallback(
     (position: SymbolPosition) => {
       if (!headSha) return;
-      setPeek((current) => ({
-        position,
-        tab: "references",
-        definitions: current?.position === position ? current.definitions : null,
-        references: null,
-        error: null,
-      }));
       fetchReferences(ref, headSha, position)
         .then((references) =>
           setPeek((current) =>
@@ -49,10 +42,26 @@ export function usePeek(ref: PullRequestRef, headSha: string | null, onDefinitio
     [ref, headSha, fail],
   );
 
+  const showReferences = useCallback(
+    (position: SymbolPosition) => {
+      if (!headSha) return;
+      setPeek((current) => ({
+        position,
+        tab: "references",
+        definitions: current?.position === position ? current.definitions : null,
+        references: null,
+        error: null,
+      }));
+      loadReferences(position);
+    },
+    [headSha, loadReferences],
+  );
+
   const showDefinitions = useCallback(
     (position: SymbolPosition) => {
       if (!headSha) return;
       setPeek({ position, tab: "definitions", definitions: null, references: null, error: null });
+      loadReferences(position);
       fetchDefinitions(ref, headSha, position)
         .then((definitions) => {
           setPeek((current) =>
@@ -63,7 +72,7 @@ export function usePeek(ref: PullRequestRef, headSha: string | null, onDefinitio
         })
         .catch(fail);
     },
-    [ref, headSha, fail, showReferences, onDefinitions],
+    [ref, headSha, fail, showReferences, loadReferences, onDefinitions],
   );
 
   const close = useCallback(() => setPeek(null), []);
