@@ -81,7 +81,7 @@ function LineNotes({ notes, onDelete }: { notes: Note[]; onDelete: (id: number) 
 
 function rowClassName(kind: DiffLine["kind"], landed: LineTarget | null) {
   return cn(
-    "flex scroll-mt-32 transition-colors duration-150",
+    "flex scroll-mt-32 transition-colors duration-calm",
     ROW_STYLES[kind],
     landed && LANDED_LINE,
   );
@@ -158,9 +158,9 @@ function NoteButton({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       title="Add a note on this line (c)"
-      className="text-primary opacity-0 transition-[opacity,transform] duration-150 ease-spring group-hover:opacity-100 hover:scale-125 focus-visible:opacity-100 pointer-coarse:opacity-100"
+      className="text-primary opacity-0 transition-[opacity,transform] duration-calm ease-spring group-hover:opacity-100 hover:scale-125 focus-visible:opacity-100 pointer-coarse:opacity-100"
     >
-      <MessageSquarePlus size={14} />
+      <MessageSquarePlus className="size-3.5" />
     </button>
   );
 }
@@ -193,7 +193,7 @@ function LineFlagRow({
 }) {
   const { onCheckFlag } = handlers;
   return (
-    <div className={cn("transition-colors duration-150", ROW_STYLES[kind])}>
+    <div className={cn("transition-colors duration-calm", ROW_STYLES[kind])}>
       <div className={cn("flex py-1", flagLineTint(hotspots, checked))}>
         <GutterSpacer />
         <div className="min-w-0 flex-1 pr-4 max-sm:pr-2">

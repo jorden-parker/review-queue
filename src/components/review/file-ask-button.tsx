@@ -20,7 +20,11 @@ export function FileAskButton({ onAsk }: { onAsk: (action: AssistAction) => void
     onAsk(action);
   };
   return (
-    <div role="toolbar" aria-label="Ask the model about this file" className="flex gap-1">
+    <div
+      role="toolbar"
+      aria-label="Ask the model about this file"
+      className="flex items-center gap-1"
+    >
       {ASSIST_ACTION_BUTTONS.map(({ action, label, icon }) => (
         <Button key={action} variant="ghost" size="xs" onClick={() => ask(action)}>
           {icon} {label}

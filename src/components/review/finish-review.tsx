@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { cn } from "cn";
 import { AppDialog } from "@/components/common/app-dialog";
+import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { PathLabel } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
@@ -86,12 +87,12 @@ type NoteChecklistProps = {
 function NoteChecklist({ notes, selected, onToggle }: NoteChecklistProps) {
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">Notes to post ({selected.length})</h3>
+      <h3 className="text-sm font-bold">Notes to post ({selected.length})</h3>
       {notes.length === 0 && <EmptyState emoji="📝">No notes.</EmptyState>}
       {notes.map((note) => (
         <label
           key={note.id}
-          className="flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm transition-colors duration-150 hover:bg-muted"
+          className="flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm transition-colors duration-calm hover:bg-muted"
         >
           <Checkbox
             checked={selected.includes(note.id)}
@@ -146,12 +147,8 @@ export function FinishReview({
   const unfinished = unfinishedMessage(stepsLeft, hotspotsLeft);
 
   return (
-    <AppDialog title="Finish review" onClose={onCancel} className="sm:max-w-2xl">
-      {unfinished && (
-        <p className="rounded-lg bg-callout px-3 py-2 text-sm text-callout-foreground">
-          {unfinished}
-        </p>
-      )}
+    <AppDialog title="Finish review" onClose={onCancel} wide>
+      {unfinished && <Callout>{unfinished}</Callout>}
       <NoteChecklist notes={notes} selected={selected} onToggle={toggle} />
       {onDraftSummary && (
         <DraftSummaryButton
@@ -168,7 +165,7 @@ export function FinishReview({
         rows={3}
         placeholder="Overall summary (optional)"
       />
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {EVENTS.map((option) => (
           <Button
             key={option.value}

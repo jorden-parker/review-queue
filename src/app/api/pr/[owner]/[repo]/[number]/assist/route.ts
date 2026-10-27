@@ -1,6 +1,7 @@
 import { assistResponse } from "@/lib/review/assist-service";
 import { preparedFromRequest, type PrRouteContext } from "@/lib/review/route-context";
 import { storedExplanation } from "@/lib/review/explanation-service";
+import { storedOrientation } from "@/lib/review/orientation-service";
 import { currentLlmConfig, sessionStore } from "@/lib/review/services";
 
 export async function POST(request: Request, context: PrRouteContext) {
@@ -12,6 +13,8 @@ export async function POST(request: Request, context: PrRouteContext) {
     ...prepared,
     explanationOf: (stepId: string) =>
       storedExplanation(prepared.data, stepId, sessionStore(), config),
+    suggestedHotspots: () =>
+      storedOrientation(prepared.data, sessionStore(), config)?.extraHotspots ?? [],
   };
   return assistResponse(source, body, config, fetch, request.signal);
 }

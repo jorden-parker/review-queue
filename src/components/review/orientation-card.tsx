@@ -1,11 +1,11 @@
 "use client";
 
 import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { cn } from "cn";
 import { useState } from "react";
 import { InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { PrDescription } from "@/components/common/pr-description";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { OrientationState } from "./use-review";
 
@@ -65,7 +65,7 @@ function AiSummaryLine({ orientation }: { orientation: OrientationState }) {
       <span className="truncate">
         <InlineMarkdown text={summary} />
       </span>
-      <span className={`shrink-0 font-medium ${RISK_STYLES[risk]}`}>· {risk} risk</span>
+      <span className={`shrink-0 font-medium ${RISK_STYLES[risk]}`}>{risk} risk</span>
     </p>
   );
 }
@@ -104,14 +104,12 @@ function DetailsToggle({ expanded, onToggle }: { expanded: boolean; onToggle: ()
 export function OrientationCard({ review, orientation, fresh }: OrientationCardProps) {
   const [expanded, setExpanded] = useState(fresh);
   return (
-    <Card size={expanded ? "default" : "sm"}>
-      <CardHeader className="flex items-center justify-between gap-2">
-        <CardTitle className="font-semibold tracking-tight">
-          {fresh ? "Before you start" : "About this PR"}
-        </CardTitle>
+    <section aria-label="About this PR" className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-bold">{fresh ? "Before you start" : "About this PR"}</h2>
         <DetailsToggle expanded={expanded} onToggle={() => setExpanded(!expanded)} />
-      </CardHeader>
-      <CardContent className={`flex flex-col ${expanded ? "gap-4" : "gap-2"}`}>
+      </div>
+      <div className={cn("flex flex-col", expanded ? "gap-4" : "gap-2")}>
         {expanded && review.pr.bodyHtml.trim() && <PrDescription html={review.pr.bodyHtml} />}
         <ReviewStats review={review} />
         {expanded ? (
@@ -119,7 +117,7 @@ export function OrientationCard({ review, orientation, fresh }: OrientationCardP
         ) : (
           <AiSummaryLine orientation={orientation} />
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

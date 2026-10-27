@@ -30,6 +30,8 @@ const SuggestedHotspot = z.object({
   why: z.string(),
 });
 
+export type SuggestedHotspot = z.infer<typeof SuggestedHotspot>;
+
 const StepOrderEntrySchema = z.object({ id: z.string(), why: z.string() });
 
 type StepOrderEntry = z.infer<typeof StepOrderEntrySchema>;

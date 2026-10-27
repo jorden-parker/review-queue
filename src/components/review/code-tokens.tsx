@@ -63,7 +63,7 @@ function IdentifierButton({
       onClick={() => onIdentifier(target)}
       onMouseEnter={() => onHover(target)}
       onMouseLeave={() => onHover(null)}
-      className="cursor-pointer rounded-sm underline decoration-dotted decoration-1 underline-offset-4 transition-colors duration-150 hover:bg-accent"
+      className="cursor-pointer rounded-sm underline decoration-foreground/25 decoration-dotted decoration-1 underline-offset-4 transition-colors duration-calm hover:bg-accent hover:decoration-primary"
     >
       <IdentifierName name={target.name} emphasis={emphasis} emphasisKind={emphasisKind} />
     </button>

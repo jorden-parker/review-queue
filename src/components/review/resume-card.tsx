@@ -2,6 +2,7 @@
 
 import { Coffee } from "lucide-react";
 import { AppDialog } from "@/components/common/app-dialog";
+import { Callout } from "@/components/common/callout";
 import { Button } from "@/components/ui/button";
 import { plural } from "@/lib/plural";
 import type { Session } from "@/lib/session/store";
@@ -38,18 +39,18 @@ export function ResumeCard({
     <AppDialog
       title={
         <span className="flex items-center gap-2">
-          <Coffee size={20} className="animate-float text-primary" /> Welcome back
+          <Coffee className="size-5 animate-float text-primary" /> Welcome back
         </span>
       }
       onClose={onContinue}
     >
       <dl className="flex flex-col gap-3 text-sm">
         {session.pause && (
-          <div className="rounded-lg bg-callout p-3 text-callout-foreground">
+          <Callout tone="muted">
             <dt className="text-xs font-medium">You said you were about to</dt>
             <dd className="text-base">{session.pause.note || "(no note)"}</dd>
             <dd className="text-xs opacity-75">paused {sinceText(session.pause.at)}</dd>
-          </div>
+          </Callout>
         )}
         {current && (
           <div>
@@ -62,7 +63,7 @@ export function ResumeCard({
         <div>
           <dt className="text-muted-foreground">Progress</dt>
           <dd>
-            {session.doneSteps.length} of {steps.length} steps done ·{" "}
+            {session.doneSteps.length} of {steps.length} steps done,{" "}
             {plural(session.notes.length, "note")}
           </dd>
         </div>
@@ -81,7 +82,7 @@ export function ResumeCard({
         {pinned.length > 0 && (
           <div>
             <dt className="text-muted-foreground">You pinned</dt>
-            <dd className="font-mono">{pinned.map((symbol) => symbol.name).join(" · ")}</dd>
+            <dd className="font-mono">{pinned.map((symbol) => symbol.name).join(", ")}</dd>
           </div>
         )}
         {reopenedCount > 0 && (

@@ -33,6 +33,6 @@ describe("ResumeCard", () => {
       />,
     );
     expect(screen.getByText("You pinned")).toBeTruthy();
-    expect(screen.getByText("load · Options")).toBeTruthy();
+    expect(screen.getByText("load, Options")).toBeTruthy();
   });
 });

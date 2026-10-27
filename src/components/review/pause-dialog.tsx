@@ -16,7 +16,7 @@ export function PauseDialog({ onPause, onCancel }: PauseDialogProps) {
   }
 
   return (
-    <AppDialog title="☕ Pausing. What were you about to do?" onClose={onCancel}>
+    <AppDialog title="Pausing. What were you about to do?" onClose={onCancel}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           One line for future you. It shows up when you come back.

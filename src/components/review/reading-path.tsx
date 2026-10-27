@@ -3,10 +3,13 @@
 import { Check, Circle, Play, RotateCcw } from "lucide-react";
 import { cn } from "cn";
 import { Celebration } from "@/components/common/celebration";
+import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
+import { PaneRow } from "@/components/common/pane-row";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { plural } from "@/lib/plural";
 import type { Step } from "@/lib/types";
 
 type ReadingPathProps = {
@@ -23,7 +26,7 @@ type ReadingPathProps = {
 };
 
 function StepIcon({ done, reopened }: { done: boolean; reopened: boolean }) {
-  if (done) return <Check className="size-4 animate-pop text-add-foreground" />;
+  if (done) return <Check className="size-4 animate-pop text-primary" />;
   if (reopened) return <RotateCcw className="size-4 text-severity-medium" />;
   return <Circle className="size-4 text-muted-foreground" />;
 }
@@ -34,10 +37,10 @@ function ProgressSummary({ doneCount, total }: { doneCount: number; total: numbe
   return (
     <div className="relative flex flex-col gap-2">
       <div className="flex items-baseline justify-between text-sm">
-        <span className="font-medium">
+        <span className="font-bold">
           {doneCount} of {total} steps
         </span>
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground tabular-nums">
           {finished ? "🎉 all read" : `${percent}%`}
         </span>
       </div>
@@ -98,47 +101,44 @@ function StepItem({ step, index, path }: StepItemProps) {
   const current = step.id === path.currentStepId;
   const reopened = path.reopenedStepIds.includes(step.id);
   return (
-    <li>
-      <div
-        className={cn(
-          "flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors duration-150",
-          current ? "bg-accent" : "hover:bg-muted",
-        )}
+    <PaneRow
+      active={current}
+      className={cn("border-l-3", current ? "border-marker" : "border-transparent")}
+    >
+      <span className="flex h-5 shrink-0 items-center">
+        <DoneToggle done={done} reopened={reopened} onToggle={() => path.onToggleDone(step.id)} />
+      </span>
+      <button
+        onClick={() => path.onSelect(step.id)}
+        className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
       >
-        <span className="flex h-5 shrink-0 items-center">
-          <DoneToggle done={done} reopened={reopened} onToggle={() => path.onToggleDone(step.id)} />
-        </span>
-        <button
-          onClick={() => path.onSelect(step.id)}
-          className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
+        <span
+          className={cn(
+            "text-sm wrap-anywhere",
+            done ? "text-muted-foreground line-through" : "font-bold",
+            current && "text-accent-foreground",
+          )}
         >
-          <span
-            className={cn(
-              "text-sm wrap-anywhere",
-              done ? "text-muted-foreground line-through" : "font-medium",
-              current && "text-accent-foreground",
-            )}
-          >
-            {index + 1}. {step.title}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {step.role} · {step.changedLines} lines
-          </span>
-          <StepNotes
-            reason={path.reasons[step.id]}
-            start={step.id === path.startStepId}
-            reopened={reopened}
-          />
-        </button>
-      </div>
-    </li>
+          {index + 1}. {step.title}
+        </span>
+        <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+          <span>{step.role}</span>
+          <span>{plural(step.changedLines, "line")}</span>
+        </span>
+        <StepNotes
+          reason={path.reasons[step.id]}
+          start={step.id === path.startStepId}
+          reopened={reopened}
+        />
+      </button>
+    </PaneRow>
   );
 }
 
 export const ORDERING_MESSAGE = "Local model is ordering the steps…";
 
 export function ReadingPath(props: ReadingPathProps) {
-  if (props.ordering) return <p className="text-sm text-muted-foreground">{ORDERING_MESSAGE}</p>;
+  if (props.ordering) return <EmptyState emoji="🧭">{ORDERING_MESSAGE}</EmptyState>;
   const doneCount = props.steps.filter((step) => props.doneSteps.includes(step.id)).length;
   return (
     <div className="flex flex-col gap-4">
