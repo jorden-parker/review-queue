@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   ASSIST_ACTIONS,
+  type AssistAction,
   isBefore,
   type LinePosition,
   linesInRange,
@@ -10,6 +11,7 @@ import {
 import { checksFor } from "@/lib/hotspots/checks";
 import type { AssistFlag, AssistInput } from "@/lib/llm/assist";
 import type { Message } from "@/lib/llm/client";
+import { type StepExplanation, stepDiffs } from "@/lib/llm/step-explanation";
 import type { SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { DiffLine, Hotspot, Hunk } from "@/lib/types";
 import type { PreparedFile, ReviewData } from "./prepare";
@@ -61,11 +63,17 @@ export const AssistRequestSchema = z.object({
 
 export type AssistRequest = z.infer<typeof AssistRequestSchema>;
 
-export type AssistSource = { data: ReviewData; index: Pick<SymbolIndex, "readFile"> };
+export type AssistSource = {
+  data: ReviewData;
+  index: Pick<SymbolIndex, "readFile">;
+  explanationOf: (stepId: string) => StepExplanation | null;
+};
 
 type AssistInputResult = { ok: true; input: AssistInput } | { ok: false; error: string };
 
-type TargetContent = Pick<AssistInput, "scope" | "context" | "selected" | "fileText">;
+type TargetContent = Pick<AssistInput, "scope" | "context" | "selected" | "fileText" | "stepCheck">;
+
+type CheckTarget = Extract<AssistRequest["target"], { kind: "check" }>;
 
 type ContentResult = { ok: true; content: TargetContent } | { ok: false; error: string };
 
@@ -83,6 +91,7 @@ function lineContent(file: PreparedFile, from: LinePosition, to: LinePosition): 
       context: file.hunks.slice(from.hunk, to.hunk + 1),
       selected: linesInRange(file.hunks, from, to),
       fileText: null,
+      stepCheck: null,
     },
   };
 }
@@ -105,8 +114,47 @@ function fileContent(index: AssistSource["index"], file: PreparedFile): ContentR
       context: file.hunks,
       selected: [],
       fileText: headText(index, file),
+      stepCheck: null,
     },
   };
+}
+
+function checkContent(
+  source: AssistSource,
+  action: AssistAction,
+  target: CheckTarget,
+): ContentResult {
+  if (action !== "explain" && action !== "ask")
+    return { ok: false, error: "Only explain and ask work on a step check" };
+  const step = source.data.steps.find((candidate) => candidate.id === target.stepId);
+  if (!step) return { ok: false, error: "Unknown step" };
+  if (!step.files.some((file) => file.path === target.path))
+    return { ok: false, error: "That file is not in this step" };
+  const explanation = source.explanationOf(target.stepId);
+  if (!explanation) return { ok: false, error: "Open the step again to get its explanation" };
+  const text = explanation.checks[target.check];
+  if (text === undefined) return { ok: false, error: "That check is not in the step explanation" };
+  return {
+    ok: true,
+    content: {
+      scope: "check",
+      context: [],
+      selected: [],
+      fileText: null,
+      stepCheck: { step, text, diffs: stepDiffs(step, source.data.files) },
+    },
+  };
+}
+
+function contentFor(
+  source: AssistSource,
+  request: AssistRequest,
+  file: PreparedFile,
+): ContentResult {
+  const { target } = request;
+  if (target.kind === "check") return checkContent(source, request.action, target);
+  if (target.kind === "lines") return lineContent(file, target.range.from, target.range.to);
+  return fileContent(source.index, file);
 }
 
 function flagsOn(hotspots: Hotspot[], path: string, selected: DiffLine[]): AssistFlag[] {
@@ -124,11 +172,7 @@ export function assistInputFrom(source: AssistSource, request: AssistRequest): A
   const { target } = request;
   const file = source.data.files.find((candidate) => candidate.path === targetPath(target));
   if (!file) return { ok: false, error: "That file is not in this review" };
-  if (target.kind === "check") return { ok: false, error: "Step checks are not supported yet" };
-  const result =
-    target.kind === "lines"
-      ? lineContent(file, target.range.from, target.range.to)
-      : fileContent(source.index, file);
+  const result = contentFor(source, request, file);
   if (!result.ok) return result;
   const flags =
     request.action === "check"
