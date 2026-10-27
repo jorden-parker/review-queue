@@ -69,6 +69,14 @@ describe("SessionStore", () => {
     expect(store.getSession(KEY).notes).toHaveLength(1);
   });
 
+  it("edits a note's body and kind, leaving its place alone", () => {
+    const note = store.addNote(KEY, { path: "a.ts", line: 3, kind: "nit", body: "rename" });
+    store.updateNote(KEY, note.id, { kind: "blocker", body: "this leaks" });
+    expect(store.getSession(KEY).notes).toEqual([{ ...note, kind: "blocker", body: "this leaks" }]);
+    store.updateNote("other#1", note.id, { kind: "nit", body: "ignored" });
+    expect(store.getSession(KEY).notes[0].body).toBe("this leaks");
+  });
+
   it("pauses with a note and clears it on resume", () => {
     store.pause(KEY, "check the retry loop next");
     expect(store.getSession(KEY).pause).toEqual({
