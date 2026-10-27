@@ -1,5 +1,14 @@
 export type PaneId =
-  "about" | "step" | "path" | "hotspots" | "notes" | "chat" | "chats" | "context" | "outline";
+  | "about"
+  | "step"
+  | "path"
+  | "hotspots"
+  | "notes"
+  | "github"
+  | "chat"
+  | "chats"
+  | "context"
+  | "outline";
 export type PaneLayout = PaneId[];
 
 export function closePane(layout: PaneLayout, id: PaneId): PaneLayout {
@@ -36,6 +45,7 @@ export const PANE_SIDES: Record<PaneId, PanelSide> = {
   path: "right",
   hotspots: "right",
   notes: "right",
+  github: "right",
   outline: "right",
 };
 

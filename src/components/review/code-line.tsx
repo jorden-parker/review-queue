@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquarePlus, Trash2 } from "lucide-react";
+import { MessageSquare, MessageSquarePlus, Trash2 } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import type { LineRange } from "@/lib/assist-protocol";
@@ -32,6 +32,8 @@ type CodeLineProps = {
   hotspots: DisplayHotspot[];
   checkedHotspots: string[];
   notes: Note[];
+  threadCount: number;
+  onOpenThreads: () => void;
   elementId: string | undefined;
   landed: LineTarget | null;
   occurrence?: OccurrenceKind | null;
@@ -76,6 +78,37 @@ function LineNotes({ notes, onDelete }: { notes: Note[]; onDelete: (id: number) 
         </div>
       ))}
     </div>
+  );
+}
+
+function LineActions({
+  addNote,
+  threadCount,
+  onOpenThreads,
+}: {
+  addNote: (() => void) | null;
+  threadCount: number;
+  onOpenThreads: () => void;
+}) {
+  return (
+    <span className={cn(NOTE_BUTTON_WIDTH, "flex justify-center select-none")}>
+      {addNote && <NoteButton onClick={addNote} />}
+      {threadCount > 0 && <ThreadButton count={threadCount} onOpen={onOpenThreads} />}
+    </span>
+  );
+}
+
+function ThreadButton({ count, onOpen }: { count: number; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={`Show ${count} GitHub ${count === 1 ? "thread" : "threads"}`}
+      onClick={onOpen}
+      className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
+    >
+      <MessageSquare className="size-3" aria-hidden />
+      {count}
+    </button>
   );
 }
 
@@ -220,6 +253,8 @@ export function CodeLine({
   hotspots,
   checkedHotspots,
   notes,
+  threadCount,
+  onOpenThreads,
   elementId,
   landed,
   occurrence,
@@ -242,9 +277,7 @@ export function CodeLine({
         >
           <LineNumber value={line.oldLine} />
           <LineNumber value={lineNumber} />
-          <span className={cn(NOTE_BUTTON_WIDTH, "flex justify-center select-none")}>
-            {addNote && <NoteButton onClick={addNote} />}
-          </span>
+          <LineActions addNote={addNote} threadCount={threadCount} onOpenThreads={onOpenThreads} />
           <span className={cn(MARKER_WIDTH, "select-none", MARKER_STYLES[line.kind])}>
             {MARKERS[line.kind]}
           </span>

@@ -7,6 +7,7 @@ import {
   Coffee,
   Compass,
   Flame,
+  GitPullRequest,
   Layers,
   ListTree,
   type LucideIcon,
@@ -48,6 +49,7 @@ import { ContextList } from "./context-list";
 import { contextCount } from "./context-symbols";
 import { HotspotList } from "./hotspot-list";
 import { JumpTrail } from "./jump-trail";
+import { ConversationPanel } from "./conversation-panel";
 import { NotesPanel } from "./notes-panel";
 import { OrientationCard } from "./orientation-card";
 import { PauseDialog } from "./pause-dialog";
@@ -85,6 +87,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
   { id: "path", label: "Path", icon: Route },
   { id: "hotspots", label: "Hotspots", icon: Flame },
   { id: "notes", label: "Notes", icon: StickyNote },
+  { id: "github", label: "On GitHub", icon: GitPullRequest },
   { id: "chat", label: "Chat", icon: Sparkles },
   { id: "chats", label: "Chats", icon: MessagesSquare },
   { id: "context", label: "Context", icon: Shapes },
@@ -173,6 +176,7 @@ function paneEntries({ session, workspace }: PaneProps, side: PanelSide): PaneEn
     path: null,
     hotspots: openHotspots,
     notes: session.notes.length,
+    github: null,
     chat: null,
     chats: session.assistThreads.length,
     context: contextCount(session.contextSymbols, workspace.currentStep?.id ?? null),
@@ -251,6 +255,22 @@ function NotesPane({ session, workspace }: PaneProps) {
   );
 }
 
+function latestReceiptUrl(session: Session): string | null {
+  return session.submissions[0]?.url ?? null;
+}
+
+function ConversationPane({ session, workspace }: PaneProps) {
+  return (
+    <ConversationPanel
+      conversation={workspace.conversation}
+      error={workspace.conversationError}
+      threads={workspace.threads}
+      receipts={session.submissions}
+      onOpen={workspace.goTo}
+    />
+  );
+}
+
 function chatPane({ workspace }: PaneProps): PaneContent {
   if (workspace.assist.thread) {
     return { body: <WorkspaceAssist workspace={workspace} />, ownHeader: true };
@@ -315,6 +335,7 @@ const PANE_CONTENT: Record<PaneId, (props: PaneProps) => PaneContent> = {
   path: (props) => ({ body: <PathPane {...props} /> }),
   hotspots: (props) => ({ body: <HotspotsPane {...props} /> }),
   notes: (props) => ({ body: <NotesPane {...props} /> }),
+  github: (props) => ({ body: <ConversationPane {...props} /> }),
   chat: chatPane,
   chats: (props) => ({ body: <ChatsPane {...props} /> }),
   context: (props) => ({ body: <ContextPane {...props} /> }),
@@ -622,6 +643,7 @@ export function ReviewWorkspace({
       hotspots: workspace.hotspots,
       checkedHotspots: session.checkedHotspots,
       notes: session.notes,
+      threads: workspace.threads,
       composer: workspace.composer,
       landed: workspace.landed,
       occurrences: occurrencesOf(workspace.peek.peek),
@@ -642,6 +664,7 @@ export function ReviewWorkspace({
         onSaveNote: (target, tag, body) => workspace.saveNote(target, tag, body),
         onCancelNote: () => workspace.setComposer(null),
         onShowReferences: workspace.peek.showReferences,
+        onOpenConversation: () => workspace.showPane("github"),
       },
     }),
     [workspace, session.notes, session.checkedHotspots, referenceCounts],
@@ -721,7 +744,9 @@ export function ReviewWorkspace({
       </div>
       <WorkspaceSelectionToolbar workspace={workspace} />
       <Dialogs review={review} session={session} workspace={workspace} />
-      {workspace.posted && <PostedToast onDismiss={() => workspace.setPosted(false)} />}
+      {workspace.posted && (
+        <PostedToast url={latestReceiptUrl(session)} onDismiss={() => workspace.setPosted(false)} />
+      )}
     </div>
   );
 }

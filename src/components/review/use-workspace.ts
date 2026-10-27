@@ -24,6 +24,7 @@ import { useSessionEdits } from "./use-session-edits";
 import { useShortcuts } from "./use-shortcuts";
 import { useStepNavigation } from "./use-step-navigation";
 import { usePanes } from "./use-panes";
+import { useConversation } from "./use-conversation";
 
 type Dialog = "resume" | "pause" | "finish" | "help" | "start-over" | null;
 
@@ -175,6 +176,7 @@ function useRememberedPeek(
 function useWorkspaceUi(review: ReviewPayload) {
   const [dialog, setDialog] = useState<Dialog>(() => (shouldGreet(review) ? "resume" : null));
   const panes = usePanes();
+  const conversation = useConversation(review.pr.ref);
   const [composer, setComposer] = useState<LineTarget | null>(null);
   const [breakDue, setBreakDue] = useState(false);
   const [posted, setPosted] = useState(false);
@@ -195,6 +197,7 @@ function useWorkspaceUi(review: ReviewPayload) {
     dialog,
     setDialog,
     ...panes,
+    ...conversation,
     composer,
     setComposer,
     breakDue,
