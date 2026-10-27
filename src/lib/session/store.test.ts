@@ -389,4 +389,49 @@ describe("SessionStore", () => {
       },
     ]);
   });
+
+  it("keeps a receipt of each posted review, newest first", () => {
+    const submission = {
+      reviewId: 1,
+      url: "https://github.com/acme/app/pull/7#pullrequestreview-1",
+      event: "COMMENT" as const,
+      headSha: "sha1",
+      body: "first",
+    };
+    store.recordSubmission(KEY, submission);
+    now += 1000;
+    store.recordSubmission(KEY, { ...submission, reviewId: 2, body: "second" });
+    expect(store.getSession(KEY).submissions).toEqual([
+      {
+        reviewId: 2,
+        url: submission.url,
+        event: "COMMENT",
+        headSha: "sha1",
+        body: "second",
+        postedAt: "2026-10-26T10:00:01.000Z",
+      },
+      {
+        reviewId: 1,
+        url: submission.url,
+        event: "COMMENT",
+        headSha: "sha1",
+        body: "first",
+        postedAt: "2026-10-26T10:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("keeps receipts across start over", () => {
+    store.recordSubmission(KEY, {
+      reviewId: 1,
+      url: "https://github.com/acme/app/pull/7#pullrequestreview-1",
+      event: "APPROVE",
+      headSha: "sha1",
+      body: "",
+    });
+    store.setStepDone(KEY, "s1", true);
+    store.startOver(KEY, false);
+    expect(store.getSession(KEY).doneSteps).toEqual([]);
+    expect(store.getSession(KEY).submissions).toHaveLength(1);
+  });
 });
