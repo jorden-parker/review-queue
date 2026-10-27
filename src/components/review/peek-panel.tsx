@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Pin, PinOff, Telescope, X } from "lucide-react";
+import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
 import { Markdown } from "@/components/common/markdown-text";
@@ -258,9 +259,7 @@ export function PeekPanel({ onTab, onClose, pinned, onTogglePin, ...body }: Peek
             <TabLabel label="References" count={peek.references?.length} shortcut="gr" />
           </TabsTrigger>
         </TabsList>
-        {peek.error && (
-          <p className="rounded-lg bg-del px-3 py-2 text-sm text-del-foreground">{peek.error}</p>
-        )}
+        {peek.error && <Callout tone="error">{peek.error}</Callout>}
         <TabsContent value="definitions" className="min-h-0 overflow-y-auto">
           <Definitions {...body} />
         </TabsContent>

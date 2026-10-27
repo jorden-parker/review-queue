@@ -1,5 +1,6 @@
 "use client";
 
+import { Callout } from "@/components/common/callout";
 import { PageHeader, PageShell } from "@/components/common/page-shell";
 import type { PullRequestRef } from "@/lib/types";
 import { ReviewWorkspace } from "./review-workspace";
@@ -26,9 +27,9 @@ export function ReviewLoader({ pullRequest }: { pullRequest: PullRequestRef }) {
     return (
       <PageShell>
         <PageHeader title="Couldn't open this PR" backHref="/" backLabel="Review queue" />
-        <p className="rounded-lg bg-del px-4 py-3 font-mono text-sm text-del-foreground">
+        <Callout tone="error" className="font-mono">
           {load.message}
-        </p>
+        </Callout>
       </PageShell>
     );
   }

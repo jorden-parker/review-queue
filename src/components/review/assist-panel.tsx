@@ -2,6 +2,7 @@
 
 import { Sparkles, Square, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Callout } from "@/components/common/callout";
 import { type CitationRenderer, Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -245,11 +246,7 @@ export function AssistPanel({
         {assist.streaming && last?.role === "reviewer" && (
           <p className="text-muted-foreground">Local model is reading…</p>
         )}
-        {assist.error && (
-          <p className="rounded-lg bg-del px-3 py-2 text-del-foreground">
-            Local model unavailable ({assist.error}).
-          </p>
-        )}
+        {assist.error && <Callout tone="error">Local model unavailable ({assist.error}).</Callout>}
         {draftReady && (
           <CommentDraft
             key={last.text}
