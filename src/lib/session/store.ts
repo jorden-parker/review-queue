@@ -3,6 +3,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { AssistThread, SavedAssistThread } from "@/lib/assist-protocol";
 import { dataDirectory } from "@/lib/data-directory";
+import type { ReviewEvent } from "@/lib/github/gh";
 import type {
   DefinitionScope,
   Note,
@@ -29,6 +30,17 @@ export type ContextSymbol = SeenSymbol & { pinned: boolean; seenAt: string };
 
 export type PauseState = { note: string; at: string };
 
+type Submission = {
+  reviewId: number;
+  url: string;
+  event: ReviewEvent;
+  headSha: string;
+  body: string;
+  postedAt: string;
+};
+
+type NewSubmission = Omit<Submission, "postedAt">;
+
 export type Session = {
   currentStepId: string | null;
   lastHeadSha: string | null;
@@ -41,6 +53,7 @@ export type Session = {
   jumps: Jump[];
   assistThreads: SavedAssistThread[];
   contextSymbols: ContextSymbol[];
+  submissions: Submission[];
 };
 
 export type NewNote = {
@@ -172,6 +185,16 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS submissions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pr_key TEXT NOT NULL,
+  review_id INTEGER NOT NULL,
+  url TEXT NOT NULL,
+  event TEXT NOT NULL,
+  head_sha TEXT NOT NULL,
+  body TEXT NOT NULL,
+  posted_at TEXT NOT NULL
+);
 `;
 
 const PROGRESS_TABLES = [
@@ -301,6 +324,26 @@ function toContextSymbol(row: ContextSymbolRow): ContextSymbol {
   };
 }
 
+type SubmissionRow = {
+  review_id: number;
+  url: string;
+  event: ReviewEvent;
+  head_sha: string;
+  body: string;
+  posted_at: string;
+};
+
+function toSubmission(row: SubmissionRow): Submission {
+  return {
+    reviewId: row.review_id,
+    url: row.url,
+    event: row.event,
+    headSha: row.head_sha,
+    body: row.body,
+    postedAt: row.posted_at,
+  };
+}
+
 function toNote(row: NoteRow): Note {
   return {
     id: row.id,
@@ -344,6 +387,7 @@ export class SessionStore {
       jumps: this.jumps(key),
       assistThreads: this.assistThreads(key),
       contextSymbols: this.contextSymbols(key),
+      submissions: this.submissions(key),
     };
   }
 
@@ -411,6 +455,22 @@ export class SessionStore {
 
   deleteNote(key: string, id: number): void {
     this.db.prepare("DELETE FROM notes WHERE pr_key = ? AND id = ?").run(key, id);
+  }
+
+  recordSubmission(key: string, submission: NewSubmission): void {
+    this.db
+      .prepare(
+        "INSERT INTO submissions (pr_key, review_id, url, event, head_sha, body, posted_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        key,
+        submission.reviewId,
+        submission.url,
+        submission.event,
+        submission.headSha,
+        submission.body,
+        this.now(),
+      );
   }
 
   pause(key: string, note: string): void {
@@ -577,6 +637,13 @@ export class SessionStore {
 
   private column(sql: string, key: string): string[] {
     return (this.db.prepare(sql).all(key) as { v: string }[]).map((row) => row.v);
+  }
+
+  private submissions(key: string): Submission[] {
+    const rows = this.db
+      .prepare("SELECT * FROM submissions WHERE pr_key = ? ORDER BY id DESC")
+      .all(key) as SubmissionRow[];
+    return rows.map(toSubmission);
   }
 
   private notes(key: string): Note[] {
