@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { cn } from "cn";
 import { AppDialog } from "@/components/common/app-dialog";
+import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { PathLabel } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
@@ -147,11 +148,7 @@ export function FinishReview({
 
   return (
     <AppDialog title="Finish review" onClose={onCancel} className="sm:max-w-2xl">
-      {unfinished && (
-        <p className="rounded-lg bg-callout px-3 py-2 text-sm text-callout-foreground">
-          {unfinished}
-        </p>
-      )}
+      {unfinished && <Callout>{unfinished}</Callout>}
       <NoteChecklist notes={notes} selected={selected} onToggle={toggle} />
       {onDraftSummary && (
         <DraftSummaryButton
