@@ -179,10 +179,10 @@ function PaneFrame({
       <header
         draggable
         onDragStart={(event) => startPaneDrag(event, pane.id, side)}
-        className="group/pane-header flex h-11 shrink-0 cursor-grab items-center gap-2 border-b px-4 text-sm font-bold active:cursor-grabbing"
+        className="group/pane-header flex min-h-11 shrink-0 cursor-grab items-center gap-2 border-b px-4 py-2 text-sm font-bold active:cursor-grabbing"
       >
         <PaneIcon className="size-4 shrink-0 text-muted-foreground" />
-        <span className="flex-1 truncate">{pane.label}</span>
+        <span className="flex-1 wrap-anywhere">{pane.label}</span>
         <GripVertical className="size-3.5 opacity-0 transition-opacity duration-calm group-hover/pane-header:opacity-60" />
         <Button
           variant="ghost"

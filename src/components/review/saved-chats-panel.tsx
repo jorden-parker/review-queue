@@ -68,7 +68,7 @@ function ChatRow({
         <span className="wrap-anywhere">
           {chat.question ?? chat.turns[0]?.text ?? actionLabel(chat.action, chat.target)}
         </span>
-        <span className="truncate font-mono text-xs text-muted-foreground">{label}</span>
+        <span className="wrap-anywhere font-mono text-xs text-muted-foreground">{label}</span>
         {older && (
           <Badge variant="outline" className="self-start">
             Older commit

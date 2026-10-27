@@ -66,10 +66,10 @@ function SymbolRow({
           .join(" ")}
         onClick={() => onOpen(row.symbol, row.shown)}
         title={row.shown ? "Go to it in the diff" : "Peek it; it is outside this step's diff"}
-        className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-sm"
+        className="flex min-w-0 flex-1 flex-wrap items-start gap-1.5 text-left text-sm"
       >
         <Icon className="size-3.5 shrink-0 text-primary" aria-hidden />
-        <span className={cn("truncate font-mono", row.changed && "font-medium text-primary")}>
+        <span className={cn("wrap-anywhere font-mono", row.changed && "font-medium text-primary")}>
           {row.symbol.name}
         </span>
         <span className="text-xs text-muted-foreground">{row.symbol.kind}</span>

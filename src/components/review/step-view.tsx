@@ -99,11 +99,11 @@ function FileHeader({
         <FileCode2 className="size-4 shrink-0 text-muted-foreground" />
         {file.status === "renamed" && file.oldPath && (
           <>
-            <PathLabel path={file.oldPath} className="text-sm opacity-60" />
+            <PathLabel path={file.oldPath} truncate className="text-sm opacity-60" />
             <span className="text-muted-foreground">→</span>
           </>
         )}
-        <PathLabel path={file.path} className="text-sm" />
+        <PathLabel path={file.path} truncate className="text-sm" />
       </span>
       <span className="flex shrink-0 items-center gap-3 text-sm tabular-nums">
         {wholeFileToggle && <WholeFileButton toggle={wholeFileToggle} />}

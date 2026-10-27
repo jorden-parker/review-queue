@@ -60,9 +60,9 @@ function AiSummaryLine({ orientation }: { orientation: OrientationState }) {
   if (orientation.status !== "ready") return null;
   const { summary, risk } = orientation.orientation;
   return (
-    <p className="flex items-center gap-1.5 text-sm">
+    <p className="flex items-start gap-1.5 text-sm">
       <Sparkles className="size-3.5 shrink-0 text-primary" />
-      <span className="truncate">
+      <span className="min-w-0 flex-1 wrap-anywhere">
         <InlineMarkdown text={summary} />
       </span>
       <span className={`shrink-0 font-medium ${RISK_STYLES[risk]}`}>{risk} risk</span>

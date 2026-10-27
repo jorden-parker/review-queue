@@ -126,7 +126,7 @@ function NoteRow({
         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left text-sm"
       >
         <span className="whitespace-pre-wrap wrap-anywhere">{note.body}</span>
-        {note.path && <PathLabel path={note.path} line={note.line} wrap />}
+        {note.path && <PathLabel path={note.path} line={note.line} />}
       </button>
       <Button
         variant="ghost"

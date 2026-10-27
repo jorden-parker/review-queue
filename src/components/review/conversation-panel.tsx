@@ -123,7 +123,9 @@ function ReviewRow({ review }: { review: PostedReview }) {
     <article className="flex flex-col gap-1.5 rounded-md border p-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span className="font-medium text-foreground">{review.author}</span>
-        <Badge variant="outline">{REVIEW_STATE_LABELS[review.state]}</Badge>
+        <Badge variant="outline" className="h-auto whitespace-normal wrap-anywhere">
+          {REVIEW_STATE_LABELS[review.state]}
+        </Badge>
         {review.submittedAt && <span>{relativeTime(review.submittedAt)}</span>}
         <a href={review.url} target="_blank" rel="noreferrer" className="underline">
           View
