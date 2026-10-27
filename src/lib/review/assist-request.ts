@@ -44,6 +44,12 @@ export const AssistTargetSchema = z.discriminatedUnion("kind", [
     range: z.object({ path: z.string().min(1), from: PositionSchema, to: PositionSchema }),
   }),
   z.object({ kind: z.literal("file"), path: z.string().min(1) }),
+  z.object({
+    kind: z.literal("check"),
+    stepId: z.string().min(1),
+    check: z.number().int().nonnegative(),
+    path: z.string().min(1),
+  }),
 ]);
 
 export const AssistRequestSchema = z.object({
@@ -118,6 +124,7 @@ export function assistInputFrom(source: AssistSource, request: AssistRequest): A
   const { target } = request;
   const file = source.data.files.find((candidate) => candidate.path === targetPath(target));
   if (!file) return { ok: false, error: "That file is not in this review" };
+  if (target.kind === "check") return { ok: false, error: "Step checks are not supported yet" };
   const result =
     target.kind === "lines"
       ? lineContent(file, target.range.from, target.range.to)

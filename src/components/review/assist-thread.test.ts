@@ -16,6 +16,7 @@ const HEAD = "a".repeat(40);
 const RANGE = { path: "src/a.ts", from: { hunk: 0, line: 0 }, to: { hunk: 0, line: 2 } };
 const LINES = { kind: "lines" as const, range: RANGE };
 const WHOLE_FILE = { kind: "file" as const, path: "src/a.ts" };
+const CHECK_TARGET = { kind: "check" as const, stepId: "s1", check: 0, path: "src/a.ts" };
 
 function openThread(target: AssistTarget, action: AssistAction) {
   return openThreadAt(target, action, HEAD);
@@ -89,6 +90,11 @@ describe("follow-ups", () => {
 });
 
 describe("labels", () => {
+  it("name a step check", () => {
+    expect(actionLabel("explain", CHECK_TARGET)).toBe("Explain this check");
+    expect(actionLabel("ask", CHECK_TARGET)).toBe("Ask about this check");
+  });
+
   it("name lines or a whole file", () => {
     expect(actionLabel("simplify", LINES)).toBe("Simplify these lines");
     expect(actionLabel("simplify", WHOLE_FILE)).toBe("Simplify this file");
