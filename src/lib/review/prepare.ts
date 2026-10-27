@@ -9,7 +9,14 @@ import { prKey } from "@/lib/pr-ref";
 import type { Session, SessionStore } from "@/lib/session/store";
 import { SymbolIndex } from "@/lib/symbols/symbol-index";
 import { languageClients, type ClientFor } from "@/lib/lsp/pool";
-import type { FileDiff, Hotspot, PullRequestRef, Step } from "@/lib/types";
+import type {
+  FileDiff,
+  Hotspot,
+  PullRequestRef,
+  Step,
+  SymbolDefinition,
+  SymbolKind,
+} from "@/lib/types";
 
 export type ReviewDeps = {
   fetchPullRequest: (ref: PullRequestRef) => Promise<PullRequest>;
@@ -52,9 +59,47 @@ function warmLanguageServers(clientFor: ClientFor, files: PreparedFile[]): void 
     void clientFor(file.path);
 }
 
-async function callerCounts(diffs: FileDiff[], index: SymbolIndex): Promise<Map<string, number>> {
+const COUNTABLE_KINDS = new Set<SymbolKind>(["function", "method"]);
+const MAX_COUNTED_NAMES = 40;
+
+function addedLineNumbers(file: FileDiff): number[] {
+  return file.hunks
+    .flatMap((hunk) => hunk.lines)
+    .flatMap((line) => (line.kind === "add" && line.newLine !== null ? [line.newLine] : []));
+}
+
+function spansAnyLine(definition: SymbolDefinition, lines: number[]): boolean {
+  return lines.some((line) => line >= definition.line && line <= definition.endLine);
+}
+
+function touchedDefinitions(
+  diffs: FileDiff[],
+  index: SymbolIndex,
+): Map<string, SymbolDefinition[]> {
+  const touched = new Map<string, SymbolDefinition[]>();
+  for (const file of diffs) {
+    if (file.status === "deleted") continue;
+    const lines = addedLineNumbers(file);
+    const definitions = index
+      .definitionsIn(file.path)
+      .filter((definition) => COUNTABLE_KINDS.has(definition.kind))
+      .filter((definition) => spansAnyLine(definition, lines));
+    if (definitions.length > 0) touched.set(file.path, definitions);
+  }
+  return touched;
+}
+
+function namesToCount(diffs: FileDiff[], touched: Map<string, SymbolDefinition[]>): string[] {
+  const touchedNames = [...touched.values()].flat().map((definition) => definition.name);
+  return [...new Set([...changedSignatureNames(diffs), ...touchedNames])].slice(
+    0,
+    MAX_COUNTED_NAMES,
+  );
+}
+
+async function callerCounts(names: string[], index: SymbolIndex): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
-  for (const name of changedSignatureNames(diffs)) {
+  for (const name of names) {
     counts.set(name, Math.max(0, (await index.referencesTo(name)).length - 1));
   }
   return counts;
@@ -74,9 +119,11 @@ async function build(pr: PullRequest, deps: ReviewDeps): Promise<PreparedReview>
   const diffs = await diffCheckout(checkout);
   const index = await SymbolIndex.build(checkout.worktreePath, checkout.run);
   const { steps, startStepId } = buildReadingPath(diffs, index);
+  const touched = touchedDefinitions(diffs, index);
   const hotspots = findHotspots(diffs, {
     churn: await fileChurn(checkout),
-    callerCounts: await callerCounts(diffs, index),
+    callerCounts: await callerCounts(namesToCount(diffs, touched), index),
+    touchedDefinitions: touched,
   });
   const files = await Promise.all(
     diffs.map(async (diff) => ({
