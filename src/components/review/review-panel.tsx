@@ -134,7 +134,7 @@ function PaneButton({
       draggable
       onDragStart={(event) => startPaneDrag(event, pane.id, side)}
       onClick={onClick}
-      className="relative mx-2 h-auto w-auto flex-col gap-1 rounded-lg px-1 py-2 text-xs font-medium text-muted-foreground transition-colors duration-calm ease-calm hover:bg-foreground/5 hover:text-foreground aria-pressed:bg-accent aria-pressed:text-accent-foreground max-sm:mx-1"
+      className="relative mx-1 h-auto w-auto flex-col gap-1 rounded-lg px-1 py-2 text-xs font-medium text-muted-foreground transition-colors duration-calm ease-calm hover:bg-foreground/5 hover:text-foreground aria-pressed:bg-accent aria-pressed:text-accent-foreground"
     >
       <span className="relative flex">
         <Icon />

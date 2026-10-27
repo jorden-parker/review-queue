@@ -94,7 +94,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
   { id: "map", label: "Map", icon: Network },
   { id: "hotspots", label: "Hotspots", icon: Flame },
   { id: "notes", label: "Notes", icon: StickyNote },
-  { id: "github", label: "On GitHub", icon: GitPullRequest },
+  { id: "github", label: "GitHub", icon: GitPullRequest },
   { id: "chat", label: "Chat", icon: Sparkles },
   { id: "chats", label: "Chats", icon: MessagesSquare },
   { id: "context", label: "Context", icon: Shapes },
