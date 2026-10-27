@@ -108,6 +108,10 @@ describe("assistRequest", () => {
     expect(assistRequest(INPUT, []).system).not.toContain("whole file");
   });
 
+  it("asks the model to cite code as path:START-END in inline code", () => {
+    expect(assistRequest(INPUT, []).system).toContain("`path:START-END`");
+  });
+
   it("asks for markdown with code names in backticks for every action", () => {
     for (const action of ["explain", "simplify", "comment", "ask"] as const) {
       expect(assistRequest({ ...INPUT, action }, []).system).toContain(CODE_NAME_RULE);
