@@ -290,4 +290,30 @@ describe("toolLoop", () => {
     expect(first.value).toMatchObject({ kind: "lookup" });
     expect(calls()).toBe(1);
   });
+
+  it("stops running lookups once the signal is aborted", async () => {
+    const controller = new AbortController();
+    const { fetchImpl, calls } = scriptedFetch([manyToolsRound(2), textRound("Never sent.")]);
+    const run = vi.fn<ToolBox["run"]>(async () => {
+      controller.abort();
+      return { content: "src/a.ts:3: loadReview()", lookup: lookupFor("loadReview") };
+    });
+    const chunks = await drain(
+      toolLoop(client(fetchImpl), REQUEST, toolBox(run), controller.signal),
+    );
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(calls()).toBe(1);
+    expect(chunks).toEqual([{ kind: "lookup", lookup: lookupFor("loadReview") }]);
+  });
+
+  it("makes no model request when the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const { fetchImpl, calls } = scriptedFetch([textRound("Never sent.")]);
+    const chunks = await drain(toolLoop(client(fetchImpl), REQUEST, toolBox(), controller.signal));
+
+    expect(calls()).toBe(0);
+    expect(chunks).toEqual([]);
+  });
 });
