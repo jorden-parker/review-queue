@@ -1,3 +1,4 @@
+import { memoizePromise } from "@/lib/memoize-promise";
 import type { ClientFor } from "@/lib/lsp/pool";
 import type { SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { FileDiff, ReferenceCount, SymbolDefinition } from "@/lib/types";
@@ -76,10 +77,5 @@ export function referenceCountsIn(
 ): Promise<ReferenceCount[]> {
   const byPath = computed.get(source) ?? new Map<string, Promise<ReferenceCount[]>>();
   computed.set(source, byPath);
-  if (!byPath.has(file.path)) {
-    const pending = countAll(source, file);
-    pending.catch(() => byPath.delete(file.path));
-    byPath.set(file.path, pending);
-  }
-  return byPath.get(file.path)!;
+  return memoizePromise(byPath, file.path, () => countAll(source, file));
 }

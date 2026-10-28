@@ -107,4 +107,11 @@ describe("referenceCountsIn", () => {
     await referenceCountsIn(review, PREPARED_FILE);
     expect(review.index.referencesTo).toHaveBeenCalledTimes(3);
   });
+
+  it("recomputes a file whose counts failed", async () => {
+    const counting = source(null);
+    vi.mocked(counting.index.referencesTo).mockRejectedValueOnce(new Error("grep failed"));
+    await expect(referenceCountsIn(counting, PREPARED_FILE)).rejects.toThrow("grep failed");
+    await expect(referenceCountsIn(counting, PREPARED_FILE)).resolves.toHaveLength(3);
+  });
 });

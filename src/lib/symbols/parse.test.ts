@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { createRequire } from "node:module";
+import type * as TreeSitter from "@vscode/tree-sitter-wasm";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { supportedSpecs } from "./languages";
 import { compiledFor, parseDefinitions } from "./parse";
 
@@ -56,5 +58,28 @@ describe("parseDefinitions", () => {
 
   it("ignores unsupported files", async () => {
     expect(await parseDefinitions("README.md", "# hi")).toEqual([]);
+  });
+});
+
+const nodeRequire = createRequire(import.meta.url);
+const treeSitter = nodeRequire("@vscode/tree-sitter-wasm") as typeof TreeSitter;
+
+describe("compiledFor after a failed load", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("retries a grammar whose load failed", async () => {
+    vi.resetModules();
+    const fresh = await import("./parse");
+    vi.spyOn(treeSitter.Language, "load").mockRejectedValueOnce(new Error("grammar read failed"));
+    await expect(fresh.compiledFor(supportedSpecs()[0])).rejects.toThrow("grammar read failed");
+    await expect(fresh.compiledFor(supportedSpecs()[0])).resolves.toBeDefined();
+  });
+
+  it("retries the tree-sitter runtime after its init failed", async () => {
+    vi.resetModules();
+    const fresh = await import("./parse");
+    vi.spyOn(treeSitter.Parser, "init").mockRejectedValueOnce(new Error("runtime init failed"));
+    await expect(fresh.compiledFor(supportedSpecs()[0])).rejects.toThrow("runtime init failed");
+    await expect(fresh.compiledFor(supportedSpecs()[0])).resolves.toBeDefined();
   });
 });
