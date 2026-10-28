@@ -73,7 +73,7 @@ import { occurrencesOf } from "./occurrences";
 import { orderedSteps, stepReasons } from "./step-order";
 import { SavedChatsPanel } from "./saved-chats-panel";
 import { SelectionToolbar } from "./selection-toolbar";
-import { useFileLoader, type LoadFile } from "./use-file-lines";
+import type { LoadFile } from "./use-file-lines";
 import { useReferenceCounts } from "./use-file-symbols";
 import { WorkspaceOutline } from "./workspace-outline";
 import { StepSummary } from "./step-summary";
@@ -303,13 +303,18 @@ function PartsStatus({ state, enabled }: { state: ChangePartsState; enabled: boo
 
 function MapPane({ review, session, workspace }: PaneProps) {
   const parts = useChangeParts(review, workspace.aiEnabled);
+  const sections = useMemo(
+    () => mapSections(review.changeMap, session.doneSteps, workspace.activeHunkId),
+    [review.changeMap, session.doneSteps, workspace.activeHunkId],
+  );
+  const partsOfNode = useMemo(() => partsByNode(parts), [parts]);
   return (
     <>
       <PartsStatus state={parts} enabled={workspace.aiEnabled} />
       <ChangeMapList
-        sections={mapSections(review.changeMap, session.doneSteps, workspace.activeHunkId)}
+        sections={sections}
         onOpen={(node) => workspace.goTo({ path: node.path, line: node.line })}
-        parts={partsByNode(parts)}
+        parts={partsOfNode}
         listRef={workspace.mapList}
       />
     </>
@@ -373,8 +378,8 @@ function ChatsPane({ review, session, workspace }: PaneProps) {
   );
 }
 
-function ContextPane({ session, workspace, review }: PaneProps) {
-  if (workspace.peek.peek) return <WorkspacePeek workspace={workspace} review={review} />;
+function ContextPane({ session, workspace }: PaneProps) {
+  if (workspace.peek.peek) return <WorkspacePeek workspace={workspace} />;
   return (
     <ContextList
       symbols={session.contextSymbols}
@@ -617,8 +622,7 @@ function Dialogs({
   }
 }
 
-function WorkspacePeek({ workspace, review }: Pick<PaneProps, "workspace" | "review">) {
-  const loadFile = useFileLoader(workspace.pullRequest, review.headSha);
+function WorkspacePeek({ workspace }: Pick<PaneProps, "workspace">) {
   const { peek } = workspace.peek;
   if (!peek) return null;
   return (
@@ -634,7 +638,7 @@ function WorkspacePeek({ workspace, review }: Pick<PaneProps, "workspace" | "rev
         else workspace.peek.showDefinitions(peek.position);
       }}
       onClose={workspace.peek.close}
-      loadFile={loadFile}
+      loadFile={workspace.loadFile}
     />
   );
 }
@@ -776,12 +780,13 @@ export function ReviewWorkspace({
   const workspace = useWorkspace(pullRequest, review, session, orientation, controls);
   const sizings = usePanelSizings(workspace.panes);
   const fresh = session.doneSteps.length === 0 && workspace.currentIndex <= 0;
-  const loadFile = useFileLoader(pullRequest, review.headSha);
   const referenceCounts = useReferenceCounts(
     pullRequest,
     review.headSha,
     navigablePaths(workspace.visibleSteps, workspace.files),
   );
+  const { setComposer, showPane } = workspace;
+  const { open: openAssist } = workspace.assist;
   const context: StepViewContext = useMemo(
     () => ({
       files: workspace.files,
@@ -794,26 +799,48 @@ export function ReviewWorkspace({
       occurrences: occurrencesOf(workspace.peek.peek),
       activeHunkId: workspace.activeHunkId,
       referenceCounts,
-      loadFile,
+      loadFile: workspace.loadFile,
       onAskFile: workspace.aiEnabled
-        ? (path, action) => workspace.assist.open({ kind: "file", path }, action)
+        ? (path, action) => openAssist({ kind: "file", path }, action)
         : null,
       handlers: {
         onIdentifier: workspace.peekName,
         onHoverIdentifier: workspace.setHovered,
-        onAddNote: (path, line) => workspace.setComposer({ path, line }),
+        onAddNote: (path, line) => setComposer({ path, line }),
         onDeleteNote: workspace.deleteNote,
         onToggleHotspot: workspace.toggleHotspot,
         onCheckFlag: workspace.aiEnabled
-          ? (range) => workspace.assist.open({ kind: "lines", range }, "check")
+          ? (range) => openAssist({ kind: "lines", range }, "check")
           : null,
-        onSaveNote: (target, tag, body) => workspace.saveNote(target, tag, body),
-        onCancelNote: () => workspace.setComposer(null),
+        onSaveNote: workspace.saveNote,
+        onCancelNote: () => setComposer(null),
         onShowReferences: workspace.peek.showReferences,
-        onOpenConversation: () => workspace.showPane("github"),
+        onOpenConversation: () => showPane("github"),
       },
     }),
-    [workspace, session.notes, session.checkedHotspots, referenceCounts, loadFile],
+    [
+      workspace.files,
+      workspace.hotspots,
+      workspace.threads,
+      workspace.composer,
+      workspace.landed,
+      workspace.activeHunkId,
+      workspace.aiEnabled,
+      workspace.peek.peek,
+      workspace.peekName,
+      workspace.setHovered,
+      setComposer,
+      workspace.deleteNote,
+      workspace.toggleHotspot,
+      workspace.saveNote,
+      openAssist,
+      workspace.peek.showReferences,
+      showPane,
+      workspace.loadFile,
+      session.notes,
+      session.checkedHotspots,
+      referenceCounts,
+    ],
   );
 
   return (
@@ -851,7 +878,7 @@ export function ReviewWorkspace({
                 workspace={workspace}
                 review={review}
                 context={context}
-                loadFile={loadFile}
+                loadFile={workspace.loadFile}
               />
               <NoSteps review={payload} orientation={orientation} />
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, FileCode2, FoldVertical, UnfoldVertical } from "lucide-react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { cn } from "cn";
 import { PathLabel } from "@/components/common/path-label";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,8 @@ import { fileLayout, gapContaining, type LayoutItem } from "./context-gaps";
 import { FileActionsButton } from "./file-actions-button";
 import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
-import { threadsAt, type Thread } from "./conversation-threads";
+import type { Thread } from "./conversation-threads";
+import { indexByLine, linesAt } from "./line-index";
 import { isInTarget, isSameLine, lineElementId, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
 import { occurrenceAt, type Occurrences } from "./occurrences";
@@ -63,13 +64,33 @@ function lensAt(
   return lineNumber !== null ? lenses.get(lineNumber) : undefined;
 }
 
-function threadCountAt(threads: Thread[], path: string, lineNumber: number | null): number {
-  if (lineNumber === null) return 0;
-  return threadsAt(threads, path, lineNumber).length;
+type LineAnnotations = {
+  hotspots: ReadonlyMap<string, DisplayHotspot[]>;
+  notes: ReadonlyMap<string, Note[]>;
+  threads: ReadonlyMap<string, Thread[]>;
+};
+
+function annotationsOf(context: StepViewContext): LineAnnotations {
+  return {
+    hotspots: indexByLine(context.hotspots, (hotspot) =>
+      hotspot.line === null ? null : { path: hotspot.path, line: hotspot.line },
+    ),
+    notes: indexByLine(context.notes, (note) =>
+      note.path === null || note.line === null ? null : { path: note.path, line: note.line },
+    ),
+    threads: indexByLine(
+      context.threads.filter((thread) => thread.root.side === "RIGHT"),
+      (thread) =>
+        thread.root.line === null ? null : { path: thread.root.path, line: thread.root.line },
+    ),
+  };
 }
 
-function lensesOf(context: StepViewContext, path: string): Map<number, ReferenceCount> {
-  const counts = context.referenceCounts.get(path) ?? [];
+function lensesOf(
+  referenceCounts: StepViewContext["referenceCounts"],
+  path: string,
+): Map<number, ReferenceCount> {
+  const counts = referenceCounts.get(path) ?? [];
   return new Map(counts.map((count) => [count.line, count]));
 }
 
@@ -125,17 +146,20 @@ function HunkBlock({
   hunkIndex,
   anchored,
   context,
+  lenses,
+  annotations,
 }: {
   file: PreparedFile;
   hunkIndex: number;
   anchored: boolean;
   context: StepViewContext;
+  lenses: Map<number, ReferenceCount>;
+  annotations: LineAnnotations;
 }) {
   const hunk = file.hunks[hunkIndex];
   const highlighted = file.highlighted[hunkIndex] ?? [];
   const id = hunkElementId(file.path, hunkIndex);
   const active = anchored && context.activeHunkId === id;
-  const lenses = lensesOf(context, file.path);
   const showReferences = ({ name, line, character }: ReferenceCount) =>
     context.handlers.onShowReferences({ name, path: file.path, line, character, side: "new" });
   return (
@@ -167,16 +191,10 @@ function HunkBlock({
               line={line}
               tokens={highlighted[lineIndex] ?? [{ text: line.text }]}
               linked={file.navigable}
-              hotspots={context.hotspots.filter(
-                (hotspot) =>
-                  hotspot.path === file.path && lineNumber !== null && hotspot.line === lineNumber,
-              )}
+              hotspots={linesAt(annotations.hotspots, file.path, lineNumber)}
               checkedHotspots={context.checkedHotspots}
-              notes={context.notes.filter(
-                (note) =>
-                  note.path === file.path && note.line === lineNumber && lineNumber !== null,
-              )}
-              threadCount={threadCountAt(context.threads, file.path, lineNumber)}
+              notes={linesAt(annotations.notes, file.path, lineNumber)}
+              threadCount={linesAt(annotations.threads, file.path, lineNumber).length}
               onOpenThreads={context.handlers.onOpenConversation}
               elementId={anchored && target ? lineElementId(target) : undefined}
               landed={landed ? context.landed : null}
@@ -225,13 +243,19 @@ function FileBody({
   stepFile,
   context,
   wholeFile,
+  annotations,
 }: {
   file: PreparedFile;
   stepFile: StepFile;
   context: StepViewContext;
   wholeFile: boolean;
+  annotations: LineAnnotations;
 }) {
   const { load, request } = useFileLines(context.loadFile, file.path);
+  const lenses = useMemo(
+    () => lensesOf(context.referenceCounts, file.path),
+    [context.referenceCounts, file.path],
+  );
   const [openGaps, setOpenGaps] = useState<ReadonlySet<number>>(new Set());
   const layout = layoutOf(file, stepFile, wholeFile, load);
   const landedGap = landedGapIn(layout, file, context.landed);
@@ -254,6 +278,8 @@ function FileBody({
             hunkIndex={item.index}
             anchored={stepFile.hunkIndexes.includes(item.index)}
             context={context}
+            lenses={lenses}
+            annotations={annotations}
           />
         ) : (
           <ContextGapView
@@ -282,10 +308,12 @@ function FileBlock({
   stepFile,
   context,
   collapsed,
+  annotations,
 }: {
   stepFile: StepFile;
   context: StepViewContext;
   collapsed: boolean;
+  annotations: LineAnnotations;
 }) {
   const [expanded, setExpanded] = useState(!collapsed);
   const [wholeFile, setWholeFile] = useState(false);
@@ -312,13 +340,26 @@ function FileBlock({
           {file.binary ? "Binary file." : "No content changes (rename or mode change)."}
         </p>
       ) : (
-        <FileBody file={file} stepFile={stepFile} context={context} wholeFile={wholeFile} />
+        <FileBody
+          file={file}
+          stepFile={stepFile}
+          context={context}
+          wholeFile={wholeFile}
+          annotations={annotations}
+        />
       )}
     </Card>
   );
 }
 
-export function StepView({ step, context }: { step: Step; context: StepViewContext }) {
+export const StepView = memo(function StepView({
+  step,
+  context,
+}: {
+  step: Step;
+  context: StepViewContext;
+}) {
+  const annotations = useMemo(() => annotationsOf(context), [context]);
   return (
     <div className="flex flex-col gap-4">
       {step.files.map((stepFile) => (
@@ -327,8 +368,9 @@ export function StepView({ step, context }: { step: Step; context: StepViewConte
           stepFile={stepFile}
           context={context}
           collapsed={step.role === "generated"}
+          annotations={annotations}
         />
       ))}
     </div>
   );
-}
+});
