@@ -4,7 +4,7 @@ import { useState } from "react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Textarea } from "@/components/ui/textarea";
+import { MarkdownField } from "@/components/common/markdown-field";
 import { exclusiveDecorations } from "@/lib/review/conventional-comment";
 import { NOTE_DECORATIONS, NOTE_LABELS, type NoteDecoration, type NoteTag } from "@/lib/types";
 import { NOTE_KIND_HINTS, NOTE_KIND_LABELS, NOTE_KIND_STYLES } from "./note-kinds";
@@ -76,7 +76,7 @@ export function NoteComposer({ onSave, onCancel }: NoteComposerProps) {
   return (
     <div className="flex animate-step-enter flex-col gap-2 border-y bg-card p-3 font-sans">
       <NoteTagPicker tag={tag} onChange={setTag} />
-      <Textarea
+      <MarkdownField
         autoFocus
         value={body}
         onChange={(event) => setBody(event.target.value)}

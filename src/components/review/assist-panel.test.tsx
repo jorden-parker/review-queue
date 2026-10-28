@@ -78,6 +78,17 @@ function readerScrollsUp(list: HTMLElement) {
 
 const QUESTION: AssistTurn = { role: "reviewer", text: "Explain this" };
 
+describe("AssistPanel reviewer turns", () => {
+  it("renders the reviewer's Markdown, keeping its line breaks as paragraphs", () => {
+    const { thread, assist } = chat([
+      { role: "reviewer", text: "Is **this** safe?\n\nSee `load`." },
+    ]);
+    render(panel({ thread, assist }));
+    expect(screen.getByText("this").tagName).toBe("STRONG");
+    expect(screen.getByText("load").tagName).toBe("CODE");
+  });
+});
+
 describe("AssistPanel lookups", () => {
   it("lists the lookups a model turn made, with each label's code shown", () => {
     const lookup = {
