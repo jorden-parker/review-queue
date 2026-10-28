@@ -60,14 +60,15 @@ function DefinitionHeader({
   wholeFileToggle,
 }: PanelBodyProps & { definition: DefinitionWithCode; wholeFileToggle: WholeFileToggle }) {
   const scopeLabel = SCOPE_LABELS[definition.scope];
-  const inThisPullRequest = definition.scope !== "external" && inPullRequest(definition.path);
+  const openable = definition.scope !== "external";
+  const inThisPullRequest = openable && inPullRequest(definition.path);
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b bg-muted px-3 py-2">
       <PathLabel path={definition.path} line={definition.line} className="min-w-40 flex-1" />
       {scopeLabel && <Badge variant="outline">{scopeLabel}</Badge>}
       <Badge variant="secondary">{definition.kind}</Badge>
       {wholeFileToggle && <WholeFileButton toggle={wholeFileToggle} />}
-      {inThisPullRequest && (
+      {openable && (
         <Button
           variant="ghost"
           size="xs"
@@ -76,7 +77,7 @@ function DefinitionHeader({
             onGoTo({ path: definition.path, line: definition.line, name: peek.position.name })
           }
         >
-          In this PR <ArrowRight />
+          {inThisPullRequest ? "In this PR" : "Open file"} <ArrowRight />
         </Button>
       )}
     </div>
@@ -169,14 +170,10 @@ function ReferenceFile({
       </div>
       <ul className="flex flex-col gap-0.5">
         {group.references.map((reference) => (
-          <PaneRow
-            key={reference.line}
-            className={group.inPullRequest ? undefined : "hover:bg-transparent"}
-          >
+          <PaneRow key={reference.line}>
             <button
-              disabled={!group.inPullRequest}
               onClick={() => onGoTo({ path: reference.path, line: reference.line, name })}
-              className="flex w-full gap-3 text-left font-mono text-code disabled:cursor-default disabled:opacity-60"
+              className="flex w-full gap-3 text-left font-mono text-code"
             >
               <span className="w-8 shrink-0 text-right text-muted-foreground/70 select-none">
                 {reference.line}

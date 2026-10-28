@@ -39,6 +39,7 @@ function renderPeek(
   definitions: DefinitionWithCode[],
   overrides: Partial<PeekState> = {},
   loadFile = vi.fn(async () => LONG_FILE),
+  inPullRequest: (path: string) => boolean = () => true,
 ) {
   const peek: PeekState = {
     position: POSITION,
@@ -52,7 +53,7 @@ function renderPeek(
   render(
     <PeekPanel
       peek={peek}
-      inPullRequest={() => true}
+      inPullRequest={inPullRequest}
       onIdentifier={vi.fn()}
       onGoTo={onGoTo}
       onTab={vi.fn()}
@@ -82,6 +83,34 @@ describe("PeekPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /12/ }));
     expect(onGoTo).toHaveBeenCalledWith({ path: "src/use.ts", line: 12, name: "total" });
+  });
+
+  it("lets you open a reference that lives outside this PR", () => {
+    const onGoTo = renderPeek(
+      [],
+      {
+        tab: "references",
+        references: [
+          { path: "lib/util.ts", line: 4, text: "total()", tokens: [{ text: "total()" }] },
+        ],
+      },
+      undefined,
+      () => false,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /total\(\)/ }));
+    expect(onGoTo).toHaveBeenCalledWith({ path: "lib/util.ts", line: 4, name: "total" });
+  });
+
+  it("offers to open a definition that lives outside this PR", () => {
+    const onGoTo = renderPeek(
+      [definition({ path: "lib/util.ts", line: 9 })],
+      {},
+      undefined,
+      () => false,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Open file/ }));
+    expect(onGoTo).toHaveBeenCalledWith({ path: "lib/util.ts", line: 9, name: "total" });
+    expect(screen.queryByRole("button", { name: /In this PR/ })).toBeNull();
   });
 
   it("labels where a definition lives", () => {

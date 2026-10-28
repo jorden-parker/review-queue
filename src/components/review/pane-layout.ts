@@ -9,7 +9,8 @@ export type PaneId =
   | "chat"
   | "chats"
   | "context"
-  | "outline";
+  | "outline"
+  | "files";
 export type PaneLayout = PaneId[];
 
 export function closePane(layout: PaneLayout, id: PaneId): PaneLayout {
@@ -49,6 +50,7 @@ export const PANE_SIDES: Record<PaneId, PanelSide> = {
   notes: "right",
   github: "right",
   outline: "right",
+  files: "right",
 };
 
 export function onPaneSide(
