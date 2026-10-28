@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import type * as TreeSitter from "@vscode/tree-sitter-wasm";
+import { memoizePromise } from "@/lib/memoize-promise";
 import type { SymbolDefinition, SymbolKind } from "@/lib/types";
 import { languageFor, type LanguageSpec } from "./languages";
 
@@ -9,7 +10,8 @@ type Compiled = { parser: TreeSitter.Parser; query: TreeSitter.Query };
 
 const require = createRequire(path.join(process.cwd(), "package.json"));
 const compiled = new Map<string, Promise<Compiled>>();
-let runtime: Promise<Runtime> | null = null;
+const runtimes = new Map<string, Promise<Runtime>>();
+const RUNTIME_KEY = "tree-sitter-runtime";
 
 function wasmDirectory(): string {
   return path.dirname(require.resolve("@vscode/tree-sitter-wasm"));
@@ -22,8 +24,7 @@ async function loadRuntime(): Promise<Runtime> {
 }
 
 async function compile(spec: LanguageSpec): Promise<Compiled> {
-  runtime ??= loadRuntime();
-  const treeSitter = await runtime;
+  const treeSitter = await memoizePromise(runtimes, RUNTIME_KEY, loadRuntime);
   const language = await treeSitter.Language.load(
     path.join(wasmDirectory(), `tree-sitter-${spec.grammar}.wasm`),
   );
@@ -33,9 +34,7 @@ async function compile(spec: LanguageSpec): Promise<Compiled> {
 }
 
 export function compiledFor(spec: LanguageSpec): Promise<Compiled> {
-  const key = spec.grammar;
-  if (!compiled.has(key)) compiled.set(key, compile(spec));
-  return compiled.get(key)!;
+  return memoizePromise(compiled, spec.grammar, () => compile(spec));
 }
 
 function definitionNode(node: TreeSitter.Node): TreeSitter.Node {
