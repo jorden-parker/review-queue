@@ -147,6 +147,12 @@ export function submitReviewRequest(ref: PullRequestRef, input: SubmitInput): Pr
   return post<Session>(apiPath(ref, "/submit"), input);
 }
 
+export type ReplyInput = { commentId: number; body: string };
+
+export function sendReply(ref: PullRequestRef, input: ReplyInput): Promise<Session> {
+  return post<Session>(apiPath(ref, "/reply"), input);
+}
+
 export function requestSummaryDraft(
   ref: PullRequestRef,
   sha: string,
