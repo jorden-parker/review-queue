@@ -79,10 +79,14 @@ stream with the `ASSIST_ERROR_MARKER` from `lib/assist-protocol.ts`. The assist
 stream runs a tool loop (`lib/llm/tool-loop.ts`) over
 `lib/review/code-tools.ts`: `find_definition`, `find_references`, `search_code`
 and `read_file`, limited to tracked files of the head worktree, with results
-fenced as `<pr_tool_result>`, at most 5 rounds, and no tools when the model has
-none. Each lookup streams as a `\u0001{json}\u0001` record
-(`ASSIST_LOOKUP_MARKER`) that `components/review/assist-stream.ts` parses apart
-from the answer text.
+fenced as `<pr_tool_result>`, no limit on rounds (the reader's stop ends it),
+and no tools when the model has none. Each lookup streams as a
+`\u0001{json}\u0001` record (`ASSIST_LOOKUP_MARKER`) that
+`components/review/assist-stream.ts` parses apart from the answer text. Before
+the loop, `lib/review/usage-context.ts` finds the declarations on the selected
+(or, for a file, added) lines, their uses elsewhere and same-named definitions,
+and sends them as `<pr_usages>`; the first turn also streams them as `usages`
+lookup records.
 
 **Singletons** (`lib/review/services.ts`). The SQLite `SessionStore`
 (`lib/session/store.ts`) is stored on `globalThis` so it survives HMR. It
