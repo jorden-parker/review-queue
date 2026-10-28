@@ -248,4 +248,11 @@ describe("applySessionAction", () => {
     expect(() => SessionActionSchema.parse({ ...step, headSha: "abc" })).toThrow();
     expect(SessionActionSchema.parse({ ...step, headSha: "b".repeat(64) })).toBeTruthy();
   });
+
+  it("does not let a stale tab's step rewind the head seen", () => {
+    const store = new SessionStore(":memory:");
+    store.markSeen(KEY, "b".repeat(40));
+    run(store, { type: "current-step", stepId: "s1", headSha: HEAD_SHA });
+    expect(store.getSession(KEY).lastHeadSha).toBe("b".repeat(40));
+  });
 });

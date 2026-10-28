@@ -44,6 +44,15 @@ function withTempDirectory(run: (directory: string) => void): void {
   }
 }
 
+function countRows(file: string, table: string): number {
+  const check = new DatabaseSync(file);
+  try {
+    return (check.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
+  } finally {
+    check.close();
+  }
+}
+
 describe("SessionStore", () => {
   let store: SessionStore;
   let now: number;
@@ -55,8 +64,8 @@ describe("SessionStore", () => {
 
   it("starts empty and records the step you are on", () => {
     expect(store.getSession(KEY)).toMatchObject({ currentStepId: null, doneSteps: [], notes: [] });
-    store.setCurrentStep(KEY, "s2", "sha1");
-    expect(store.getSession(KEY)).toMatchObject({ currentStepId: "s2", lastHeadSha: "sha1" });
+    store.setCurrentStep(KEY, "s2");
+    expect(store.getSession(KEY)).toMatchObject({ currentStepId: "s2", lastHeadSha: null });
   });
 
   it("remembers the last head commit seen", () => {
@@ -273,7 +282,7 @@ describe("SessionStore", () => {
   });
 
   it("starts over, keeping notes unless told to drop them", () => {
-    store.setCurrentStep(KEY, "s2", "sha1");
+    store.setCurrentStep(KEY, "s2");
     store.setStepDone(KEY, "s1", true);
     store.setHotspotChecked(KEY, "h1", true);
     store.pushJump(KEY, { name: "f", path: "a.ts", line: 1 });
@@ -343,12 +352,12 @@ describe("SessionStore", () => {
 
   it("summarises progress for many sessions", () => {
     store.setStepDone(KEY, "s1", true);
-    store.setCurrentStep(KEY, "s2", "sha1");
+    store.setCurrentStep(KEY, "s2");
     expect(store.progressSummaries([KEY, "other#1"])).toEqual({
       [KEY]: {
         doneCount: 1,
         noteCount: 0,
-        lastHeadSha: "sha1",
+        lastHeadSha: null,
         updatedAt: "2026-10-26T10:00:00.000Z",
         pause: null,
       },
@@ -487,5 +496,34 @@ describe("SessionStore", () => {
       new SessionStore(file);
       expect(fs.statSync(file).mode & 0o777).toBe(0o600);
     });
+  });
+
+  it("leaves every table untouched when a start over fails part way", () => {
+    withTempDirectory((directory) => {
+      const file = path.join(directory, "review-queue.db");
+      const fileStore = new SessionStore(file, () => new Date(now));
+      fileStore.setStepDone(KEY, "s1", true);
+      fileStore.pushJump(KEY, { name: "f", path: "a.ts", line: 1 });
+      fileStore.addNote(KEY, {
+        path: null,
+        line: null,
+        kind: "parked",
+        decorations: [],
+        body: "later",
+      });
+      const broken = new DatabaseSync(file);
+      broken.exec("DROP TABLE context_symbols");
+      broken.close();
+      expect(() => fileStore.startOver(KEY, false)).toThrow();
+      expect(countRows(file, "done_steps")).toBe(1);
+      expect(countRows(file, "jumps")).toBe(1);
+      expect(countRows(file, "notes")).toBe(1);
+    });
+  });
+
+  it("setting the step records it without touching the head seen", () => {
+    store.markSeen(KEY, "sha1");
+    store.setCurrentStep(KEY, "s2");
+    expect(store.getSession(KEY)).toMatchObject({ currentStepId: "s2", lastHeadSha: "sha1" });
   });
 });
