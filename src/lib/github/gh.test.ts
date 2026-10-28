@@ -5,6 +5,7 @@ import {
   listReviewComments,
   listReviewRequests,
   listReviews,
+  postReplyToReviewComment,
   submitReview,
 } from "./gh";
 
@@ -120,6 +121,29 @@ describe("github", () => {
     });
   });
 
+  it("posts a reply to a review comment through the API", async () => {
+    const created = { id: 77, html_url: "https://github.com/acme/app/pull/7#discussion_r77" };
+    const { run, calls } = fakeRunner(JSON.stringify(created));
+    const posted = await postReplyToReviewComment(REF, 5, "Thanks", run);
+    expect(posted).toEqual({ id: 77, url: created.html_url });
+    expect(calls[0].args).toEqual([
+      "api",
+      "--method",
+      "POST",
+      "repos/acme/app/pulls/7/comments/5/replies",
+      "--input",
+      "-",
+    ]);
+    expect(JSON.parse(calls[0].options?.input ?? "")).toEqual({ body: "Thanks" });
+  });
+
+  it("passes a failed reply call on to the caller", async () => {
+    const run = async () => {
+      throw new Error("gh api failed");
+    };
+    await expect(postReplyToReviewComment(REF, 5, "Thanks", run)).rejects.toThrow("gh api failed");
+  });
+
   it("lists inline review comments, including replies and outdated ones", async () => {
     const { run, calls } = fakeRunner(
       `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify([
@@ -174,7 +198,11 @@ describe("github", () => {
         createdAt: "2026-10-02T10:00:00Z",
       },
     ]);
-    expect(calls[0].args).toEqual(["api", "-i", "repos/acme/app/pulls/7/comments?per_page=100"]);
+    expect(calls[0].args).toEqual([
+      "api",
+      "-i",
+      "repos/acme/app/pulls/7/comments?per_page=100&page=1",
+    ]);
   });
 
   it("lists reviews with their state and submission time", async () => {

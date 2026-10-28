@@ -16,4 +16,8 @@ export class TtlCache {
     });
     return value;
   }
+
+  forget(key: string): void {
+    this.entries.delete(key);
+  }
 }

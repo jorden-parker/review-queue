@@ -14,6 +14,8 @@ const SHORTCUTS: [string[], string][] = [
   [["g", "o"], "Outline of this step's files"],
   [["g", "f"], "Files: every file in this PR's head"],
   [["g", "m"], "Map: how the changes fit together"],
+  [["g", "h"], "Hotspots: things to check in this PR"],
+  [["g", "g"], "GitHub: the PR's comments and what you posted"],
   [["b"], "Back from a jump"],
   [["c"], "Note on the current chunk"],
   [["i"], "Explain the selected lines"],

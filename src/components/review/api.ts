@@ -8,7 +8,7 @@ import type { ExplanationResult } from "@/lib/review/explanation-service";
 import type { FileLines } from "@/lib/review/file-lines";
 import type { Interdiff } from "@/lib/review/interdiff";
 import type { OrientationResult } from "@/lib/review/orientation-service";
-import type { ReviewPayload } from "@/lib/review/prepare";
+import type { ReviewPayload, SeenResult } from "@/lib/review/prepare";
 import type { SessionAction } from "@/lib/review/session-actions";
 import type { SummaryDraftResult } from "@/lib/review/summary-draft-service";
 import type { Session } from "@/lib/session/store";
@@ -139,8 +139,18 @@ export function sendSessionAction(ref: PullRequestRef, action: SessionAction): P
   return post<Session>(apiPath(ref, "/session"), action);
 }
 
+export function postSeen(ref: PullRequestRef, sha: string): Promise<SeenResult> {
+  return post<SeenResult>(apiPath(ref, `/seen${query({ sha })}`), {});
+}
+
 export function submitReviewRequest(ref: PullRequestRef, input: SubmitInput): Promise<Session> {
   return post<Session>(apiPath(ref, "/submit"), input);
+}
+
+export type ReplyInput = { commentId: number; body: string };
+
+export function sendReply(ref: PullRequestRef, input: ReplyInput): Promise<Session> {
+  return post<Session>(apiPath(ref, "/reply"), input);
 }
 
 export function requestSummaryDraft(

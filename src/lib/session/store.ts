@@ -41,6 +41,16 @@ type Submission = {
 
 type NewSubmission = Omit<Submission, "postedAt">;
 
+export type ReplyReceipt = {
+  replyId: number;
+  parentCommentId: number;
+  url: string;
+  body: string;
+  postedAt: string;
+};
+
+type NewReplyReceipt = Omit<ReplyReceipt, "postedAt">;
+
 export type Session = {
   currentStepId: string | null;
   lastHeadSha: string | null;
@@ -54,6 +64,7 @@ export type Session = {
   assistThreads: SavedAssistThread[];
   contextSymbols: ContextSymbol[];
   submissions: Submission[];
+  replyReceipts: ReplyReceipt[];
 };
 
 export type NewNote = {
@@ -88,6 +99,24 @@ type InProgressRow = {
   pause_note: string | null;
   updated_at: string;
   done_count: number;
+};
+
+export type RecentSubmission = {
+  key: string;
+  title: string | null;
+  reviewId: number;
+  url: string;
+  event: ReviewEvent;
+  postedAt: string;
+};
+
+type RecentSubmissionRow = {
+  pr_key: string;
+  title: string | null;
+  review_id: number;
+  url: string;
+  event: ReviewEvent;
+  posted_at: string;
 };
 
 type SessionRow = {
@@ -199,6 +228,16 @@ CREATE TABLE IF NOT EXISTS submissions (
 CREATE INDEX IF NOT EXISTS notes_pr_key ON notes (pr_key);
 CREATE INDEX IF NOT EXISTS jumps_pr_key ON jumps (pr_key);
 CREATE INDEX IF NOT EXISTS submissions_pr_key ON submissions (pr_key);
+CREATE TABLE IF NOT EXISTS reply_receipts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pr_key TEXT NOT NULL,
+  reply_id INTEGER NOT NULL,
+  parent_comment_id INTEGER NOT NULL,
+  url TEXT NOT NULL,
+  body TEXT NOT NULL,
+  posted_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS reply_receipts_by_pr ON reply_receipts (pr_key, id);
 `;
 
 const PROGRESS_TABLES = [
@@ -274,6 +313,13 @@ ORDER BY s.updated_at DESC`;
 const IN_PROGRESS = progressSessionsQuery("IS NULL");
 const ARCHIVED = progressSessionsQuery("IS NOT NULL");
 
+const RECENT_SUBMISSIONS = `
+SELECT r.pr_key, s.title, r.review_id, r.url, r.event, r.posted_at
+FROM submissions r
+LEFT JOIN sessions s ON s.pr_key = r.pr_key
+ORDER BY r.id DESC
+LIMIT ?`;
+
 function pauseOf(row: SessionRow | undefined): PauseState | null {
   return row?.pause_note != null ? { note: row.pause_note, at: row.paused_at ?? "" } : null;
 }
@@ -285,6 +331,17 @@ function toInProgress(row: InProgressRow): InProgressSession {
     doneCount: row.done_count,
     pauseNote: row.pause_note,
     updatedAt: row.updated_at,
+  };
+}
+
+function toRecentSubmission(row: RecentSubmissionRow): RecentSubmission {
+  return {
+    key: row.pr_key,
+    title: row.title,
+    reviewId: row.review_id,
+    url: row.url,
+    event: row.event,
+    postedAt: row.posted_at,
   };
 }
 
@@ -375,6 +432,24 @@ function toSubmission(row: SubmissionRow): Submission {
   };
 }
 
+type ReplyReceiptRow = {
+  reply_id: number;
+  parent_comment_id: number;
+  url: string;
+  body: string;
+  posted_at: string;
+};
+
+function toReplyReceipt(row: ReplyReceiptRow): ReplyReceipt {
+  return {
+    replyId: row.reply_id,
+    parentCommentId: row.parent_comment_id,
+    url: row.url,
+    body: row.body,
+    postedAt: row.posted_at,
+  };
+}
+
 function toNote(row: NoteRow): Note {
   return {
     id: row.id,
@@ -419,6 +494,7 @@ export class SessionStore {
       assistThreads: this.assistThreads(key),
       contextSymbols: this.contextSymbols(key),
       submissions: this.submissions(key),
+      replyReceipts: this.replyReceipts(key),
     };
   }
 
@@ -500,6 +576,14 @@ export class SessionStore {
         submission.body,
         this.now(),
       );
+  }
+
+  recordReply(key: string, reply: NewReplyReceipt): void {
+    this.db
+      .prepare(
+        "INSERT INTO reply_receipts (pr_key, reply_id, parent_comment_id, url, body, posted_at) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+      .run(key, reply.replyId, reply.parentCommentId, reply.url, reply.body, this.now());
   }
 
   pause(key: string, note: string): void {
@@ -647,6 +731,12 @@ export class SessionStore {
     return (this.db.prepare(IN_PROGRESS).all() as InProgressRow[]).map(toInProgress);
   }
 
+  recentSubmissions(limit: number): RecentSubmission[] {
+    return (this.db.prepare(RECENT_SUBMISSIONS).all(limit) as RecentSubmissionRow[]).map(
+      toRecentSubmission,
+    );
+  }
+
   private transaction(work: () => void): void {
     this.db.exec("BEGIN IMMEDIATE");
     try {
@@ -700,6 +790,13 @@ export class SessionStore {
       .prepare("SELECT * FROM submissions WHERE pr_key = ? ORDER BY id DESC")
       .all(key) as SubmissionRow[];
     return rows.map(toSubmission);
+  }
+
+  private replyReceipts(key: string): ReplyReceipt[] {
+    const rows = this.db
+      .prepare("SELECT * FROM reply_receipts WHERE pr_key = ? ORDER BY id DESC")
+      .all(key) as ReplyReceiptRow[];
+    return rows.map(toReplyReceipt);
   }
 
   private notes(key: string): Note[] {

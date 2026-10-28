@@ -151,6 +151,8 @@ export const NOTE_LABELS = [
 
 export type NoteLabel = (typeof NOTE_LABELS)[number];
 
+export const REPLY_MAX_LENGTH = 10_000;
+
 export type NoteKind = NoteLabel | "parked";
 
 export const NOTE_DECORATIONS = ["blocking", "non-blocking", "if-minor"] as const;
