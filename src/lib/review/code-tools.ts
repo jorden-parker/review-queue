@@ -89,6 +89,10 @@ function fencedResult(body: string): string {
   return `${wrapped.slice(0, keep)}${TRUNCATED_NOTE}${RESULT_CLOSE}`;
 }
 
+function limitedCount(found: number, shown: number): string {
+  return found > shown ? `${shown}+` : `${shown}`;
+}
+
 function outcome(tool: string, label: string, body: string, paths: string[]): ToolOutcome {
   return {
     content: fencedResult(body),
@@ -106,14 +110,15 @@ function formatDefinition(index: CodeLookupIndex, definition: SymbolDefinition):
 
 function findDefinition(index: CodeLookupIndex, currentPath: string, input: unknown): ToolOutcome {
   const { name } = NameInput.parse(input);
-  const definitions = index.definitionsOf(name, currentPath).slice(0, MAX_DEFINITIONS);
+  const found = index.definitionsOf(name, currentPath);
+  const definitions = found.slice(0, MAX_DEFINITIONS);
   const body =
     definitions.length === 0
       ? `No definition of \`${name}\` found.`
       : definitions.map((definition) => formatDefinition(index, definition)).join("\n\n");
   return outcome(
     "find_definition",
-    `Definition of \`${name}\` (${definitions.length})`,
+    `Definition of \`${name}\` (${limitedCount(found.length, definitions.length)})`,
     body,
     definitions.map((definition) => definition.path),
   );
@@ -129,10 +134,11 @@ function formatReferences(references: Reference[], emptyMessage: string): string
 
 async function findReferences(index: CodeLookupIndex, input: unknown): Promise<ToolOutcome> {
   const { name } = NameInput.parse(input);
-  const references = (await index.referencesTo(name)).slice(0, MAX_LOOKUP_RESULTS);
+  const found = await index.referencesTo(name);
+  const references = found.slice(0, MAX_LOOKUP_RESULTS);
   return outcome(
     "find_references",
-    `Callers and uses of \`${name}\` (${references.length})`,
+    `Callers and uses of \`${name}\` (${limitedCount(found.length, references.length)})`,
     formatReferences(references, `No uses of \`${name}\` found.`),
     references.map((reference) => reference.path),
   );
@@ -140,10 +146,11 @@ async function findReferences(index: CodeLookupIndex, input: unknown): Promise<T
 
 async function searchCode(index: CodeLookupIndex, input: unknown): Promise<ToolOutcome> {
   const { query } = QueryInput.parse(input);
-  const matches = (await index.search(query)).slice(0, MAX_LOOKUP_RESULTS);
+  const found = await index.search(query);
+  const matches = found.slice(0, MAX_LOOKUP_RESULTS);
   return outcome(
     "search_code",
-    `Search for \`${query}\` (${matches.length})`,
+    `Search for \`${query}\` (${limitedCount(found.length, matches.length)})`,
     formatReferences(matches, `Nothing matches \`${query}\`.`),
     matches.map((match) => match.path),
   );
