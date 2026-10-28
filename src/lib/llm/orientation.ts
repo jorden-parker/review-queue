@@ -95,9 +95,9 @@ export function buildPrompt(input: OrientationInput): string {
     fencedTitle(input.title),
     fenced("pr_description", input.body.slice(0, DESCRIPTION_LIMIT)),
     "## Steps",
-    ...steps,
+    fenced("pr_steps", steps.join("\n")),
     "## Hotspots already found",
-    ...hotspots,
+    fenced("pr_hotspots", hotspots.join("\n")),
     "## Diff",
   ].join("\n");
   const room = Math.max(0, PROMPT_CHAR_BUDGET - header.length);

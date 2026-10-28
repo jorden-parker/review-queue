@@ -5,6 +5,7 @@ import type { Note } from "@/lib/types";
 import {
   askForJson,
   CODE_NAME_RULE,
+  fenced,
   fencedTitle,
   jsonObjectIn,
   type LlmConfig,
@@ -37,7 +38,7 @@ export function buildSummaryPrompt(input: SummaryDraftInput): string {
     fencedTitle(input.title),
     `Verdict: ${input.event}`,
     "## Reviewer notes",
-    notes,
+    fenced("pr_notes", notes),
   ].join("\n");
 }
 
