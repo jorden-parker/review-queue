@@ -112,6 +112,10 @@ export function fetchFileLines(ref: PullRequestRef, sha: string, path: string): 
   return fetch(apiPath(ref, `/file${query({ sha, path })}`)).then(json<FileLines>);
 }
 
+export function fetchWorktreeFiles(ref: PullRequestRef, sha: string): Promise<{ paths: string[] }> {
+  return fetch(apiPath(ref, `/files${query({ sha })}`)).then(json<{ paths: string[] }>);
+}
+
 function post<T>(url: string, body: unknown): Promise<T> {
   return fetch(url, {
     method: "POST",

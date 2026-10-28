@@ -9,6 +9,7 @@ import {
   Flame,
   GitPullRequest,
   Layers,
+  FolderTree,
   ListTree,
   type LucideIcon,
   MapPin,
@@ -46,6 +47,7 @@ import type { PullRequestRef, Step } from "@/lib/types";
 import { AssistPanel } from "./assist-panel";
 import { citationsInText, parseCitation } from "./citations";
 import { ChangesView } from "./changes-view";
+import { FileBrowserPane } from "./file-browser-pane";
 import { FileView } from "./file-view";
 import { FinishReview } from "./finish-review";
 import { FocusTimer } from "./focus-timer";
@@ -101,6 +103,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
   { id: "chats", label: "Chats", icon: MessagesSquare },
   { id: "context", label: "Context", icon: Shapes },
   { id: "outline", label: "Outline", icon: ListTree },
+  { id: "files", label: "Files", icon: FolderTree },
 ];
 
 function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
@@ -191,6 +194,7 @@ function paneEntries({ session, workspace }: PaneProps, side: PanelSide): PaneEn
     chats: session.assistThreads.length,
     context: contextCount(session.contextSymbols, workspace.currentStep?.id ?? null),
     outline: null,
+    files: null,
   };
   return PANES.filter(
     (pane) => PANE_SIDES[pane.id] === side && (workspace.aiEnabled || pane.id !== "chat"),
@@ -396,6 +400,17 @@ function OutlinePane({ review, workspace }: PaneProps) {
   );
 }
 
+function FilesPane({ review, workspace }: PaneProps) {
+  return (
+    <FileBrowserPane
+      pullRequest={workspace.pullRequest}
+      headSha={review.headSha}
+      inPullRequest={(path) => workspace.files.has(path)}
+      onOpen={(path) => workspace.openLocation({ path, line: 1 })}
+    />
+  );
+}
+
 const PANE_CONTENT: Record<PaneId, (props: PaneProps) => PaneContent> = {
   about: (props) => ({
     body: <OrientationCard key={props.fresh ? "fresh" : "started"} {...props} />,
@@ -410,6 +425,7 @@ const PANE_CONTENT: Record<PaneId, (props: PaneProps) => PaneContent> = {
   chats: (props) => ({ body: <ChatsPane {...props} /> }),
   context: (props) => ({ body: <ContextPane {...props} /> }),
   outline: (props) => ({ body: <OutlinePane {...props} /> }),
+  files: (props) => ({ body: <FilesPane {...props} /> }),
 };
 
 function StepTrack({ steps, currentIndex, doneSteps }: StepTrackProps) {

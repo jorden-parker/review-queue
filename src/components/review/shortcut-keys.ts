@@ -9,6 +9,7 @@ export type ShortcutAction =
   | "pin-symbol"
   | "open-context"
   | "open-outline"
+  | "open-files"
   | "open-map"
   | "back"
   | "note"
@@ -48,6 +49,7 @@ const CHORDS: Record<string, Record<string, ShortcutAction>> = {
     r: "peek-references",
     c: "open-context",
     o: "open-outline",
+    f: "open-files",
     m: "open-map",
   },
 };
