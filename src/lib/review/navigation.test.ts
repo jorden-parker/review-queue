@@ -48,7 +48,9 @@ function navigationWith(client: LanguageClient | null) {
 describe("definitionsAt", () => {
   it("uses the language server's answer at the exact position", async () => {
     const client = stubClient({
-      definition: async () => [{ file: `${ROOT}/src/app.ts`, line: 1, character: 20, endLine: 1 }],
+      definition: async () => [
+        { file: `${ROOT}/src/app.ts`, line: 1, character: 20, endLine: 1, declarationLine: 1 },
+      ],
       hover: async () => "```typescript\n(parameter) load: number\n```",
     });
     const [found] = await definitionsAt(navigationWith(client), POSITION);
@@ -66,7 +68,13 @@ describe("definitionsAt", () => {
   it("describes library definitions from hover without reading them", async () => {
     const client = stubClient({
       definition: async () => [
-        { file: "/opt/ts/lib/lib.dom.d.ts", line: 30, character: 4, endLine: 40 },
+        {
+          file: "/opt/ts/lib/lib.dom.d.ts",
+          line: 30,
+          character: 4,
+          endLine: 40,
+          declarationLine: 30,
+        },
       ],
       hover: async () => "```typescript\nvar console: Console\n```",
     });
@@ -110,8 +118,8 @@ describe("referencesAt", () => {
   it("reads server references inside the checkout and drops outside ones", async () => {
     const client = stubClient({
       references: async () => [
-        { file: `${ROOT}/src/app.ts`, line: 2, character: 9, endLine: 2 },
-        { file: "/opt/elsewhere.ts", line: 1, character: 0, endLine: 1 },
+        { file: `${ROOT}/src/app.ts`, line: 2, character: 9, endLine: 2, declarationLine: 2 },
+        { file: "/opt/elsewhere.ts", line: 1, character: 0, endLine: 1, declarationLine: 1 },
       ],
     });
     const references = await referencesAt(navigationWith(client), POSITION);

@@ -54,6 +54,7 @@ describe("LanguageClient with typescript-language-server", () => {
     const [location] = await client.definition("src/app.ts", 6, 27);
     expect(location).toMatchObject({ file: path.join(root, "src/store.ts"), line: 1 });
     expect(location.endLine).toBe(3);
+    expect(location.declarationLine).toBe(1);
   });
 
   it("finds references and hover text", async () => {

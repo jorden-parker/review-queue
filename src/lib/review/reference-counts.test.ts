@@ -23,7 +23,7 @@ const DEFINITIONS: SymbolDefinition[] = [
 ];
 
 function location(line: number): ServerLocation {
-  return { file: `/checkout/${PATH}`, line, character: 0, endLine: line };
+  return { file: `/checkout/${PATH}`, line, character: 0, endLine: line, declarationLine: line };
 }
 
 function source(client: Partial<LanguageClient> | null, grepHits = 3): CountSource {
