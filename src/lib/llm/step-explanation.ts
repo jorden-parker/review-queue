@@ -67,8 +67,7 @@ export function buildStepPrompt(input: StepExplanationInput): string {
   const { step } = input;
   return [
     "# Step",
-    `${step.title} | ${step.role}`,
-    step.reason,
+    fenced("pr_step", `${step.title} | ${step.role}\n${step.reason}`),
     fencedTitle(input.title),
     "## Diff",
     fenced("pr_diff", clippedDiff(stepDiffs(step, input.diffs))),

@@ -168,8 +168,7 @@ function flagText(flag: AssistFlag): string {
 function checkSections(check: StepCheckContent): string[] {
   return [
     "## Step",
-    `${check.step.title} | ${check.step.role}`,
-    check.step.reason,
+    fenced("pr_step", `${check.step.title} | ${check.step.role}\n${check.step.reason}`),
     "## Step diff",
     fenced("pr_diff", clipped(diffText(check.diffs), CONTEXT_CHAR_BUDGET)),
     "## Check",

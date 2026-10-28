@@ -97,7 +97,7 @@ function buildChangePartsPrompt(input: ChangePartsInput, nodes: ChangeNode[]): s
   return [
     fencedTitle(input.title),
     "## Changes",
-    nodeLines(nodes),
+    fenced("pr_changes", nodeLines(nodes)),
     "## Diff",
     fenced("pr_diff", clippedDiff(mappedDiffs(nodes, input.diffs))),
   ].join("\n");
