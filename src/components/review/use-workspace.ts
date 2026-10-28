@@ -124,6 +124,8 @@ function shortcutHandlers({
     "open-context": () => ui.showPane("context"),
     "open-outline": () => ui.showPane("outline"),
     "open-files": () => ui.showPane("files"),
+    "open-hotspots": () => ui.showPane("hotspots"),
+    "open-github": () => ui.showPane("github"),
     "open-map": ui.focusMap,
     "toggle-left-panel": () => ui.togglePanel("left"),
     "toggle-right-panel": () => ui.togglePanel("right"),
