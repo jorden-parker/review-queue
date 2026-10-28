@@ -1,15 +1,29 @@
 import type { ReviewEvent, ReviewSubmission } from "@/lib/github/gh";
 import type { Note, NoteKind } from "@/lib/types";
-import { conventionalLabel } from "./conventional-comment";
+import { conventionalLabel, splitConventionalPrefix } from "./conventional-comment";
 
 type PostableNote = Note & { kind: Exclude<NoteKind, "parked"> };
+
+const BLOCK_START = /^(?:```|~~~|[-*] |\d+\. |> |#|\|)/;
 
 function isPostable(note: Note): note is PostableNote {
   return note.kind !== "parked";
 }
 
-function labelled(note: PostableNote): string {
-  return `**${conventionalLabel(note)}:** ${note.body}`;
+function postedBody(note: PostableNote): string {
+  const { tag, body } = splitConventionalPrefix(note.body);
+  const text = (tag?.kind === note.kind ? body : note.body).trim();
+  const label = `**${conventionalLabel(note)}:**`;
+  return BLOCK_START.test(text) ? `${label}\n\n${text}` : `${label} ${text}`;
+}
+
+function asListItem(text: string): string {
+  const [first = "", ...rest] = text.split("\n");
+  return [`- ${first}`, ...rest.map(indentLine)].join("\n");
+}
+
+function indentLine(line: string): string {
+  return line === "" ? "" : `  ${line}`;
 }
 
 function isLineComment<T extends Note>(note: T): note is T & { path: string; line: number } {
@@ -25,7 +39,7 @@ export function buildSubmission(
   const postable = notes.filter(isPostable);
   const general = postable
     .filter((note) => !isLineComment(note))
-    .map((note) => `- ${labelled(note)}`);
+    .map((note) => asListItem(postedBody(note)));
   const body = [summary.trim(), general.join("\n")].filter(Boolean).join("\n\n");
   return {
     event,
@@ -33,6 +47,6 @@ export function buildSubmission(
     commitId: headSha,
     comments: postable
       .filter(isLineComment)
-      .map((note) => ({ path: note.path, line: note.line, body: labelled(note) })),
+      .map((note) => ({ path: note.path, line: note.line, body: postedBody(note) })),
   };
 }

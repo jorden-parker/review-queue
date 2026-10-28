@@ -65,3 +65,56 @@ describe("buildSubmission", () => {
     expect(submission.comments).toEqual([]);
   });
 });
+
+describe("buildSubmission posts well-formed Conventional Comments", () => {
+  it.each([
+    "```ts\na()\n```",
+    "- one\n- two",
+    "* one",
+    "1. one",
+    "> quoted",
+    "# Heading",
+    "| a | b |",
+    "~~~ts\na()\n~~~",
+  ])("puts the label on its own line above a block body %j", (body) => {
+    const submission = buildSubmission(
+      [note({ path: "a.ts", line: 1, kind: "suggestion", body })],
+      "COMMENT",
+      "",
+      "abc",
+    );
+    expect(submission.comments).toEqual([
+      { path: "a.ts", line: 1, body: `**suggestion:**\n\n${body}` },
+    ]);
+  });
+
+  it("does not repeat a label that the body already starts with", () => {
+    const submission = buildSubmission(
+      [note({ kind: "question", body: "**question:** why?" })],
+      "COMMENT",
+      "",
+      "abc",
+    );
+    expect(submission.body).toBe("- **question:** why?");
+  });
+
+  it("keeps a leading label that differs from the note's kind", () => {
+    const submission = buildSubmission(
+      [note({ kind: "question", body: "Suggestion: try x" })],
+      "COMMENT",
+      "",
+      "abc",
+    );
+    expect(submission.body).toBe("- **question:** Suggestion: try x");
+  });
+
+  it("indents the lines after the first of a multi-line general note", () => {
+    const submission = buildSubmission(
+      [note({ kind: "thought", body: "first\n\n```ts\nx\n```" })],
+      "COMMENT",
+      "",
+      "abc",
+    );
+    expect(submission.body).toBe("- **thought:** first\n\n  ```ts\n  x\n  ```");
+  });
+});
