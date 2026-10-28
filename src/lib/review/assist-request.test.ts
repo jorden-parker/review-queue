@@ -160,7 +160,9 @@ describe("assistInputFrom", () => {
     const flagged = { ...SOURCE, suggestedHotspots: () => [suggested] };
     const result = assistInputFrom(flagged, { ...withRange([0, 1], [0, 1]), action: "check" });
     if (!result.ok) throw new Error(result.error);
-    expect(result.input.flags).toEqual([{ title: "Odd retry", why: "Loops forever.", checks: [] }]);
+    expect(result.input.flags).toEqual([
+      { title: "Odd retry", why: "Loops forever.", checks: checksFor("ai") },
+    ]);
   });
 
   it("rejects a check on lines that have no flags", () => {
