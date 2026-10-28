@@ -99,7 +99,7 @@ type Handlers = {
 };
 
 const HANDLERS: Handlers = {
-  "current-step": (store, key, action) => store.setCurrentStep(key, action.stepId, action.headSha),
+  "current-step": (store, key, action) => store.setCurrentStep(key, action.stepId),
   "step-done": (store, key, action) => store.setStepDone(key, action.stepId, action.done),
   "hotspot-checked": (store, key, action) =>
     store.setHotspotChecked(key, action.hotspotId, action.checked),
