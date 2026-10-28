@@ -1,5 +1,6 @@
 import {
   type AssistAction,
+  type AssistLookup,
   type AssistTarget,
   type AssistThread,
   type AssistTurn,
@@ -66,10 +67,16 @@ export function withFollowUp(thread: AssistThread, question: string): AssistThre
   return { ...thread, turns: [...thread.turns, { role: "reviewer", text: question }] };
 }
 
-export function withModelText(thread: AssistThread, text: string): AssistThread {
+export function withModelText(
+  thread: AssistThread,
+  text: string,
+  lookups: AssistLookup[] = [],
+): AssistThread {
   const last = thread.turns.at(-1);
   const earlier = last?.role === "model" ? thread.turns.slice(0, -1) : thread.turns;
-  return { ...thread, turns: [...earlier, { role: "model", text }] };
+  const turn: AssistTurn =
+    lookups.length > 0 ? { role: "model", text, lookups } : { role: "model", text };
+  return { ...thread, turns: [...earlier, turn] };
 }
 
 export function hasModelReply(thread: AssistThread): boolean {

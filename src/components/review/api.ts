@@ -1,4 +1,3 @@
-import { ASSIST_ERROR_MARKER } from "@/lib/assist-protocol";
 import type { Conversation } from "@/lib/github/conversation";
 import type { ReviewEvent } from "@/lib/github/gh";
 import { json } from "@/lib/json-response";
@@ -16,6 +15,7 @@ import type { Session } from "@/lib/session/store";
 import type { DefinitionWithCode, ReferenceWithCode } from "@/lib/review/peek-code";
 import type { Reference } from "@/lib/symbols/symbol-index";
 import type { OutlineSymbol, PullRequestRef, ReferenceCount, SymbolPosition } from "@/lib/types";
+import { type ParsedAssistStream, parseAssistStream } from "./assist-stream";
 
 export type SubmitInput = {
   event: ReviewEvent;
@@ -151,25 +151,25 @@ export function requestSummaryDraft(
   return post<SummaryDraftResult>(apiPath(ref, `/summary-draft${query({ sha })}`), input);
 }
 
-async function readText(
+async function readAssistStream(
   body: ReadableStream<Uint8Array>,
-  onText: (text: string) => void,
-): Promise<string> {
+  onUpdate: (parsed: ParsedAssistStream) => void,
+): Promise<ParsedAssistStream> {
   const decoder = new TextDecoder();
   const reader = body.getReader();
-  let text = "";
+  let raw = "";
   for (let read = await reader.read(); !read.done; read = await reader.read()) {
-    text += decoder.decode(read.value, { stream: true });
-    onText(text.split(ASSIST_ERROR_MARKER)[0]);
+    raw += decoder.decode(read.value, { stream: true });
+    onUpdate(parseAssistStream(raw));
   }
-  return text;
+  return parseAssistStream(raw);
 }
 
 export async function streamAssist(
   ref: PullRequestRef,
   sha: string,
   request: AssistRequest,
-  onText: (text: string) => void,
+  onUpdate: (parsed: ParsedAssistStream) => void,
   signal: AbortSignal,
 ): Promise<void> {
   const response = await fetch(apiPath(ref, `/assist${query({ sha })}`), {
@@ -180,7 +180,6 @@ export async function streamAssist(
   });
   if (!response.ok) await json(response);
   if (!response.body) return;
-  const text = await readText(response.body, onText);
-  const [, failure] = text.split(ASSIST_ERROR_MARKER);
-  if (failure !== undefined) throw new Error(failure);
+  const parsed = await readAssistStream(response.body, onUpdate);
+  if (parsed.failure !== null) throw new Error(parsed.failure);
 }
