@@ -90,6 +90,24 @@ type InProgressRow = {
   done_count: number;
 };
 
+export type RecentSubmission = {
+  key: string;
+  title: string | null;
+  reviewId: number;
+  url: string;
+  event: ReviewEvent;
+  postedAt: string;
+};
+
+type RecentSubmissionRow = {
+  pr_key: string;
+  title: string | null;
+  review_id: number;
+  url: string;
+  event: ReviewEvent;
+  posted_at: string;
+};
+
 type SessionRow = {
   current_step: string | null;
   head_sha: string | null;
@@ -274,6 +292,13 @@ ORDER BY s.updated_at DESC`;
 const IN_PROGRESS = progressSessionsQuery("IS NULL");
 const ARCHIVED = progressSessionsQuery("IS NOT NULL");
 
+const RECENT_SUBMISSIONS = `
+SELECT r.pr_key, s.title, r.review_id, r.url, r.event, r.posted_at
+FROM submissions r
+LEFT JOIN sessions s ON s.pr_key = r.pr_key
+ORDER BY r.id DESC
+LIMIT ?`;
+
 function pauseOf(row: SessionRow | undefined): PauseState | null {
   return row?.pause_note != null ? { note: row.pause_note, at: row.paused_at ?? "" } : null;
 }
@@ -285,6 +310,17 @@ function toInProgress(row: InProgressRow): InProgressSession {
     doneCount: row.done_count,
     pauseNote: row.pause_note,
     updatedAt: row.updated_at,
+  };
+}
+
+function toRecentSubmission(row: RecentSubmissionRow): RecentSubmission {
+  return {
+    key: row.pr_key,
+    title: row.title,
+    reviewId: row.review_id,
+    url: row.url,
+    event: row.event,
+    postedAt: row.posted_at,
   };
 }
 
@@ -645,6 +681,12 @@ export class SessionStore {
 
   inProgress(): InProgressSession[] {
     return (this.db.prepare(IN_PROGRESS).all() as InProgressRow[]).map(toInProgress);
+  }
+
+  recentSubmissions(limit: number): RecentSubmission[] {
+    return (this.db.prepare(RECENT_SUBMISSIONS).all(limit) as RecentSubmissionRow[]).map(
+      toRecentSubmission,
+    );
   }
 
   private transaction(work: () => void): void {
