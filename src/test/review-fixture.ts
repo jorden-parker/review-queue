@@ -20,6 +20,7 @@ export function emptySession(overrides: Partial<Session> = {}): Session {
     assistThreads: [],
     contextSymbols: [],
     submissions: [],
+    replyReceipts: [],
     ...overrides,
   };
 }

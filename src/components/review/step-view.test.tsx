@@ -1,9 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { ReviewComment } from "@/lib/github/gh";
 import type { FileLines } from "@/lib/review/file-lines";
-import type { Hunk, Step } from "@/lib/types";
+import type { Hunk, Note, Step } from "@/lib/types";
 import { reviewPayload } from "@/test/review-fixture";
+import type { Thread } from "./conversation-threads";
+import type { DisplayHotspot } from "./hotspot-list";
 import { StepView, type StepViewContext } from "./step-view";
 
 const FILE_TEXT = Array.from({ length: 14 }, (_, index) => `line ${index + 1}`);
@@ -117,5 +120,80 @@ describe("StepView context expansion", () => {
     expect(
       await screen.findAllByRole("button", { name: /Couldn't load the file/ }),
     ).not.toHaveLength(0);
+  });
+});
+
+const CLIENT_NOTE: Note = {
+  id: 1,
+  path: "src/client.ts",
+  line: 11,
+  kind: "issue",
+  decorations: [],
+  body: "Log the options once",
+  createdAt: "2026-10-28T10:00:00Z",
+};
+
+const CLIENT_HOTSPOT: DisplayHotspot = {
+  id: "debug-output:src/client.ts:11",
+  rule: "debug-output",
+  severity: "low",
+  path: "src/client.ts",
+  line: 11,
+  title: "Debug output left in",
+  why: "Remove it.",
+};
+
+function reviewComment(overrides: Partial<ReviewComment>): ReviewComment {
+  return {
+    id: 1,
+    inReplyTo: null,
+    path: "src/client.ts",
+    line: 11,
+    side: "RIGHT",
+    author: "sam",
+    body: "Should this log?",
+    url: "https://github.com/acme/app/pull/7#discussion_r1",
+    createdAt: "2026-10-28T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function lineRow(lineIndex: number): HTMLElement {
+  const row = document.querySelector<HTMLElement>(
+    `[data-path="src/client.ts"][data-line="${lineIndex}"]`,
+  );
+  if (!row) throw new Error(`no diff row for line index ${lineIndex}`);
+  return row;
+}
+
+function lineBlock(lineIndex: number): HTMLElement {
+  return lineRow(lineIndex).closest<HTMLElement>(".group")!.parentElement!;
+}
+
+describe("places annotations on their own line", () => {
+  it("shows a note on its own line only", () => {
+    renderStep(CLIENT_STEP, { ...contextFor(async () => fileLines()), notes: [CLIENT_NOTE] });
+    expect(within(lineBlock(1)).getByText("Log the options once")).toBeTruthy();
+    expect(within(lineBlock(0)).queryByText("Log the options once")).toBeNull();
+  });
+
+  it("shows a hotspot on its own line only", () => {
+    renderStep(CLIENT_STEP, {
+      ...contextFor(async () => fileLines()),
+      hotspots: [CLIENT_HOTSPOT],
+    });
+    expect(within(lineBlock(1)).getByText("Debug output left in")).toBeTruthy();
+    expect(within(lineBlock(0)).queryByText("Debug output left in")).toBeNull();
+  });
+
+  it("shows a thread count on the right-side line only", () => {
+    const threads: Thread[] = [
+      { root: reviewComment({ id: 1, line: 11, side: "RIGHT" }), replies: [], outdated: false },
+      { root: reviewComment({ id: 2, line: 10, side: "LEFT" }), replies: [], outdated: false },
+    ];
+    renderStep(CLIENT_STEP, { ...contextFor(async () => fileLines()), threads });
+    expect(within(lineRow(1)).getByRole("button", { name: "Show 1 GitHub thread" })).toBeTruthy();
+    expect(within(lineRow(0)).queryByRole("button", { name: /GitHub thread/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /GitHub thread/ })).toHaveLength(1);
   });
 });
