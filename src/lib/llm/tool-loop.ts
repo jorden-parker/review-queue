@@ -19,13 +19,7 @@ export type ToolBox = {
 
 export type LoopChunk = { kind: "text"; text: string } | { kind: "lookup"; lookup: AssistLookup };
 
-export const MAX_TOOL_ROUNDS = 5;
-
-export const MAX_TOOL_CALLS_PER_ROUND = 4;
-
 const ROUND_SEPARATOR = "\n\n";
-
-const SKIPPED_NOTE = `Skipped: at most ${MAX_TOOL_CALLS_PER_ROUND} lookups per round.`;
 
 type RoundOutcome = { text: string; toolUses: ToolUseBlock[] };
 
@@ -95,21 +89,17 @@ async function runOne(
   }
 }
 
-function skippedResults(toolUses: ToolUseBlock[]): ToolResultBlock[] {
-  return toolUses.map((toolUse) => resultBlock(toolUse.id, SKIPPED_NOTE, true));
-}
-
 async function* runTools(
   toolUses: ToolUseBlock[],
   tools: ToolBox,
 ): AsyncGenerator<LoopChunk, ToolResultBlock[]> {
   const results: ToolResultBlock[] = [];
-  for (const toolUse of toolUses.slice(0, MAX_TOOL_CALLS_PER_ROUND)) {
+  for (const toolUse of toolUses) {
     const { result, lookup } = await runOne(toolUse, tools);
     if (lookup) yield { kind: "lookup", lookup };
     results.push(result);
   }
-  return [...results, ...skippedResults(toolUses.slice(MAX_TOOL_CALLS_PER_ROUND))];
+  return results;
 }
 
 function assistantTurn(outcome: RoundOutcome): Message {
@@ -125,7 +115,7 @@ export async function* toolLoop(
 ): AsyncGenerator<LoopChunk> {
   let messages = request.messages;
   let hasShownText = false;
-  for (let round = 1; round <= MAX_TOOL_ROUNDS; round += 1) {
+  while (true) {
     const outcome: RoundOutcome = yield* answerRound(
       client,
       { ...request, messages },
@@ -135,13 +125,6 @@ export async function* toolLoop(
     );
     hasShownText ||= outcome.text !== "";
     if (outcome.toolUses.length === 0) return;
-    if (round === MAX_TOOL_ROUNDS) {
-      yield {
-        kind: "text",
-        text: `${ROUND_SEPARATOR}_Stopped after ${MAX_TOOL_ROUNDS} rounds of lookups._`,
-      };
-      return;
-    }
     const results = yield* runTools(outcome.toolUses, tools);
     messages = [...messages, assistantTurn(outcome), { role: "user", content: results }];
   }

@@ -1,14 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AssistLookup } from "@/lib/assist-protocol";
 import { type LlmClient, type Message, type ToolSpec } from "./client";
-import {
-  type LoopChunk,
-  MAX_TOOL_CALLS_PER_ROUND,
-  MAX_TOOL_ROUNDS,
-  type ToolBox,
-  type ToolOutcome,
-  toolLoop,
-} from "./tool-loop";
+import { type LoopChunk, type ToolBox, type ToolOutcome, toolLoop } from "./tool-loop";
 
 const CONFIG = {
   baseURL: "http://llm.test",
@@ -185,20 +178,18 @@ describe("toolLoop", () => {
     ]);
   });
 
-  it("stops after MAX_TOOL_ROUNDS rounds of lookups without running the last round's tools", async () => {
-    const answers = Array.from({ length: MAX_TOOL_ROUNDS }, (_, index) =>
+  it("keeps looking up until the model answers, however many rounds that takes", async () => {
+    const lookupRounds = 8;
+    const answers = Array.from({ length: lookupRounds }, (_, index) =>
       toolRound(`t${index}`, { name: "loadReview" }),
     );
-    const { fetchImpl, calls } = scriptedFetch(answers);
+    const { fetchImpl, calls } = scriptedFetch([...answers, textRound("Found it.")]);
     const run = vi.fn(toolBox().run);
     const chunks = await drain(toolLoop(client(fetchImpl), REQUEST, toolBox(run)));
 
-    expect(calls()).toBe(MAX_TOOL_ROUNDS);
-    expect(run).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS - 1);
-    expect(chunks.at(-1)).toEqual({
-      kind: "text",
-      text: `\n\n_Stopped after ${MAX_TOOL_ROUNDS} rounds of lookups._`,
-    });
+    expect(calls()).toBe(lookupRounds + 1);
+    expect(run).toHaveBeenCalledTimes(lookupRounds);
+    expect(textOf(chunks)).toBe("Found it.");
   });
 
   it("returns an error to the model as a failed tool_result and carries on", async () => {
@@ -275,23 +266,28 @@ describe("toolLoop", () => {
     });
   });
 
-  it("runs at most MAX_TOOL_CALLS_PER_ROUND calls and skips the rest with an error result", async () => {
-    const extra = MAX_TOOL_CALLS_PER_ROUND + 1;
-    const { fetchImpl, requests } = scriptedFetch([manyToolsRound(extra), textRound("Done.")]);
+  it("runs every tool call in a round", async () => {
+    const count = 9;
+    const { fetchImpl, requests } = scriptedFetch([manyToolsRound(count), textRound("Done.")]);
     const run = vi.fn(toolBox().run);
     const chunks = await drain(toolLoop(client(fetchImpl), REQUEST, toolBox(run)));
 
-    expect(run).toHaveBeenCalledTimes(MAX_TOOL_CALLS_PER_ROUND);
-    expect(chunks.filter((chunk) => chunk.kind === "lookup")).toHaveLength(
-      MAX_TOOL_CALLS_PER_ROUND,
-    );
+    expect(run).toHaveBeenCalledTimes(count);
+    expect(chunks.filter((chunk) => chunk.kind === "lookup")).toHaveLength(count);
     const results = requests[1]?.messages.at(-1)?.content;
-    expect(results).toHaveLength(extra);
-    expect(results?.at(-1)).toEqual({
-      type: "tool_result",
-      tool_use_id: `m${MAX_TOOL_CALLS_PER_ROUND}`,
-      content: `Skipped: at most ${MAX_TOOL_CALLS_PER_ROUND} lookups per round.`,
-      is_error: true,
-    });
+    expect(Array.isArray(results) && results.every((result) => !("is_error" in result))).toBe(true);
+  });
+
+  it("starts no further round once the reader stops during a lookup", async () => {
+    const { fetchImpl, calls } = scriptedFetch([
+      toolRound("t1", { name: "loadReview" }),
+      textRound("Never sent."),
+    ]);
+    const loop = toolLoop(client(fetchImpl), REQUEST, toolBox());
+    const first = await loop.next();
+    await loop.return(undefined);
+
+    expect(first.value).toMatchObject({ kind: "lookup" });
+    expect(calls()).toBe(1);
   });
 });
