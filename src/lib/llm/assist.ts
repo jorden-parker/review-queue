@@ -69,6 +69,9 @@ Reply with only the comment text: kind, specific and actionable, at most four se
   check: `The review tool flagged the selection for the reasons in <pr_flags>.
 For each flag, say plainly whether it is a real problem here and why.
 If it is, show a fix in a fenced code block. If it is fine, say so in one sentence.`,
+  review: `Review the selection as a careful pull request reviewer.
+List only real problems: correctness, security, then design. For each, give its line numbers, say why it matters and whether it is blocking or taste.
+Show a fix in a fenced code block when it helps. If the code looks good, say so plainly.`,
 };
 
 const FILE_SCOPE = `The selection is a whole file: <pr_file> is the file after this pull request and <pr_diff> is every change to it.

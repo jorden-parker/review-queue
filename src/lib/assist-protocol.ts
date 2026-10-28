@@ -1,6 +1,6 @@
 import type { DiffLine, Hunk } from "@/lib/types";
 
-export const ASSIST_ACTIONS = ["explain", "simplify", "comment", "ask", "check"] as const;
+export const ASSIST_ACTIONS = ["explain", "simplify", "comment", "ask", "check", "review"] as const;
 
 export type AssistAction = (typeof ASSIST_ACTIONS)[number];
 

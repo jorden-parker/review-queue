@@ -13,7 +13,7 @@ import type { Note, NoteTag, ReferenceCount, Step, StepFile, SymbolPosition } fr
 import { CodeLine, type LineHandlers } from "./code-line";
 import { ContextGapView } from "./context-gap-view";
 import { fileLayout, gapContaining, type LayoutItem } from "./context-gaps";
-import { FileAskButton } from "./file-ask-button";
+import { FileActionsButton } from "./file-actions-button";
 import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
 import { threadsAt, type Thread } from "./conversation-threads";
@@ -108,7 +108,7 @@ function FileHeader({
       <span className="flex shrink-0 items-center gap-3 text-sm tabular-nums">
         {wholeFileToggle && <WholeFileButton toggle={wholeFileToggle} />}
         {onAskFile && !file.binary && (
-          <FileAskButton onAsk={(action) => onAskFile(file.path, action)} />
+          <FileActionsButton onAsk={(action) => onAskFile(file.path, action)} />
         )}
         <span className="flex gap-1.5 font-medium">
           <span className="text-add-foreground">+{file.additions}</span>

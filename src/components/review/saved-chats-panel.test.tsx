@@ -38,7 +38,7 @@ function renderPanel(chats: SavedAssistThread[]) {
 describe("SavedChatsPanel", () => {
   it("explains how to start a chat when there are none", () => {
     renderPanel([]);
-    expect(screen.getByText(/select lines or use “ask about file”/i)).toBeTruthy();
+    expect(screen.getByText(/select lines or use a file’s “actions”/i)).toBeTruthy();
   });
 
   it("lists each chat with what was asked and where", () => {
