@@ -105,10 +105,6 @@ async function failureMessage(response: Response, model: string): Promise<string
 
 type Deadline = { signal: AbortSignal; release: () => void };
 
-function wholeRequestDeadline(timeoutMs: number): Deadline {
-  return { signal: AbortSignal.timeout(timeoutMs), release: () => {} };
-}
-
 function firstResponseDeadline(timeoutMs: number): Deadline {
   const controller = new AbortController();
   const timer = setTimeout(
@@ -130,12 +126,9 @@ function thinkingFields(config: LlmConfig, maxTokens: number) {
 async function postMessages(
   client: LlmClient,
   request: ModelRequest,
-  stream: boolean,
   signal?: AbortSignal,
 ): Promise<Response> {
-  const deadline = stream
-    ? firstResponseDeadline(client.config.timeoutMs)
-    : wholeRequestDeadline(client.config.timeoutMs);
+  const deadline = firstResponseDeadline(client.config.timeoutMs);
   const response = await client
     .fetchImpl(`${client.config.baseURL}/v1/messages`, {
       method: "POST",
@@ -149,7 +142,7 @@ async function postMessages(
         model: client.config.model,
         ...thinkingFields(client.config, request.maxTokens),
         temperature: 0,
-        stream,
+        stream: true,
         system: request.system,
         messages: request.messages,
         ...(request.tools ? { tools: request.tools } : {}),
@@ -162,11 +155,9 @@ async function postMessages(
 }
 
 export async function askModel(client: LlmClient, request: ModelRequest): Promise<string> {
-  const response = await postMessages(client, request, false);
-  const reply = (await response.json()) as { content?: { type: string; text?: string }[] };
-  return (reply.content ?? [])
-    .map((block) => (block.type === "text" ? (block.text ?? "") : ""))
-    .join("");
+  let reply = "";
+  for await (const text of streamModel(client, request)) reply += text;
+  return reply;
 }
 
 type StreamEvent = {
@@ -269,17 +260,35 @@ function turnEventOf(
   return textEventOf(event);
 }
 
-export async function* streamTurn(
-  client: LlmClient,
-  request: ModelRequest,
-  signal?: AbortSignal,
-): AsyncGenerator<TurnEvent> {
-  const response = await postMessages(client, request, true, signal);
+async function* responseEvents(response: Response): AsyncGenerator<TurnEvent> {
   if (!response.body) return;
   const toolBlocks = new Map<number, PendingToolUse>();
   for await (const event of streamEvents(response.body)) {
     const turnEvent = turnEventOf(event, toolBlocks);
     if (turnEvent) yield turnEvent;
+  }
+}
+
+const globals = globalThis as { reviewQueueModelTurn?: Promise<void> };
+
+async function takeTurn(): Promise<() => void> {
+  const previous = globals.reviewQueueModelTurn ?? Promise.resolve();
+  let release = () => {};
+  globals.reviewQueueModelTurn = new Promise<void>((resolve) => (release = resolve));
+  await previous;
+  return release;
+}
+
+export async function* streamTurn(
+  client: LlmClient,
+  request: ModelRequest,
+  signal?: AbortSignal,
+): AsyncGenerator<TurnEvent> {
+  const release = await takeTurn();
+  try {
+    yield* responseEvents(await postMessages(client, request, signal));
+  } finally {
+    release();
   }
 }
 

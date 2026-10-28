@@ -3,6 +3,7 @@ import type { ChangeMap, ChangeNode } from "@/lib/types";
 import { addedHunk, fileDiff } from "@/test/diff-builders";
 import { describeChanges, type ChangePartsInput } from "./change-parts";
 import { UNTRUSTED_DATA_RULE } from "./client";
+import { modelReply } from "@/test/fake-llm";
 
 const CONFIG = {
   baseURL: "http://llm.test",
@@ -57,16 +58,7 @@ function scriptedFetch(text: string) {
   const bodies: { system: string; messages: { content: string }[] }[] = [];
   const fetchImpl = async (_url: unknown, init?: RequestInit) => {
     bodies.push(JSON.parse(String(init?.body)));
-    return Response.json({
-      id: "msg_1",
-      type: "message",
-      role: "assistant",
-      model: "m",
-      content: [{ type: "text", text }],
-      stop_reason: "end_turn",
-      stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1 },
-    });
+    return modelReply(text);
   };
   return { fetchImpl: fetchImpl as typeof fetch, bodies };
 }
