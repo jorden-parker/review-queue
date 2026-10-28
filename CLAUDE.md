@@ -75,7 +75,14 @@ and returns its highlighted lines (`lib/review/file-lines.ts`); the diff's
 `assist` (POST `?sha=`, `lib/review/assist-service.ts`) streams plain text from
 the model about a range of diff lines. The client sends hunk and line indexes,
 never code. The server reads the lines from its own diff, and it ends a failed
-stream with the `ASSIST_ERROR_MARKER` from `lib/assist-protocol.ts`.
+stream with the `ASSIST_ERROR_MARKER` from `lib/assist-protocol.ts`. The assist
+stream runs a tool loop (`lib/llm/tool-loop.ts`) over
+`lib/review/code-tools.ts`: `find_definition`, `find_references`, `search_code`
+and `read_file`, limited to tracked files of the head worktree, with results
+fenced as `<pr_tool_result>`, at most 5 rounds, and no tools when the model has
+none. Each lookup streams as a `\u0001{json}\u0001` record
+(`ASSIST_LOOKUP_MARKER`) that `components/review/assist-stream.ts` parses apart
+from the answer text.
 
 **Singletons** (`lib/review/services.ts`). The SQLite `SessionStore`
 (`lib/session/store.ts`) is stored on `globalThis` so it survives HMR. It
