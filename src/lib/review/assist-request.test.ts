@@ -32,6 +32,7 @@ const SOURCE: AssistSource = {
       return text;
     },
     listFiles: async () => Object.keys(HEAD_FILES),
+    definitionsIn: () => [],
     definitionsOf: () => [],
     referencesTo: async () => [],
     search: async () => [],
