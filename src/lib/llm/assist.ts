@@ -1,5 +1,5 @@
 import type { AssistAction } from "@/lib/assist-protocol";
-import type { DiffLine, FileDiff, Hunk, Step } from "@/lib/types";
+import { type DiffLine, type FileDiff, type Hunk, NOTE_LABELS, type Step } from "@/lib/types";
 import {
   CODE_NAME_RULE,
   diffText,
@@ -45,6 +45,8 @@ Keep each citation short and put it next to what you say about it.`;
 
 const ROLE = "You help a code reviewer with ADHD. Be brief, concrete and calm. Use plain words.";
 
+const COMMENT_LABEL_RULE = `Start with one Conventional Comments label that fits, followed by a colon (one of: ${NOTE_LABELS.join(", ")}), for example \`suggestion: …\`.`;
+
 const TASKS: Record<AssistAction, string> = {
   explain: `Explain what the selection does and why it matters in this pull request.
 Use two or three short paragraphs. Mention anything surprising or risky.`,
@@ -52,6 +54,7 @@ Use two or three short paragraphs. Mention anything surprising or risky.`,
 If the code could be written more simply, show the simpler version in a fenced code block and say why it is equivalent.
 If it is already simple, say so.`,
   comment: `Draft a pull request review comment about the selection, based on the reviewer's concern.
+${COMMENT_LABEL_RULE}
 Reply with only the comment text: kind, specific and actionable, at most four sentences, with a code suggestion only if it helps.`,
   ask: "Answer the reviewer's question about the selection. Say so when the diff does not show enough to be sure.",
   check: `The review tool flagged the selection for the reasons in <pr_flags>.
