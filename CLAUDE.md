@@ -55,12 +55,12 @@ when the PR head no longer matches the `headSha` being posted.
 **PR conversation and receipts** (`lib/github/conversation.ts`, `gh.ts`,
 `components/review/conversation-*`). The `conversation` route reads the first
 100 review comments and reviews through `conditionalGet` (ETag cache in the
-store, TTL cache in `services.ts`), and the "On GitHub" pane shows them with
-threads per line. `submitReview` returns the created review's id and URL, and
-the `submissions` table keeps a receipt of each post. "Start over" never clears
-receipts. Comment and review bodies are author-written: they render through
-`Markdown` only, and they must stay out of `ReviewData` and every model prompt
-(`src/lib/llm/**`, `assist-service.ts`).
+store, TTL cache in `services.ts`), and the "On GitHub" pane (`g g`) shows them
+with threads per line. `submitReview` returns the created review's id and URL,
+and the `submissions` table keeps a receipt of each post. "Start over" never
+clears receipts. Comment and review bodies are author-written: they render
+through `Markdown` only, and they must stay out of `ReviewData` and every model
+prompt (`src/lib/llm/**`, `assist-service.ts`).
 
 **API routes** (`src/app/api/pr/[owner]/[repo]/[number]/*`). The base route
 loads the review. `definitions`, `references` and `orientation` take `?sha=` and
@@ -175,6 +175,7 @@ an enclosing repo. Modules take a `run` parameter so tests can inject fakes, and
 peek, jumps, shortcuts, return detection), and `api.ts` is the only place that
 fetches. Pure logic is kept in non-hook modules (`hunk-index.ts`, `locate.ts`,
 `display-hotspots.ts`, `unfinished.ts`, `shortcut-keys.ts`) and tested in node.
+The chords `g h` (Hotspots pane) and `g g` (GitHub pane) are rows of that table.
 `src/components/inbox/` is the home page's list of review requests.
 
 **UI** (`src/components/ui/`) holds shadcn/ui primitives (Radix base); add more
