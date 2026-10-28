@@ -47,6 +47,15 @@ describe("FinishReview", () => {
     expect(screen.getByText("foo").tagName).toBe("CODE");
   });
 
+  it("shows a note the way it will post, with its label in bold", () => {
+    renderDialog({
+      notes: [note({ id: 2, kind: "issue", decorations: ["blocking"], body: "leaks" })],
+    });
+    const label = screen.getByText("issue (blocking):");
+    expect(label.tagName).toBe("STRONG");
+    expect(label.parentElement?.textContent).toContain("issue (blocking): leaks");
+  });
+
   it("keeps parked notes out of the checklist", () => {
     renderDialog({
       notes: [
