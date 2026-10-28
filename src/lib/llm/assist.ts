@@ -33,7 +33,7 @@ export type AssistInput = {
 const CONTEXT_CHAR_BUDGET = 24_000;
 const SELECTION_CHAR_BUDGET = 8_000;
 const FILE_CHAR_BUDGET = 24_000;
-const USAGE_CHAR_BUDGET = 12_000;
+const USAGE_CHAR_BUDGET = 16_000;
 const MAX_LOOKUP_PATHS = 20;
 const MAX_TOKENS = 800;
 const TITLE_LIMIT = 300;
@@ -57,8 +57,13 @@ Before you call new logic novel, search_code for an existing helper that already
 When a one-line use is not enough to tell whether a caller still works, read_file around it.
 Never guess about code you have not seen.`;
 
-const USAGE_RULE = `<pr_usages> lists where each declaration in or around the selection is used in the PR's head checkout, with the calling code and the component or function it sits in, and any other definition with the same name.
-Judge the change against them: does every caller still fit the new signature, return value, errors and null cases?
+const USAGE_RULE = `<pr_usages> maps the whole path of each declaration in or around the selection, in the PR's head checkout:
+where it is used, with the calling code and the component or function it sits in;
+call paths from where it is reached (an entry point, or … when the path goes on) down to it;
+what it relies on from elsewhere in the repo, with the start of each definition;
+and any other definition with the same name.
+Trace the whole path before you judge: how data reaches the change, what the change does with it, and what it relies on.
+Does every caller still fit the new signature, return value, errors and null cases?
 Read the props or arguments each caller passes and say which caller breaks or behaves differently. When the shown lines are not enough, read_file the caller.
 Code with no uses outside its own definition may be dead. A same-named definition elsewhere may be duplicated logic; say so if they do the same job.`;
 
@@ -209,12 +214,33 @@ export function assistRequest(input: AssistInput, history: Message[]): ModelRequ
   };
 }
 
+function counted(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function usageLabel(usage: DeclarationUsage, callPaths: number): string {
+  const parts = [
+    counted(usage.useCount, "use"),
+    ...(callPaths > 0 ? [counted(callPaths, "call path")] : []),
+    ...(usage.dependencies.length > 0
+      ? [counted(usage.dependencies.length, "dependency", "dependencies")]
+      : []),
+  ];
+  return `Path of \`${usage.name}\`: ${parts.join(", ")}`;
+}
+
 function usageLookup(usage: DeclarationUsage): AssistLookup {
-  const paths = [...usage.uses, ...usage.otherDefinitions].map((found) => found.path);
+  const tracedPaths = usage.callPaths.filter((path) => path.steps.length > 0);
+  const files = [
+    ...usage.uses,
+    ...tracedPaths.flatMap((path) => path.steps.map((step) => step.call)),
+    ...usage.dependencies,
+    ...usage.otherDefinitions,
+  ].map((found) => found.path);
   return {
     tool: "usages",
-    label: `Uses of \`${usage.name}\` (${usage.useCount})`,
-    paths: [...new Set(paths)].slice(0, MAX_LOOKUP_PATHS),
+    label: usageLabel(usage, tracedPaths.length),
+    paths: [...new Set(files)].slice(0, MAX_LOOKUP_PATHS),
   };
 }
 
