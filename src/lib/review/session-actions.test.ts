@@ -265,4 +265,15 @@ describe("applySessionAction", () => {
     run(store, { type: "current-step", stepId: "s1", headSha: HEAD_SHA });
     expect(store.getSession(KEY).lastHeadSha).toBe("b".repeat(40));
   });
+
+  it("archives a session and restores it", () => {
+    const store = new SessionStore(":memory:");
+    run(store, { type: "step-done", stepId: "s1", done: true });
+    run(store, { type: "archive" });
+    expect(store.inProgress()).toEqual([]);
+    expect(store.archived()).toEqual([expect.objectContaining({ key: KEY })]);
+    run(store, { type: "unarchive" });
+    expect(store.archived()).toEqual([]);
+    expect(store.inProgress()).toEqual([expect.objectContaining({ key: KEY })]);
+  });
 });
