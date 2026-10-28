@@ -12,10 +12,11 @@ export type CodeLookupIndex = Pick<
 
 const RESULT_TAG = "pr_tool_result";
 const MAX_RESULT_CHARS = 6_000;
+const MAX_READ_CHARS = 16_000;
 const MAX_LOOKUP_RESULTS = 40;
 const MAX_DEFINITIONS = 3;
 const MAX_DEFINITION_LINES = 60;
-const MAX_READ_LINES = 150;
+const MAX_READ_LINES = 400;
 const MAX_LOOKUP_PATHS = 20;
 const TRUNCATED_NOTE = "\n… (truncated)";
 const RESULT_CLOSE = `\n</${RESULT_TAG}>`;
@@ -27,10 +28,13 @@ const QueryInput = z.object({ query: z.string().trim().min(2).max(200) });
 const ReadInput = z
   .object({
     path: z.string().trim().min(1).max(500),
-    start_line: z.number().int().positive(),
-    end_line: z.number().int().positive(),
+    start_line: z.number().int().positive().default(1),
+    end_line: z.number().int().positive().optional(),
   })
-  .refine((input) => input.end_line >= input.start_line, "end_line is before start_line");
+  .refine(
+    (input) => input.end_line === undefined || input.end_line >= input.start_line,
+    "end_line is before start_line",
+  );
 
 const NAME_SCHEMA = {
   type: "object",
@@ -48,7 +52,7 @@ const SPECS: ToolSpec[] = [
   {
     name: "find_references",
     description:
-      "List lines in the PR's head checkout that use a name (callers, imports, overrides). Use it to see who depends on changed code.",
+      "List lines in the PR's head checkout that use a name (callers, imports, overrides). Use it to see who depends on changed code, then read_file the files that use it.",
     input_schema: NAME_SCHEMA,
   },
   {
@@ -64,15 +68,15 @@ const SPECS: ToolSpec[] = [
   {
     name: "read_file",
     description:
-      "Read numbered lines of a tracked file in the PR's head checkout. At most 150 lines per call.",
+      "Read numbered lines of a tracked file in the PR's head checkout. Omit the range to read the whole file. At most 400 lines per call.",
     input_schema: {
       type: "object",
       properties: {
         path: { type: "string", description: "Repository-relative path." },
-        start_line: { type: "integer", minimum: 1 },
-        end_line: { type: "integer", minimum: 1 },
+        start_line: { type: "integer", minimum: 1, description: "Defaults to 1." },
+        end_line: { type: "integer", minimum: 1, description: "Defaults to the end of the file." },
       },
-      required: ["path", "start_line", "end_line"],
+      required: ["path"],
     },
   },
 ];
@@ -82,10 +86,10 @@ function memoized<T>(load: () => Promise<T>): () => Promise<T> {
   return () => memoizePromise(cache, "value", load);
 }
 
-function fencedResult(body: string): string {
+function fencedResult(body: string, maxChars: number): string {
   const wrapped = fenced(RESULT_TAG, body);
-  if (wrapped.length <= MAX_RESULT_CHARS) return wrapped;
-  const keep = MAX_RESULT_CHARS - TRUNCATED_NOTE.length - RESULT_CLOSE.length;
+  if (wrapped.length <= maxChars) return wrapped;
+  const keep = maxChars - TRUNCATED_NOTE.length - RESULT_CLOSE.length;
   return `${wrapped.slice(0, keep)}${TRUNCATED_NOTE}${RESULT_CLOSE}`;
 }
 
@@ -93,9 +97,15 @@ function limitedCount(found: number, shown: number): string {
   return found > shown ? `${shown}+` : `${shown}`;
 }
 
-function outcome(tool: string, label: string, body: string, paths: string[]): ToolOutcome {
+function outcome(
+  tool: string,
+  label: string,
+  body: string,
+  paths: string[],
+  maxChars = MAX_RESULT_CHARS,
+): ToolOutcome {
   return {
-    content: fencedResult(body),
+    content: fencedResult(body, maxChars),
     lookup: { tool, label, paths: [...new Set(paths)].slice(0, MAX_LOOKUP_PATHS) },
   };
 }
@@ -163,12 +173,11 @@ async function readTrackedFile(
 ): Promise<ToolOutcome> {
   const { path: file, start_line: start, end_line: requestedEnd } = ReadInput.parse(input);
   if (!(await trackedFiles()).has(file)) throw new Error(`Not a tracked file: ${file}`);
-  const end = Math.min(requestedEnd, start + MAX_READ_LINES - 1);
-  const body = index
-    .readLines(file, start, end)
-    .map((text, offset) => `${start + offset}: ${text}`)
-    .join("\n");
-  return outcome("read_file", `Read \`${file}\` L${start}–L${end}`, body, [file]);
+  const lastAllowed = start + MAX_READ_LINES - 1;
+  const lines = index.readLines(file, start, Math.min(requestedEnd ?? lastAllowed, lastAllowed));
+  const body = lines.map((text, offset) => `${start + offset}: ${text}`).join("\n");
+  const end = start + lines.length - 1;
+  return outcome("read_file", `Read \`${file}\` L${start}–L${end}`, body, [file], MAX_READ_CHARS);
 }
 
 export function codeTools(index: CodeLookupIndex, currentPath: string): ToolBox {

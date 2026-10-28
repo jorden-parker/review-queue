@@ -1,5 +1,4 @@
-import type { AssistAction, AssistLookup } from "@/lib/assist-protocol";
-import { type DeclarationUsage, usageText } from "@/lib/review/usage-context";
+import type { AssistAction } from "@/lib/assist-protocol";
 import { type DiffLine, type FileDiff, type Hunk, NOTE_LABELS, type Step } from "@/lib/types";
 import {
   CODE_NAME_RULE,
@@ -29,14 +28,11 @@ export type AssistInput = {
   fileText: string | null;
   flags: AssistFlag[];
   stepCheck: StepCheckContent | null;
-  usages: DeclarationUsage[];
 };
 
 const CONTEXT_CHAR_BUDGET = 24_000;
 const SELECTION_CHAR_BUDGET = 8_000;
 const FILE_CHAR_BUDGET = 24_000;
-const USAGE_CHAR_BUDGET = 16_000;
-const MAX_LOOKUP_PATHS = 20;
 const MAX_TOKENS = 800;
 
 const DATA_RULE = `${UNTRUSTED_DATA_RULE}
@@ -46,26 +42,21 @@ const DATA_RULE = `${UNTRUSTED_DATA_RULE}
 <pr_reviewer_question> is from the reviewer you are helping.`;
 
 const CITE_RULE = `When you point at code, cite it in inline code as \`path:LINE\` or \`path:START-END\`,
-using the line numbers shown at the start of each diff line. Cite only lines that appear in <pr_diff>, <pr_selection>, <pr_file>, <pr_usages> or <pr_tool_result>.
+using the line numbers shown at the start of each diff line. Cite only lines that appear in <pr_diff>, <pr_selection>, <pr_file> or <pr_tool_result>.
 For a file outside the diff, always write the full path, like \`src/lib/a.ts:12\`.
 Keep each citation short and put it next to what you say about it.`;
 
-const LOOKUP_RULE = `You can look up code in the pull request's head checkout with the tools.
-Use them when the diff does not show enough to be sure: who calls a changed function, how a type or helper is defined, whether the same pattern exists elsewhere, or whether tests cover it.
+const INVESTIGATE_RULE = `Investigate before you answer. You see only the diff; the rest of the repo is in the pull request's head checkout, and the tools reach it.
+Decide for yourself what the change touches, then read it:
+- the rest of the file the change sits in;
+- every caller: find_references each changed or enclosing function, component, type or export, then read_file each calling file around the call. For a component, read the parent that renders it and the props it passes;
+- every callee: find_definition what the changed code calls or imports from the repo;
+- related code: its tests, its types, and anything else doing the same job (search_code).
+Follow callers upward until you reach an entry point or code the change cannot affect.
+A one-line reference is not enough; read the code around it.
 When the diff removes or renames a name, find_references the old name to check nothing still uses it.
 Before you call new logic novel, search_code for an existing helper that already does the same job.
-When a one-line use is not enough to tell whether a caller still works, read_file around it.
-Never guess about code you have not seen.`;
-
-const USAGE_RULE = `<pr_usages> maps the whole path of each declaration in or around the selection, in the PR's head checkout:
-where it is used, with the calling code and the component or function it sits in;
-call paths from where it is reached (an entry point, or … when the path goes on) down to it;
-what it relies on from elsewhere in the repo, with the start of each definition;
-and any other definition with the same name.
-Trace the whole path before you judge: how data reaches the change, what the change does with it, and what it relies on.
-Does every caller still fit the new signature, return value, errors and null cases?
-Read the props or arguments each caller passes and say which caller breaks or behaves differently. When the shown lines are not enough, read_file the caller.
-Code with no uses outside its own definition may be dead. A same-named definition elsewhere may be duplicated logic; say so if they do the same job.`;
+Never guess about code you have not read; say so when a lookup finds nothing.`;
 
 const ROLE = "You help a code reviewer with ADHD. Be brief, concrete and calm. Use plain words.";
 
@@ -76,7 +67,7 @@ const TASKS: Record<AssistAction, string> = {
 Use two or three short paragraphs. Mention anything surprising or risky.`,
   simplify: `Say in one or two plain sentences what the selection does.
 If the code could be written more simply, show the simpler version in a fenced code block and say why it is equivalent.
-If an existing helper in <pr_usages> or found by a lookup already does this, suggest using it.
+If an existing helper found by a lookup already does this, suggest using it.
 If it is already simple, say so.`,
   comment: `Draft a pull request review comment about the selection, based on the reviewer's concern.
 ${COMMENT_LABEL_RULE}
@@ -116,10 +107,9 @@ function systemPrompt(input: AssistInput): string {
     TASKS[input.action],
     ...SCOPE_RULES[input.scope],
     ...designRules(input),
-    ...(input.usages.length > 0 ? [USAGE_RULE] : []),
     CODE_NAME_RULE,
     CITE_RULE,
-    LOOKUP_RULE,
+    INVESTIGATE_RULE,
     DATA_RULE,
   ].join("\n\n");
 }
@@ -194,11 +184,6 @@ export function buildAssistPrompt(input: AssistInput): string {
     fenced("pr_path", input.path),
     ...scopeSections(input),
   ];
-  if (input.usages.length > 0)
-    sections.push(
-      "## Where the changed code is used",
-      fenced("pr_usages", clipped(usageText(input.usages), USAGE_CHAR_BUDGET, "usages")),
-    );
   if (input.flags.length > 0)
     sections.push(fenced("pr_flags", input.flags.map(flagText).join("\n")));
   if (input.question) sections.push(fenced("pr_reviewer_question", input.question));
@@ -213,40 +198,6 @@ export function assistRequest(input: AssistInput, history: Message[]): ModelRequ
   };
 }
 
-function counted(count: number, singular: string, plural = `${singular}s`): string {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
-function usageLabel(usage: DeclarationUsage, callPaths: number): string {
-  const parts = [
-    counted(usage.useCount, "use"),
-    ...(callPaths > 0 ? [counted(callPaths, "call path")] : []),
-    ...(usage.dependencies.length > 0
-      ? [counted(usage.dependencies.length, "dependency", "dependencies")]
-      : []),
-  ];
-  return `Path of \`${usage.name}\`: ${parts.join(", ")}`;
-}
-
-function usageLookup(usage: DeclarationUsage): AssistLookup {
-  const tracedPaths = usage.callPaths.filter((path) => path.steps.length > 0);
-  const files = [
-    ...usage.uses,
-    ...tracedPaths.flatMap((path) => path.steps.map((step) => step.call)),
-    ...usage.dependencies,
-    ...usage.otherDefinitions,
-  ].map((found) => found.path);
-  return {
-    tool: "usages",
-    label: usageLabel(usage, tracedPaths.length),
-    paths: [...new Set(files)].slice(0, MAX_LOOKUP_PATHS),
-  };
-}
-
-export function usageLookups(usages: DeclarationUsage[]): AssistLookup[] {
-  return usages.map(usageLookup);
-}
-
 export async function* assistStream(
   input: AssistInput,
   history: Message[],
@@ -255,7 +206,5 @@ export async function* assistStream(
   signal: AbortSignal | undefined,
   tools: ToolBox,
 ): AsyncGenerator<LoopChunk> {
-  if (history.length === 0)
-    for (const lookup of usageLookups(input.usages)) yield { kind: "lookup", lookup };
   yield* toolLoop({ config, fetchImpl }, assistRequest(input, history), tools, signal);
 }
