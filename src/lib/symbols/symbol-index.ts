@@ -8,6 +8,7 @@ import { parseDefinitions } from "./parse";
 export type Reference = { path: string; line: number; text: string };
 
 const MAX_FILES = 6000;
+const MAX_LISTED_FILES = 20000;
 export const MAX_FILE_BYTES = 300 * 1024;
 const MAX_REFERENCES = 60;
 const MAX_DEFINITIONS = 20;
@@ -58,6 +59,14 @@ export class SymbolIndex {
     const files = listing.split("\n").filter(isIndexable).slice(0, MAX_FILES);
     for (const file of files) await index.addFile(file);
     return index;
+  }
+
+  async listFiles(): Promise<string[]> {
+    const listing = await this.run("git", ["ls-files"], { cwd: this.root });
+    return listing
+      .split("\n")
+      .filter((file) => file !== "")
+      .slice(0, MAX_LISTED_FILES);
   }
 
   hasName(name: string): boolean {
