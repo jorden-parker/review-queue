@@ -340,7 +340,9 @@ function ConversationPane({ session, workspace }: PaneProps) {
       error={workspace.conversationError}
       threads={workspace.threads}
       receipts={session.submissions}
+      replyReceipts={session.replyReceipts}
       onOpen={workspace.goTo}
+      onReply={workspace.replyToThread}
     />
   );
 }

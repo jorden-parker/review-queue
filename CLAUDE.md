@@ -51,14 +51,18 @@ head, and `submit` answers 409 when the PR head no longer matches the `headSha`
 being posted.
 
 **PR conversation and receipts** (`lib/github/conversation.ts`, `gh.ts`,
-`components/review/conversation-*`). The `conversation` route reads the first
-100 review comments and reviews through `conditionalGet` (ETag cache in the
-store, TTL cache in `services.ts`), and the "On GitHub" pane shows them with
-threads per line. `submitReview` returns the created review's id and URL, and
-the `submissions` table keeps a receipt of each post. "Start over" never clears
-receipts. Comment and review bodies are author-written: they render through
-`Markdown` only, and they must stay out of `ReviewData` and every model prompt
-(`src/lib/llm/**`, `assist-service.ts`).
+`components/review/conversation-*`). The `conversation` route reads up to five
+pages of review comments (500 in all) and the first 100 reviews through
+`conditionalGet` (ETag cache in the store, TTL cache in `services.ts`), and the
+"On GitHub" pane shows them with threads per line. A `reply` route (POST
+`{ commentId, body }`) posts through `postReplyToReviewComment`, records a
+`reply_receipts` row, and drops the cached conversation with
+`forgetConversation`; reply bodies render through `Markdown` only and stay out
+of `ReviewData` and model prompts, like comment bodies. `submitReview` returns
+the created review's id and URL, and the `submissions` table keeps a receipt of
+each post. "Start over" never clears receipts. Comment and review bodies are
+author-written: they render through `Markdown` only, and they must stay out of
+`ReviewData` and every model prompt (`src/lib/llm/**`, `assist-service.ts`).
 
 **API routes** (`src/app/api/pr/[owner]/[repo]/[number]/*`). The base route
 loads the review. `definitions`, `references` and `orientation` take `?sha=` and
