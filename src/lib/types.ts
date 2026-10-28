@@ -116,7 +116,13 @@ export type SymbolDefinition = {
 
 export type OutlineSymbol = SymbolDefinition & { children: OutlineSymbol[] };
 
-export type ReferenceCount = { name: string; line: number; character: number; count: number };
+export type ReferenceCount = {
+  name: string;
+  line: number;
+  character: number;
+  count: number;
+  capped?: true;
+};
 
 export type DiffSide = "old" | "new";
 

@@ -114,4 +114,29 @@ describe("referenceCountsIn", () => {
     await expect(referenceCountsIn(counting, PREPARED_FILE)).rejects.toThrow("grep failed");
     await expect(referenceCountsIn(counting, PREPARED_FILE)).resolves.toHaveLength(3);
   });
+
+  it("counts the declarations of a file concurrently, in declaration order", async () => {
+    let active = 0;
+    let peak = 0;
+    const review = source(null);
+    review.index.referencesTo = async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+      return [{ path: PATH, line: 1, text: "" }];
+    };
+    const counts = await referenceCountsIn(review, PREPARED_FILE);
+    expect(counts.map((count) => count.name)).toEqual(["Store", "load", "$cache"]);
+    expect(peak).toBe(3);
+  });
+
+  it("marks a textual count that reached the reference limit as capped", async () => {
+    const counts = await referenceCountsIn(source(null, 60), PREPARED_FILE);
+    expect(counts.map((count) => [count.count, count.capped])).toEqual([
+      [59, true],
+      [59, true],
+      [59, true],
+    ]);
+  });
 });
