@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Note } from "@/lib/types";
-import { CODE_NAME_RULE } from "./client";
+import { CODE_NAME_RULE, UNTRUSTED_DATA_RULE } from "./client";
 import { buildSummaryPrompt, draftSummary, type SummaryDraftInput } from "./summary-draft";
 
 const NOTES: Note[] = [
@@ -88,6 +88,12 @@ describe("draftSummary", () => {
     const { fetchImpl, bodies } = scriptedFetch([`{"summary": "Fine."}`]);
     await draftSummary(INPUT, CONFIG, fetchImpl);
     expect(bodies[0]).toMatchObject({ system: expect.stringContaining(CODE_NAME_RULE) });
+  });
+
+  it("tells the model that PR text is data through the shared rule", async () => {
+    const { fetchImpl, bodies } = scriptedFetch([`{"summary": "Fine."}`]);
+    await draftSummary(INPUT, CONFIG, fetchImpl);
+    expect(bodies[0]).toMatchObject({ system: expect.stringContaining(UNTRUSTED_DATA_RULE) });
   });
 
   it("retries once when the first reply is not valid JSON", async () => {

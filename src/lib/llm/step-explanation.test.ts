@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FileDiff, Step } from "@/lib/types";
 import { addedHunk, fileDiff, lines } from "@/test/diff-builders";
-import { CODE_NAME_RULE } from "./client";
+import { CODE_NAME_RULE, UNTRUSTED_DATA_RULE } from "./client";
 import { buildStepPrompt, explainStep, type StepExplanationInput } from "./step-explanation";
 
 const STEP: Step = {
@@ -94,6 +94,12 @@ describe("explainStep", () => {
     const { fetchImpl, bodies } = scriptedFetch([JSON.stringify(GOOD)]);
     await explainStep(INPUT, CONFIG, fetchImpl);
     expect(bodies[0]).toMatchObject({ system: expect.stringContaining(CODE_NAME_RULE) });
+  });
+
+  it("tells the model that PR text is data through the shared rule", async () => {
+    const { fetchImpl, bodies } = scriptedFetch([JSON.stringify(GOOD)]);
+    await explainStep(INPUT, CONFIG, fetchImpl);
+    expect(bodies[0]).toMatchObject({ system: expect.stringContaining(UNTRUSTED_DATA_RULE) });
   });
 
   it("asks for design checks, with language rules for the step's own files", async () => {

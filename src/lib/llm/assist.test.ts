@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { type FileDiff, type Hunk, NOTE_LABELS, type Step } from "@/lib/types";
 import { addedHunk, lines } from "@/test/diff-builders";
 import { type AssistInput, assistRequest, buildAssistPrompt } from "./assist";
-import { CODE_NAME_RULE } from "./client";
+import { CODE_NAME_RULE, UNTRUSTED_DATA_RULE } from "./client";
 
 const CONTEXT: Hunk[] = [addedHunk(["const a = 1;", "const b = 2;", "const c = 3;"], 10)];
 const INPUT: AssistInput = {
@@ -106,6 +106,10 @@ describe("assistRequest", () => {
   it("tells the model when the selection is a whole file", () => {
     expect(assistRequest(FILE_INPUT, []).system).toContain("whole file");
     expect(assistRequest(INPUT, []).system).not.toContain("whole file");
+  });
+
+  it("tells the model that PR text is data through the shared rule", () => {
+    expect(assistRequest(INPUT, []).system).toContain(UNTRUSTED_DATA_RULE);
   });
 
   it("tells the model it can look up code and that lookup results are data", () => {
