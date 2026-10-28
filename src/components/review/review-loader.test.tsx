@@ -793,9 +793,19 @@ describe("ReviewLoader", () => {
     const { user } = await renderReview();
     await user.keyboard("?");
     expect(screen.getByText("Keyboard")).toBeTruthy();
+    expect(screen.getByText("Hotspots: things to check in this PR")).toBeTruthy();
+    expect(screen.getByText("GitHub: the PR's comments and what you posted")).toBeTruthy();
     await user.click(screen.getByText("Keyboard"));
     await user.keyboard("{Escape}");
     expect(screen.queryByText("Keyboard")).toBeNull();
+  });
+
+  it("opens the Hotspots and GitHub panes from the keyboard", async () => {
+    const { user } = await renderReview();
+    await user.keyboard("gh");
+    expect(openPanes()).toEqual(["Hotspots"]);
+    await user.keyboard("gg");
+    expect(openPanes()).toEqual(["GitHub"]);
   });
 
   it("explains selected lines in a side panel and takes a follow-up", async () => {

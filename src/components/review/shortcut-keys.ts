@@ -11,6 +11,8 @@ export type ShortcutAction =
   | "open-outline"
   | "open-files"
   | "open-map"
+  | "open-hotspots"
+  | "open-github"
   | "back"
   | "note"
   | "ask-model"
@@ -51,6 +53,8 @@ const CHORDS: Record<string, Record<string, ShortcutAction>> = {
     o: "open-outline",
     f: "open-files",
     m: "open-map",
+    h: "open-hotspots",
+    g: "open-github",
   },
 };
 
