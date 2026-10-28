@@ -99,6 +99,20 @@ describe("usageContext", () => {
     expect(usage?.useCount).toBe(20);
   });
 
+  it("puts production uses before tests and leaves out files that are not code", async () => {
+    const index = fakeIndex({
+      fetchUser: [
+        { path: "src/user.test.ts", line: 3, text: "fetchUser(1);" },
+        { path: "src/app/globals.css", line: 7, text: ".fetchUser {}" },
+        { path: "src/page.ts", line: 4, text: "await fetchUser(id);" },
+      ],
+    });
+    const [usage] = await usageContext(index, PATH, lines(10));
+
+    expect(usage?.uses.map((use) => use.path)).toEqual(["src/page.ts", "src/user.test.ts"]);
+    expect(usage?.useCount).toBe(2);
+  });
+
   it("finds nothing when no declaration sits on the target lines", async () => {
     expect(await usageContext(fakeIndex({}), PATH, lines(99))).toEqual([]);
   });
@@ -116,6 +130,8 @@ describe("usageText", () => {
       [
         "fetchUser (function) src/user.ts:10-20, 1 use elsewhere",
         "  src/page.ts:4: await fetchUser(id);",
+        "  Call paths, from where it is reached down to it:",
+        "    (top level) (src/page.ts:4) → fetchUser",
         "LIMIT (constant) src/user.ts:50-50, no uses outside its own definition",
         "  Also defined at: src/config.ts:2 (constant)",
       ].join("\n"),
@@ -189,11 +205,22 @@ describe("usageContext for a component changed inside its body", () => {
           "  );",
           "}",
         ].join("\n"),
+        "src/routes.tsx": [
+          "import { Page } from './page';",
+          "",
+          "export const routes = [",
+          "  { path: '/', element: <Page /> },",
+          "];",
+        ].join("\n"),
+        "src/format.ts":
+          "export function formatTitle(text: string): string {\n  return text.trim();\n}\n",
       },
       {
         "src/panel.tsx": [
+          "import { formatTitle } from './format';",
+          "",
           "export function Panel({ title }: { title: string }) {",
-          "  const heading = title.toUpperCase();",
+          "  const heading = formatTitle(title);",
           "  return <h1>{heading}</h1>;",
           "}",
         ].join("\n"),
@@ -211,16 +238,24 @@ describe("usageContext for a component changed inside its body", () => {
   afterEach(() => removeFixtureRepo(fixture));
 
   it("covers the component that encloses the changed lines", async () => {
-    const usages = await usageContext(index, "src/panel.tsx", new Set([3]));
+    const usages = await usageContext(index, "src/panel.tsx", new Set([5]));
 
     expect(usages.map((usage) => usage.name)).toEqual(["Panel"]);
   });
 
   it("shows the calling component's code around each use, not just the matching line", async () => {
-    const text = usageText(await usageContext(index, "src/panel.tsx", new Set([3])));
+    const text = usageText(await usageContext(index, "src/panel.tsx", new Set([5])));
 
     expect(text).toContain("src/page.tsx:5 in Page:");
     expect(text).toContain('      title="Hi"');
     expect(text).toContain("      onClose={() => {}}");
+  });
+
+  it("traces the whole path: who reaches it and what it relies on", async () => {
+    const text = usageText(await usageContext(index, "src/panel.tsx", new Set([5])));
+
+    expect(text).toContain("routes (src/routes.tsx:4) → Page (src/page.tsx:5) → Panel");
+    expect(text).toContain("formatTitle (function) src/format.ts:1-3");
+    expect(text).toContain("2:   return text.trim();");
   });
 });
