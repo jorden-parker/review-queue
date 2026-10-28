@@ -133,6 +133,12 @@ export class SymbolIndex {
     return resolved.startsWith(root) ? resolved.slice(root.length) : null;
   }
 
+  linkedPackageDirectory(name: string): string | null {
+    const link = path.join(this.root, "node_modules", name);
+    if (!fs.existsSync(link)) return null;
+    return this.relativePath(link);
+  }
+
   readFile(file: string): string {
     const absolute = fs.realpathSync(path.resolve(this.root, file));
     if (this.relativePath(absolute) === null) throw new Error(`Path outside checkout: ${file}`);
