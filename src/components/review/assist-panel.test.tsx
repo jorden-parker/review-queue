@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AssistThread, AssistTurn } from "@/lib/assist-protocol";
 import { AssistPanel } from "./assist-panel";
@@ -77,6 +77,23 @@ function readerScrollsUp(list: HTMLElement) {
 }
 
 const QUESTION: AssistTurn = { role: "reviewer", text: "Explain this" };
+
+describe("AssistPanel lookups", () => {
+  it("lists the lookups a model turn made, with each label's code shown", () => {
+    const lookup = {
+      tool: "find_references",
+      label: "Callers and uses of `loadReview` (2)",
+      paths: ["src/app.ts"],
+    };
+    const { thread, assist } = chat([
+      QUESTION,
+      { role: "model", text: "Two callers.", lookups: [lookup] },
+    ]);
+    render(panel({ thread, assist }));
+    const list = screen.getByRole("list", { name: "Lookups" });
+    expect(within(list).getByText("loadReview").tagName).toBe("CODE");
+  });
+});
 
 describe("AssistPanel scrolling", () => {
   it("follows a streaming answer", () => {

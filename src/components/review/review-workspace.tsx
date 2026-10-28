@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import {
   type AssistTarget,
+  type AssistTurn,
   targetCommentLine,
   targetFirstLine,
   targetLabel,
@@ -652,10 +653,13 @@ function WorkspaceAssist({ workspace }: { workspace: Workspace }) {
   const { target } = thread;
   const path = targetPath(target);
   const hunks = hunksOf(workspace, target);
-  const citationsOf = (text: string) =>
-    citationsInText(text, (code) =>
-      parseCitation(code, [...workspace.files.keys()], path, [...workspace.files.values()]),
+  const citationsOf = (turn: AssistTurn) => {
+    const lookupPaths = (turn.lookups ?? []).flatMap((lookup) => lookup.paths);
+    const knownPaths = [...workspace.files.keys(), ...lookupPaths];
+    return citationsInText(turn.text, (code) =>
+      parseCitation(code, knownPaths, path, [...workspace.files.values()]),
     );
+  };
   return (
     <AssistPanel
       key={thread.id}
@@ -669,7 +673,11 @@ function WorkspaceAssist({ workspace }: { workspace: Workspace }) {
       }
       onShowLines={() => workspace.goTo({ path, line: targetFirstLine(hunks, target) })}
       onShowCitation={(citation) =>
-        workspace.goTo({ path: citation.path, line: citation.line, endLine: citation.endLine })
+        workspace.openLocation({
+          path: citation.path,
+          line: citation.line,
+          endLine: citation.endLine,
+        })
       }
     />
   );
