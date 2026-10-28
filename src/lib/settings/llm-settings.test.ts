@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { SessionStore } from "@/lib/session/store";
-import { llmSettingsFromEnv, saveLlmSettings, savedLlmSettings } from "./llm-settings";
+import {
+  LlmSettingsSchema,
+  llmSettingsFromEnv,
+  saveLlmSettings,
+  savedLlmSettings,
+} from "./llm-settings";
 
 const SETTINGS = { enabled: true, model: "qwen3:4b", thinking: false, timeoutMs: 20_000 };
 
@@ -20,6 +25,13 @@ describe("llmSettingsFromEnv", () => {
         REVIEW_QUEUE_LLM_TIMEOUT_MS: "5000",
       }),
     ).toEqual({ enabled: false, model: "mine", thinking: false, timeoutMs: 5000 });
+  });
+});
+
+describe("LlmSettingsSchema", () => {
+  it("accepts a timeout of up to an hour, for slow machines and big files", () => {
+    expect(LlmSettingsSchema.safeParse({ ...SETTINGS, timeoutMs: 3_600_000 }).success).toBe(true);
+    expect(LlmSettingsSchema.safeParse({ ...SETTINGS, timeoutMs: 3_600_001 }).success).toBe(false);
   });
 });
 

@@ -93,10 +93,15 @@ function TimeoutField({
         id="timeout"
         type="number"
         min={1}
+        max={3600}
         value={seconds}
         onChange={(event) => onChange(event.target.value)}
         className="w-32"
       />
+      <p className="text-xs text-muted-foreground">
+        How long to wait for the model to start answering, up to 3600. Raise it on a slow machine or
+        when reviewing whole files; once the answer starts it is never cut off.
+      </p>
     </div>
   );
 }
