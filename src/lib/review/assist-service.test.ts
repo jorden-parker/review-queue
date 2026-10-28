@@ -176,7 +176,11 @@ describe("assistResponse", () => {
         CONFIG,
         fetchImpl,
       ).text();
-      const lookup = { tool: "usages", label: "Uses of `load` (1)", paths: ["src/app.ts"] };
+      const lookup = {
+        tool: "usages",
+        label: "Path of `load`: 1 use, 1 call path",
+        paths: ["src/app.ts"],
+      };
 
       expect(prompts[0]).toContain("<pr_usages>");
       expect(prompts[0]).toContain("src/app.ts:7: load({ retries: 2 });");

@@ -1,18 +1,28 @@
+import { languageFor } from "@/lib/symbols/languages";
 import type { Reference, SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { SymbolDefinition, SymbolKind } from "@/lib/types";
+import {
+  type CallPath,
+  callPathsTo,
+  IMPORT_LINE,
+  isProductionCode,
+  type ReferencesOf,
+} from "./call-paths";
+import { declarationsIn, innermostAt, isSameDefinition, spans } from "./declarations";
+import { type Dependency, dependenciesOf, type NumberedLine, numberedLines } from "./dependencies";
 
 export type UsageIndex = Pick<
   SymbolIndex,
   "definitionsIn" | "definitionsOf" | "referencesTo" | "readLines"
 >;
 
-type NumberedLine = { line: number; text: string };
-
 export type UsageSite = Reference & { caller: string | null; code: NumberedLine[] };
 
 export type DeclarationUsage = SymbolDefinition & {
   uses: UsageSite[];
   useCount: number;
+  callPaths: CallPath[];
+  dependencies: Dependency[];
   otherDefinitions: SymbolDefinition[];
 };
 
@@ -23,41 +33,7 @@ const MAX_OTHER_DEFINITIONS = 3;
 const CODE_LINES_BEFORE = 2;
 const CODE_LINES_AFTER = 6;
 
-const LOCAL_KINDS: ReadonlySet<SymbolKind> = new Set(["variable", "constant", "property"]);
 const MEMBER_KINDS: ReadonlySet<SymbolKind> = new Set(["method", "property"]);
-const IMPORT_LINE = /^\s*(import\b|export\s*(\*|\{))/;
-
-function encloses(outer: SymbolDefinition, inner: SymbolDefinition): boolean {
-  return outer !== inner && outer.line <= inner.line && inner.endLine <= outer.endLine;
-}
-
-function isLocal(definition: SymbolDefinition, all: SymbolDefinition[]): boolean {
-  return (
-    LOCAL_KINDS.has(definition.kind) &&
-    all.some((other) => other.kind !== "parameter" && encloses(other, definition))
-  );
-}
-
-function declarationsIn(index: UsageIndex, path: string): SymbolDefinition[] {
-  const all = index.definitionsIn(path);
-  return all.filter((definition) => definition.kind !== "parameter" && !isLocal(definition, all));
-}
-
-function spans(definition: SymbolDefinition, line: number): boolean {
-  return definition.line <= line && line <= definition.endLine;
-}
-
-function innermostAt(declarations: SymbolDefinition[], line: number): SymbolDefinition | null {
-  return declarations
-    .filter((declaration) => spans(declaration, line))
-    .reduce<SymbolDefinition | null>(
-      (inner, declaration) =>
-        inner === null || declaration.endLine - declaration.line < inner.endLine - inner.line
-          ? declaration
-          : inner,
-      null,
-    );
-}
 
 function declarationsOn(
   index: UsageIndex,
@@ -71,14 +47,6 @@ function declarationsOn(
     .slice(0, MAX_DECLARATIONS);
 }
 
-function isInside(reference: Reference, definition: SymbolDefinition): boolean {
-  return reference.path === definition.path && spans(definition, reference.line);
-}
-
-function isSameDefinition(a: SymbolDefinition, b: SymbolDefinition): boolean {
-  return a.path === b.path && a.line === b.line;
-}
-
 function otherDefinitionsOf(index: UsageIndex, declaration: SymbolDefinition): SymbolDefinition[] {
   return index
     .definitionsOf(declaration.name, declaration.path)
@@ -86,19 +54,13 @@ function otherDefinitionsOf(index: UsageIndex, declaration: SymbolDefinition): S
     .slice(0, MAX_OTHER_DEFINITIONS);
 }
 
-function codeAround(index: UsageIndex, use: Reference): NumberedLine[] {
-  const start = Math.max(1, use.line - CODE_LINES_BEFORE);
-  return index
-    .readLines(use.path, start, use.line + CODE_LINES_AFTER)
-    .map((text, offset) => ({ line: start + offset, text }));
-}
-
 function siteOf(index: UsageIndex, use: Reference, withCode: boolean): UsageSite {
   const caller = innermostAt(declarationsIn(index, use.path), use.line);
+  const start = Math.max(1, use.line - CODE_LINES_BEFORE);
   return {
     ...use,
     caller: caller?.name ?? null,
-    code: withCode ? codeAround(index, use) : [],
+    code: withCode ? numberedLines(index, use.path, start, use.line + CODE_LINES_AFTER) : [],
   };
 }
 
@@ -111,17 +73,39 @@ function sitesOf(index: UsageIndex, uses: Reference[]): UsageSite[] {
   });
 }
 
+function codeUsesOutside(declaration: SymbolDefinition, references: Reference[]): Reference[] {
+  const uses = references.filter(
+    (reference) =>
+      languageFor(reference.path) !== null &&
+      !(reference.path === declaration.path && spans(declaration, reference.line)),
+  );
+  return [
+    ...uses.filter((use) => isProductionCode(use.path)),
+    ...uses.filter((use) => !isProductionCode(use.path)),
+  ];
+}
+
 async function usageOf(
   index: UsageIndex,
+  referencesOf: ReferencesOf,
   declaration: SymbolDefinition,
 ): Promise<DeclarationUsage> {
-  const references = await index.referencesTo(declaration.name);
-  const uses = references.filter((reference) => !isInside(reference, declaration));
+  const uses = codeUsesOutside(declaration, await referencesOf(declaration.name));
   return {
     ...declaration,
     uses: sitesOf(index, uses),
     useCount: uses.length,
+    callPaths: await callPathsTo(index, declaration, referencesOf),
+    dependencies: dependenciesOf(index, declaration),
     otherDefinitions: otherDefinitionsOf(index, declaration),
+  };
+}
+
+function memoizedReferences(index: UsageIndex): ReferencesOf {
+  const cache = new Map<string, Promise<Reference[]>>();
+  return (name) => {
+    if (!cache.has(name)) cache.set(name, index.referencesTo(name));
+    return cache.get(name)!;
   };
 }
 
@@ -130,8 +114,11 @@ export function usageContext(
   path: string,
   lines: ReadonlySet<number>,
 ): Promise<DeclarationUsage[]> {
+  const referencesOf = memoizedReferences(index);
   return Promise.all(
-    declarationsOn(index, path, lines).map((declaration) => usageOf(index, declaration)),
+    declarationsOn(index, path, lines).map((declaration) =>
+      usageOf(index, referencesOf, declaration),
+    ),
   );
 }
 
@@ -140,19 +127,49 @@ function countSummary(usage: DeclarationUsage): string {
   return usage.useCount === 1 ? "1 use elsewhere" : `${usage.useCount} uses elsewhere`;
 }
 
+function codeText(code: NumberedLine[], indent: string): string[] {
+  return code.map((numbered) => `${indent}${numbered.line}: ${numbered.text}`);
+}
+
 function siteText(site: UsageSite): string[] {
   if (site.code.length === 0) return [`  ${site.path}:${site.line}: ${site.text.trim()}`];
   const where = site.caller ? ` in ${site.caller}` : "";
+  return [`  ${site.path}:${site.line}${where}:`, ...codeText(site.code, "    ")];
+}
+
+function pathText(path: CallPath, target: string): string {
+  const steps = path.steps.map((step) => `${step.name} (${step.call.path}:${step.call.line})`);
+  const start = path.end === "more" ? "… → " : "";
+  return `    ${start}${[...steps, target].join(" → ")}`;
+}
+
+function callPathsText(usage: DeclarationUsage): string[] {
+  const paths = usage.callPaths.filter((path) => path.steps.length > 0);
+  if (paths.length === 0) return [];
   return [
-    `  ${site.path}:${site.line}${where}:`,
-    ...site.code.map((numbered) => `    ${numbered.line}: ${numbered.text}`),
+    "  Call paths, from where it is reached down to it:",
+    ...paths.map((path) => pathText(path, usage.name)),
   ];
+}
+
+function dependencyText(dependency: Dependency): string[] {
+  return [
+    `    ${dependency.name} (${dependency.kind}) ${dependency.path}:${dependency.line}-${dependency.endLine}`,
+    ...codeText(dependency.code, "      "),
+  ];
+}
+
+function dependenciesText(usage: DeclarationUsage): string[] {
+  if (usage.dependencies.length === 0) return [];
+  return ["  Uses from elsewhere in the repo:", ...usage.dependencies.flatMap(dependencyText)];
 }
 
 function usageBlock(usage: DeclarationUsage): string {
   return [
     `${usage.name} (${usage.kind}) ${usage.path}:${usage.line}-${usage.endLine}, ${countSummary(usage)}`,
     ...usage.uses.flatMap(siteText),
+    ...callPathsText(usage),
+    ...dependenciesText(usage),
     ...usage.otherDefinitions.map(
       (other) => `  Also defined at: ${other.path}:${other.line} (${other.kind})`,
     ),
