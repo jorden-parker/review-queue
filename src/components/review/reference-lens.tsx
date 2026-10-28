@@ -2,8 +2,9 @@
 
 import type { ReferenceCount } from "@/lib/types";
 
-function countLabel(count: number): string {
-  return count === 1 ? "1 reference" : `${count} references`;
+function countLabel(reference: ReferenceCount): string {
+  if (reference.count === 1 && !reference.capped) return "1 reference";
+  return `${reference.count}${reference.capped ? "+" : ""} references`;
 }
 
 function leadingWhitespace(text: string): string {
@@ -29,11 +30,11 @@ export function ReferenceLens({
         {leadingWhitespace(lineText)}
         <button
           type="button"
-          aria-label={`${countLabel(reference.count)} to ${reference.name}`}
+          aria-label={`${countLabel(reference)} to ${reference.name}`}
           onClick={() => onShow(reference)}
           className="font-sans text-xs transition-colors duration-calm hover:text-foreground hover:underline focus-visible:text-foreground"
         >
-          {countLabel(reference.count)}
+          {countLabel(reference)}
         </button>
       </span>
     </div>

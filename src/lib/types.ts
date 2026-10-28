@@ -50,9 +50,37 @@ export type Step = {
 
 export type Severity = "high" | "medium" | "low";
 
+export const RULE_IDS = [
+  "runs-commands",
+  "sql-strings",
+  "hardcoded-secret",
+  "raw-html",
+  "auth-crypto",
+  "concurrency",
+  "swallowed-error",
+  "magic-value",
+  "todo",
+  "debug-output",
+  "suppression",
+  "commented-code",
+  "signature-change",
+  "busy-function-change",
+  "big-hunk",
+  "branching",
+  "migration",
+  "tests-removed",
+  "dependencies",
+  "lockfile-drift",
+  "churn",
+  "no-tests",
+  "ai",
+] as const;
+
+export type RuleId = (typeof RULE_IDS)[number];
+
 export type Hotspot = {
   id: string;
-  rule: string;
+  rule: RuleId;
   severity: Severity;
   path: string;
   line: number | null;
@@ -88,7 +116,13 @@ export type SymbolDefinition = {
 
 export type OutlineSymbol = SymbolDefinition & { children: OutlineSymbol[] };
 
-export type ReferenceCount = { name: string; line: number; character: number; count: number };
+export type ReferenceCount = {
+  name: string;
+  line: number;
+  character: number;
+  count: number;
+  capped?: true;
+};
 
 export type DiffSide = "old" | "new";
 
@@ -116,6 +150,8 @@ export const NOTE_LABELS = [
 ] as const;
 
 export type NoteLabel = (typeof NOTE_LABELS)[number];
+
+export const REPLY_MAX_LENGTH = 10_000;
 
 export type NoteKind = NoteLabel | "parked";
 

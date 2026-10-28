@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { SymbolPosition } from "@/lib/types";
 import type { PreparedFile, PreparedReview } from "./prepare";
-import { jsonError, preparedFromRequest, type PrRouteContext } from "./route-context";
+import { jsonError, withPreparedReview } from "./route-context";
 
 const POSITION = z.object({
   name: z.string().min(1),
@@ -19,24 +19,20 @@ export function positionFromQuery(params: URLSearchParams): SymbolPosition | nul
 type SymbolLookup = (prepared: PreparedReview, position: SymbolPosition) => Promise<unknown>;
 
 export function symbolLookupRoute(lookup: SymbolLookup) {
-  return async (request: Request, context: PrRouteContext) => {
-    const prepared = await preparedFromRequest(request, context);
-    if (prepared instanceof Response) return prepared;
+  return withPreparedReview(async (request, prepared) => {
     const position = positionFromQuery(new URL(request.url).searchParams);
     if (!position) return jsonError("Missing or invalid symbol position", 400);
     return Response.json(await lookup(prepared, position));
-  };
+  });
 }
 
 type FileLookup = (prepared: PreparedReview, file: PreparedFile) => Promise<unknown> | unknown;
 
 export function fileLookupRoute(lookup: FileLookup) {
-  return async (request: Request, context: PrRouteContext) => {
-    const prepared = await preparedFromRequest(request, context);
-    if (prepared instanceof Response) return prepared;
+  return withPreparedReview(async (request, prepared) => {
     const path = new URL(request.url).searchParams.get("path");
     const file = prepared.data.files.find((candidate) => candidate.path === path);
     if (!file) return jsonError("That file is not part of this review", 400);
     return Response.json(await lookup(prepared, file));
-  };
+  });
 }

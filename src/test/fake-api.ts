@@ -63,6 +63,13 @@ export function installFakeApi(
   const calls: Call[] = [];
   const head = { current: payload.headSha };
   const key = "acme/app#7";
+  let refusal: string | null = null;
+  function sessionReply(body: unknown): unknown {
+    if (refusal === null) return applySessionAction(store, key, SessionActionSchema.parse(body));
+    const error = refusal;
+    refusal = null;
+    return Response.json({ error }, { status: 400 });
+  }
   const routes: [RegExp, (body: unknown, url: URL) => unknown][] = [
     [/\/orientation/, () => orientation],
     [/\/head$/, () => ({ headSha: head.current })],
@@ -112,7 +119,8 @@ export function installFakeApi(
       ],
     ],
     [/\/assist$/, () => streamedText(ASSIST_REPLY)],
-    [/\/session$/, (body) => applySessionAction(store, key, SessionActionSchema.parse(body))],
+    [/\/seen$/, () => ({ session: payload.session, reopenedStepIds: payload.reopenedStepIds })],
+    [/\/session$/, (body) => sessionReply(body)],
     [
       /\/submit$/,
       (body) => {
@@ -146,5 +154,8 @@ export function installFakeApi(
     store,
     head,
     actions: () => calls.filter((call) => call.url.endsWith("/session")).map((call) => call.body),
+    refuseNextSessionAction: (message: string) => {
+      refusal = message;
+    },
   };
 }

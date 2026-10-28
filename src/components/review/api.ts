@@ -8,7 +8,7 @@ import type { ExplanationResult } from "@/lib/review/explanation-service";
 import type { FileLines } from "@/lib/review/file-lines";
 import type { Interdiff } from "@/lib/review/interdiff";
 import type { OrientationResult } from "@/lib/review/orientation-service";
-import type { ReviewPayload } from "@/lib/review/prepare";
+import type { ReviewPayload, SeenResult } from "@/lib/review/prepare";
 import type { SessionAction } from "@/lib/review/session-actions";
 import type { SummaryDraftResult } from "@/lib/review/summary-draft-service";
 import type { Session } from "@/lib/session/store";
@@ -139,8 +139,18 @@ export function sendSessionAction(ref: PullRequestRef, action: SessionAction): P
   return post<Session>(apiPath(ref, "/session"), action);
 }
 
+export function postSeen(ref: PullRequestRef, sha: string): Promise<SeenResult> {
+  return post<SeenResult>(apiPath(ref, `/seen${query({ sha })}`), {});
+}
+
 export function submitReviewRequest(ref: PullRequestRef, input: SubmitInput): Promise<Session> {
   return post<Session>(apiPath(ref, "/submit"), input);
+}
+
+export type ReplyInput = { commentId: number; body: string };
+
+export function sendReply(ref: PullRequestRef, input: ReplyInput): Promise<Session> {
+  return post<Session>(apiPath(ref, "/reply"), input);
 }
 
 export function requestSummaryDraft(
@@ -165,6 +175,14 @@ async function readAssistStream(
   return parseAssistStream(raw);
 }
 
+async function failureMessage(response: Response): Promise<string> {
+  const fallback = `The local model request failed (HTTP ${response.status})`;
+  return response.json().then(
+    (body: { error?: unknown } | null) => (typeof body?.error === "string" ? body.error : fallback),
+    () => fallback,
+  );
+}
+
 export async function streamAssist(
   ref: PullRequestRef,
   sha: string,
@@ -178,8 +196,8 @@ export async function streamAssist(
     body: JSON.stringify(request),
     signal,
   });
-  if (!response.ok) await json(response);
-  if (!response.body) return;
+  if (!response.ok) throw new Error(await failureMessage(response));
+  if (!response.body) throw new Error(`The local model sent no answer (HTTP ${response.status})`);
   const parsed = await readAssistStream(response.body, onUpdate);
   if (parsed.failure !== null) throw new Error(parsed.failure);
 }

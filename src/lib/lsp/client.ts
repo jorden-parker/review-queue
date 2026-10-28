@@ -15,6 +15,7 @@ import type {
 } from "vscode-languageserver-protocol";
 import { spawnProcess } from "@/lib/exec";
 import { languageIdOf, type LanguageServer } from "./servers";
+import { OpenDocuments } from "./open-documents";
 
 export type ServerLocation = { file: string; line: number; character: number; endLine: number };
 
@@ -81,7 +82,10 @@ const CLIENT_CAPABILITIES = {
 };
 
 export class LanguageClient {
-  private readonly opened = new Set<string>();
+  private readonly documents = new OpenDocuments({
+    open: (file) => this.sendDidOpen(file),
+    close: (file) => this.sendDidClose(file),
+  });
 
   private constructor(
     private readonly server: LanguageServer,
@@ -132,13 +136,15 @@ export class LanguageClient {
     character: number,
     related: string[] = [],
   ): Promise<ServerLocation[]> {
-    await Promise.all(
-      related.filter((other) => this.serves(other)).map((other) => this.open(other)),
+    const result = await this.request<Location[] | null>(
+      "textDocument/references",
+      file,
+      {
+        position: { line: line - 1, character },
+        context: { includeDeclaration: false },
+      },
+      related,
     );
-    const result = await this.request<Location[] | null>("textDocument/references", file, {
-      position: { line: line - 1, character },
-      context: { includeDeclaration: false },
-    });
     return locationsOf(result);
   }
 
@@ -181,9 +187,7 @@ export class LanguageClient {
     return pathToFileURL(path.join(this.root, file)).href;
   }
 
-  private async open(file: string): Promise<void> {
-    if (this.opened.has(file)) return;
-    this.opened.add(file);
+  private async sendDidOpen(file: string): Promise<void> {
     await this.connection.sendNotification("textDocument/didOpen", {
       textDocument: {
         uri: this.uriOf(file),
@@ -194,14 +198,32 @@ export class LanguageClient {
     });
   }
 
-  private async request<T>(method: string, file: string, params: object): Promise<T> {
-    await this.open(file);
-    return withTimeout(
-      this.connection.sendRequest<T>(method, {
-        textDocument: { uri: this.uriOf(file) },
-        ...params,
-      }),
-      method,
-    );
+  private async sendDidClose(file: string): Promise<void> {
+    await this.connection.sendNotification("textDocument/didClose", {
+      textDocument: { uri: this.uriOf(file) },
+    });
+  }
+
+  private async request<T>(
+    method: string,
+    file: string,
+    params: object,
+    related: string[] = [],
+  ): Promise<T> {
+    const release = await this.documents.pin([
+      file,
+      ...related.filter((other) => this.serves(other)),
+    ]);
+    try {
+      return await withTimeout(
+        this.connection.sendRequest<T>(method, {
+          textDocument: { uri: this.uriOf(file) },
+          ...params,
+        }),
+        method,
+      );
+    } finally {
+      await release();
+    }
   }
 }

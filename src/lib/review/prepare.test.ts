@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PullRequest } from "@/lib/github/gh";
 import { prKey } from "@/lib/pr-ref";
@@ -10,7 +12,7 @@ import {
   removeFixtureRepo,
   type FixtureRepo,
 } from "@/test/git-fixture";
-import { loadReview, type ReviewDeps } from "./prepare";
+import { findPrepared, loadReview, markReviewSeen, type ReviewDeps } from "./prepare";
 
 const REF = { owner: "acme", repo: "app", number: 5 };
 
@@ -76,7 +78,16 @@ describe("loadReview", () => {
     expect(warmed).toEqual(expect.arrayContaining(["src/client.ts", "src/retry.ts"]));
     expect(warmed).not.toContain("scripts/run.sh");
     expect(review.files[0].highlighted[0].length).toBe(review.files[0].hunks[0].lines.length);
-    expect(review.session.lastHeadSha).toBe(review.headSha);
+    expect(review.session.lastHeadSha).toBeNull();
+  });
+
+  it("writes nothing to the session when it loads", async () => {
+    await loadReview(REF, deps);
+    expect(deps.store.getSession(prKey(REF))).toMatchObject({
+      lastHeadSha: null,
+      baselineHeadSha: null,
+      updatedAt: null,
+    });
   });
 
   it("only offers symbol jumps in files a parser understands", async () => {
@@ -85,8 +96,9 @@ describe("loadReview", () => {
     expect(navigable).toMatchObject({ "scripts/run.sh": false, "src/retry.ts": true });
   });
 
-  it("remembers the PR title so the inbox can show it later", async () => {
-    await loadReview(REF, deps);
+  it("remembers the PR title when the head is marked seen", async () => {
+    const review = await loadReview(REF, deps);
+    await markReviewSeen(REF, review.headSha, deps.store);
     deps.store.setStepDone(prKey(REF), "s1", true);
     expect(deps.store.inProgress()[0]).toMatchObject({ key: prKey(REF), title: "Add retry" });
   });
@@ -102,8 +114,9 @@ describe("loadReview", () => {
     expect(review.pr.bodyHtml).toBe("<p>fresh</p>");
   });
 
-  it("reopens finished steps whose files changed in new commits", async () => {
+  it("reopens finished steps whose files changed when the new head is marked seen", async () => {
     const first = await loadReview(REF, deps);
+    await markReviewSeen(REF, first.headSha, deps.store);
     const key = prKey(REF);
     for (const step of first.steps) deps.store.setStepDone(key, step.id, true);
 
@@ -111,13 +124,43 @@ describe("loadReview", () => {
       "src/retry.ts": "export function retry() {\n  return 1;\n}\n",
     });
     const second = await loadReview(REF, deps);
+    const seen = await markReviewSeen(REF, second.headSha, deps.store);
 
     const retryStep = second.steps.find((step) =>
       step.files.some((file) => file.path === "src/retry.ts"),
     )!;
-    expect(second.reopenedStepIds).toEqual([retryStep.id]);
-    expect(second.session.doneSteps).not.toContain(retryStep.id);
-    expect(second.session.baselineHeadSha).toBe(first.headSha);
+    expect(seen?.reopenedStepIds).toEqual([retryStep.id]);
+    expect(seen?.session.doneSteps).not.toContain(retryStep.id);
+    expect(seen?.session.baselineHeadSha).toBe(first.headSha);
+  });
+
+  it("reopens nothing when the same head is marked seen twice", async () => {
+    const review = await loadReview(REF, deps);
+    await markReviewSeen(REF, review.headSha, deps.store);
+    expect((await markReviewSeen(REF, review.headSha, deps.store))?.reopenedStepIds).toEqual([]);
+  });
+
+  it("returns null for a head that was never loaded", async () => {
+    expect(await markReviewSeen(REF, "f".repeat(40), deps.store)).toBeNull();
+  });
+
+  it("keeps the two newest heads of a pull request and forgets older ones", async () => {
+    (globalThis as { reviewQueuePrepared?: Map<string, unknown> }).reviewQueuePrepared?.clear();
+    const first = await loadReview(REF, deps);
+    pushFeatureCommit(fixture, REF.number, {
+      "src/retry.ts": "export function retry() {\n  return 1;\n}\n",
+    });
+    const second = await loadReview(REF, deps);
+    pushFeatureCommit(fixture, REF.number, {
+      "src/retry.ts": "export function retry() {\n  return 2;\n}\n",
+    });
+    const third = await loadReview(REF, deps);
+    expect(findPrepared(REF, first.headSha)).toBeNull();
+    expect(findPrepared(REF, second.headSha)).not.toBeNull();
+    expect(findPrepared(REF, third.headSha)).not.toBeNull();
+    expect(
+      fs.existsSync(path.join(fixture.cacheRoot, "worktrees", REF.owner, REF.repo, first.headSha)),
+    ).toBe(true);
   });
 });
 

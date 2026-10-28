@@ -9,7 +9,9 @@ review-queue is a local-only Next.js app for reviewing GitHub pull requests in
 an ADHD-friendly way. It turns a PR into a guided reading path of steps, flags
 hotspots, tracks progress and notes across pauses, and submits the review
 through the `gh` CLI. It needs `gh` to be installed and logged in, and Node >=
-22.5 because it uses `node:sqlite`.
+22.22.2 because it uses `node:sqlite` and the installed jsdom, vitest and
+typescript-language-server engines require that floor. `.env.local` at the repo
+root holds local overrides; it is git-ignored and should be `chmod 600`.
 
 ## Commands
 
@@ -19,9 +21,10 @@ through the `gh` CLI. It needs `gh` to be installed and logged in, and Node >=
 - `bunx vitest run src/lib/plan/reading-path.test.ts`: one file; add
   `-t "<name>"` for a single test
 - `bunx vitest run --project node` or `--project dom`: one test environment only
-- `bun run typecheck`, `bun run lint`, `bunx fallow`
-- `.claude/verify`: runs the full gate (tests, tsc, eslint, fallow). It must
-  pass before you finish.
+- `bun run typecheck`, `bun run lint`, `bunx fallow`. Fallow reads
+  `coverage/coverage-final.json`, so run `bun run test` first.
+- `.claude/verify` (also `bun run verify`): runs the full gate (tests, tsc,
+  eslint, fallow, next build). It must pass before you finish.
 
 Vitest has two projects. `*.test.ts` runs in node and `*.test.tsx` runs in jsdom
 (setup: `src/test/dom-setup.ts`). Shared test helpers live in `src/test/`:
@@ -42,23 +45,29 @@ highlights code with shiki (`lib/highlight.ts`). The result is a
 `PreparedReview`, memoized in a `globalThis` map keyed by PR and head SHA.
 
 **Re-review after a push** (`review_baselines` table,
-`lib/review/interdiff.ts`). When `markSeen` sees a new head, it stores the
-previous head as the session's baseline (once, so a second push does not move
-it) and clears `finished_at` so the PR shows as in progress again. The
-`catch-up` session action clears the baseline. `changes?sha=` returns the
-interdiff from the baseline (404 when there is none), `head` returns the current
-head, and `submit` answers 409 when the PR head no longer matches the `headSha`
-being posted.
+`lib/review/interdiff.ts`). The client posts `POST .../seen?sha=` once per load,
+after the review GET and before the workspace mounts. `markReviewSeen`
+(`lib/review/prepare.ts`) reopens finished steps whose files changed, then
+`markSeen` stores the previous head as the session's baseline (once, so a second
+push does not move it) and clears `finished_at` so the PR shows as in progress
+again; the review GET writes no session state. The `catch-up` session action
+clears the baseline. `changes?sha=` returns the interdiff from the baseline (404
+when there is none), `head` returns the current head, and `submit` answers 409
+when the PR head no longer matches the `headSha` being posted.
 
 **PR conversation and receipts** (`lib/github/conversation.ts`, `gh.ts`,
-`components/review/conversation-*`). The `conversation` route reads the first
-100 review comments and reviews through `conditionalGet` (ETag cache in the
-store, TTL cache in `services.ts`), and the "On GitHub" pane shows them with
-threads per line. `submitReview` returns the created review's id and URL, and
-the `submissions` table keeps a receipt of each post. "Start over" never clears
-receipts. Comment and review bodies are author-written: they render through
-`Markdown` only, and they must stay out of `ReviewData` and every model prompt
-(`src/lib/llm/**`, `assist-service.ts`).
+`components/review/conversation-*`). The `conversation` route reads up to five
+pages of review comments (500 in all) and the first 100 reviews through
+`conditionalGet` (ETag cache in the store, TTL cache in `services.ts`), and the
+"On GitHub" pane (`g g`) shows them with threads per line. A `reply` route (POST
+`{ commentId, body }`) posts through `postReplyToReviewComment`, records a
+`reply_receipts` row, and drops the cached conversation with
+`forgetConversation`; reply bodies render through `Markdown` only and stay out
+of `ReviewData` and model prompts, like comment bodies. `submitReview` returns
+the created review's id and URL, and the `submissions` table keeps a receipt of
+each post. "Start over" never clears receipts. Comment and review bodies are
+author-written: they render through `Markdown` only, and they must stay out of
+`ReviewData` and every model prompt (`src/lib/llm/**`, `assist-service.ts`).
 
 **API routes** (`src/app/api/pr/[owner]/[repo]/[number]/*`). The base route
 loads the review. `definitions`, `references` and `orientation` take `?sha=` and
@@ -156,7 +165,10 @@ it), and `src/instrumentation.ts` prints a `http://127.0.0.1:4477/?token=…` li
 at startup. Opening that link sets the cookie (HttpOnly, SameSite=Strict).
 Non-GET requests must also be same-origin and `application/json`, and every
 response forbids framing. New mutating routes depend on this, so keep request
-bodies JSON.
+bodies JSON. Any request the browser marks `Sec-Fetch-Site: same-site` or
+`cross-site` is refused for every method, so another localhost port cannot read
+or write with the cookie; a request without that header is judged by the cookie
+alone (curl).
 
 **Shell-outs** all go through `lib/exec.ts` (`Runner`). It drops the repository
 variables git exports inside hooks (`lib/git-env.ts`), so checkouts never touch
@@ -168,6 +180,7 @@ an enclosing repo. Modules take a `run` parameter so tests can inject fakes, and
 peek, jumps, shortcuts, return detection), and `api.ts` is the only place that
 fetches. Pure logic is kept in non-hook modules (`hunk-index.ts`, `locate.ts`,
 `display-hotspots.ts`, `unfinished.ts`, `shortcut-keys.ts`) and tested in node.
+The chords `g h` (Hotspots pane) and `g g` (GitHub pane) are rows of that table.
 `src/components/inbox/` is the home page's list of review requests.
 
 **UI** (`src/components/ui/`) holds shadcn/ui primitives (Radix base); add more

@@ -8,6 +8,7 @@ import { streamAssist } from "./api";
 import {
   askedThread,
   awaitsQuestion,
+  awaitsReply,
   canFollowUp,
   hasModelReply,
   openThread,
@@ -44,6 +45,7 @@ export function useAssist(
       setStreaming(true);
       setError(null);
       const onUpdate = ({ text, lookups }: ParsedAssistStream) => {
+        if (abort.signal.aborted) return;
         latest = withModelText(latest, text, lookups);
         setThread((current) => (current?.id === latest.id ? latest : current));
       };
@@ -90,12 +92,17 @@ export function useAssist(
     [run, thread, readOnly],
   );
 
+  const retry = useCallback(() => {
+    if (!thread || readOnly || !awaitsReply(thread)) return;
+    run(thread);
+  }, [run, thread, readOnly]);
+
   const close = useCallback(() => {
     stop();
     setThread(null);
   }, [stop]);
 
-  return { thread, streaming, error, readOnly, open, reopen, send, stop, close };
+  return { thread, streaming, error, readOnly, open, reopen, send, retry, stop, close };
 }
 
 export type Assist = ReturnType<typeof useAssist>;

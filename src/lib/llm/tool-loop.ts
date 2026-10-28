@@ -92,9 +92,11 @@ async function runOne(
 async function* runTools(
   toolUses: ToolUseBlock[],
   tools: ToolBox,
+  signal: AbortSignal | undefined,
 ): AsyncGenerator<LoopChunk, ToolResultBlock[]> {
   const results: ToolResultBlock[] = [];
   for (const toolUse of toolUses) {
+    if (signal?.aborted) break;
     const { result, lookup } = await runOne(toolUse, tools);
     if (lookup) yield { kind: "lookup", lookup };
     results.push(result);
@@ -115,7 +117,7 @@ export async function* toolLoop(
 ): AsyncGenerator<LoopChunk> {
   let messages = request.messages;
   let hasShownText = false;
-  while (true) {
+  while (!signal?.aborted) {
     const outcome: RoundOutcome = yield* answerRound(
       client,
       { ...request, messages },
@@ -125,7 +127,7 @@ export async function* toolLoop(
     );
     hasShownText ||= outcome.text !== "";
     if (outcome.toolUses.length === 0) return;
-    const results = yield* runTools(outcome.toolUses, tools);
+    const results = yield* runTools(outcome.toolUses, tools, signal);
     messages = [...messages, assistantTurn(outcome), { role: "user", content: results }];
   }
 }

@@ -1,5 +1,5 @@
 import { plural } from "@/lib/plural";
-import type { DiffLine, FileDiff, Hotspot, Severity, SymbolDefinition } from "@/lib/types";
+import type { DiffLine, FileDiff, Hotspot, RuleId, Severity, SymbolDefinition } from "@/lib/types";
 import { classifyFile } from "@/lib/plan/classify";
 
 export type HotspotContext = {
@@ -11,7 +11,7 @@ export type HotspotContext = {
 
 export type Rule = (file: FileDiff, context: HotspotContext) => Hotspot[];
 
-type Pattern = { rule: string; severity: Severity; pattern: RegExp; title: string; why: string };
+type Pattern = { rule: RuleId; severity: Severity; pattern: RegExp; title: string; why: string };
 
 const DEFINITION =
   /\b(?:function|func|def|fn|class|interface|type|struct)\s+(?:\([^)]*\)\s*)?([A-Za-z_$][\w$]*)/;
@@ -136,7 +136,7 @@ function removedLines(file: FileDiff): DiffLine[] {
 }
 
 function hotspot(
-  rule: string,
+  rule: RuleId,
   severity: Severity,
   file: FileDiff,
   line: number | null,

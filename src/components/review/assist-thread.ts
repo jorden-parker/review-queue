@@ -90,6 +90,10 @@ export function canFollowUp(thread: AssistThread): boolean {
   return thread.turns.at(-1)?.role === "model" && thread.turns.length <= MAX_HISTORY_TURNS;
 }
 
+export function awaitsReply(thread: AssistThread): boolean {
+  return thread.turns.at(-1)?.role === "reviewer";
+}
+
 function asMessage(turn: AssistTurn): HistoryMessage {
   return { role: turn.role === "model" ? "assistant" : "user", content: turn.text };
 }
