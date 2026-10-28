@@ -83,6 +83,8 @@ const RUST: LanguageServer = {
     CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER: "",
     CARGO_BUILD_RUSTC: "rustc",
     RUSTUP_TOOLCHAIN: "stable",
+    CARGO_NET_OFFLINE: "true",
+    RUSTUP_AUTO_INSTALL: "0",
   },
   initializationOptions: RUST_SETTINGS,
   settings: { "rust-analyzer": RUST_SETTINGS },
