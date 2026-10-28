@@ -72,6 +72,16 @@ describe("LanguageClient with typescript-language-server", () => {
     expect(files).not.toContain("readme.md");
   });
 
+  it("answers a repeated references query with the same related files", async () => {
+    const query = () => client.references("src/store.ts", 1, 16, ["test/store.ts"]);
+    const first = await query();
+    const second = await query();
+    const files = (locations: { file: string }[]) =>
+      locations.map((location) => path.relative(root, location.file));
+    expect(files(second)).toEqual(files(first));
+    expect(files(second)).toContain("test/store.ts");
+  });
+
   it("reports library definitions with their real location", async () => {
     const [location] = await client.definition("src/app.ts", 4, 2);
     expect(location.file).not.toContain(root);
