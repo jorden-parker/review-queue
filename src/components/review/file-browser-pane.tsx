@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import type { PullRequestRef } from "@/lib/types";
 import { fetchWorktreeFiles } from "./api";
 import { buildFileTree, type FileTreeNode, filterPaths } from "./file-tree";
+import type { LineTarget } from "./locate";
 
 const MAX_FLAT_RESULTS = 200;
 
@@ -18,7 +19,7 @@ type FileBrowserPaneProps = {
   pullRequest: PullRequestRef;
   headSha: string;
   inPullRequest: (path: string) => boolean;
-  onOpen: (path: string) => void;
+  onOpen: (target: LineTarget) => void;
 };
 
 type ListState = { paths: string[] | null; failed: boolean };
@@ -218,6 +219,7 @@ export function FileBrowserPane({
 }: FileBrowserPaneProps) {
   const { paths, failed } = useWorktreeFiles(pullRequest, headSha);
   const [query, setQuery] = useState("");
+  const openFile = (path: string) => onOpen({ path, line: 1 });
   if (failed) return <Callout tone="error">Could not list the files.</Callout>;
   if (!paths) return <p className="text-sm text-muted-foreground">Loading files…</p>;
   return (
@@ -231,7 +233,7 @@ export function FileBrowserPane({
       {paths.length === 0 ? (
         <EmptyState emoji="📂">This commit has no tracked files.</EmptyState>
       ) : (
-        <FileList paths={paths} query={query} inPullRequest={inPullRequest} onOpen={onOpen} />
+        <FileList paths={paths} query={query} inPullRequest={inPullRequest} onOpen={openFile} />
       )}
     </div>
   );

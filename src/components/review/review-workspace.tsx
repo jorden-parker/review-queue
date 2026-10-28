@@ -406,7 +406,7 @@ function FilesPane({ review, workspace }: PaneProps) {
       pullRequest={workspace.pullRequest}
       headSha={review.headSha}
       inPullRequest={(path) => workspace.files.has(path)}
-      onOpen={(path) => workspace.openLocation({ path, line: 1 })}
+      onOpen={workspace.openLocation}
     />
   );
 }
