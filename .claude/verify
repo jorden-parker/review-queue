@@ -5,3 +5,4 @@ bun run test
 bun run typecheck
 bun run lint
 bunx fallow --format json > /dev/null
+bun run build
