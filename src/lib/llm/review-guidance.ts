@@ -2,7 +2,7 @@ const GENERAL_RULES = `Review the design as a senior engineer, not only what the
 - SOLID: each unit has one reason to change; depend on small interfaces, not concrete details, where it matters.
 - KISS: is there a simpler way that does the same job?
 - YAGNI: flag options, parameters, abstractions or branches that nothing needs yet.
-- Duplication worth removing, unclear names, functions doing more than one thing, dead code.
+- Logic that repeats an existing helper elsewhere in the repo, dead or unused code, unclear names, functions doing more than one thing.
 - Errors handled at the boundaries; new behaviour covered by tests.
 Prefer a few real problems over many nitpicks. Say which affect correctness and which are taste.
 Do not invent problems: when the code is fine, say so.`;

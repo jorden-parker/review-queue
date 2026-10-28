@@ -15,6 +15,12 @@ describe("reviewGuidance", () => {
     expect(guidance).toContain("nitpicks");
   });
 
+  it("asks for logic that repeats an existing helper and for unused code", () => {
+    const guidance = reviewGuidance(["main.go"]);
+    expect(guidance).toContain("repeats an existing helper elsewhere in the repo");
+    expect(guidance).toContain("dead or unused code");
+  });
+
   it("leaves out the TypeScript and React rules when no such file changes", () => {
     const guidance = reviewGuidance(["main.go", "README.md"]);
     expect(guidance).not.toContain(TYPESCRIPT_HEADING);
