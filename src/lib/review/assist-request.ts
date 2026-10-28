@@ -13,6 +13,7 @@ import type { AssistFlag, AssistInput } from "@/lib/llm/assist";
 import type { Message } from "@/lib/llm/client";
 import type { SuggestedHotspot } from "@/lib/llm/orientation";
 import type { CodeLookupIndex } from "./code-tools";
+import type { UsageIndex } from "./usage-context";
 import { type StepExplanation, stepDiffs } from "@/lib/llm/step-explanation";
 import type { SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { DiffLine, Hotspot, Hunk } from "@/lib/types";
@@ -67,7 +68,7 @@ export type AssistRequest = z.infer<typeof AssistRequestSchema>;
 
 export type AssistSource = {
   data: ReviewData;
-  index: Pick<SymbolIndex, "readFile"> & CodeLookupIndex;
+  index: Pick<SymbolIndex, "readFile"> & CodeLookupIndex & UsageIndex;
   explanationOf: (stepId: string) => StepExplanation | null;
   suggestedHotspots: () => SuggestedHotspot[];
 };
@@ -163,9 +164,11 @@ function contentFor(
 const SUGGESTED_RULE = "ai";
 
 function flagsOn(source: AssistSource, path: string, selected: DiffLine[]): AssistFlag[] {
-  const lines = new Set(selected.map((line) => line.newLine));
+  const lines = new Set(
+    selected.map((line) => line.newLine).filter((line): line is number => line !== null),
+  );
   const onSelectedLines = (hotspot: Hotspot | SuggestedHotspot) =>
-    hotspot.path === path && lines.has(hotspot.line ?? null);
+    hotspot.path === path && typeof hotspot.line === "number" && lines.has(hotspot.line);
   const found = source.data.hotspots.filter(onSelectedLines).map((hotspot) => ({
     title: hotspot.title,
     why: hotspot.why,
@@ -200,6 +203,7 @@ export function assistInputFrom(source: AssistSource, request: AssistRequest): A
       action: request.action,
       question: request.question,
       flags,
+      usages: [],
       ...result.content,
     },
   };

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { fenced, type ToolSpec } from "@/lib/llm/client";
 import type { ToolBox, ToolOutcome } from "@/lib/llm/tool-loop";
+import { memoizePromise } from "@/lib/memoize-promise";
 import type { Reference, SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { SymbolDefinition } from "@/lib/types";
 
@@ -77,11 +78,8 @@ const SPECS: ToolSpec[] = [
 ];
 
 function memoized<T>(load: () => Promise<T>): () => Promise<T> {
-  let cached: Promise<T> | null = null;
-  return () => {
-    cached ??= load();
-    return cached;
-  };
+  const cache = new Map<"value", Promise<T>>();
+  return () => memoizePromise(cache, "value", load);
 }
 
 function fencedResult(body: string): string {

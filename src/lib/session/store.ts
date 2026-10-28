@@ -195,6 +195,9 @@ CREATE TABLE IF NOT EXISTS submissions (
   body TEXT NOT NULL,
   posted_at TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS notes_pr_key ON notes (pr_key);
+CREATE INDEX IF NOT EXISTS jumps_pr_key ON jumps (pr_key);
+CREATE INDEX IF NOT EXISTS submissions_pr_key ON submissions (pr_key);
 `;
 
 const PROGRESS_TABLES = [
@@ -299,9 +302,29 @@ function ensureColumn(db: DatabaseSync, table: string, column: string, type: str
   db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
 }
 
+const BUSY_TIMEOUT_MS = 5000;
+const PRIVATE_DIRECTORY_MODE = 0o700;
+const PRIVATE_FILE_MODE = 0o600;
+
+function createPrivateFile(file: string): void {
+  fs.closeSync(fs.openSync(file, "a", PRIVATE_FILE_MODE));
+}
+
+function restrictToOwner(file: string): void {
+  for (const candidate of [file, `${file}-wal`, `${file}-shm`]) {
+    if (fs.existsSync(candidate)) fs.chmodSync(candidate, PRIVATE_FILE_MODE);
+  }
+}
+
 function openDatabase(file: string): DatabaseSync {
-  if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true });
+  const isFile = file !== ":memory:";
+  if (isFile) {
+    fs.mkdirSync(path.dirname(file), { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
+    createPrivateFile(file);
+  }
   const db = new DatabaseSync(file);
+  db.exec(`PRAGMA busy_timeout = ${BUSY_TIMEOUT_MS}; PRAGMA journal_mode = WAL;`);
+  if (isFile) restrictToOwner(file);
   db.exec(SCHEMA);
   migrateNotes(db);
   ensureColumn(db, "sessions", "title", "TEXT");
@@ -391,11 +414,9 @@ export class SessionStore {
     };
   }
 
-  setCurrentStep(key: string, stepId: string, headSha: string): void {
+  setCurrentStep(key: string, stepId: string): void {
     this.touch(key);
-    this.db
-      .prepare("UPDATE sessions SET current_step = ?, head_sha = ? WHERE pr_key = ?")
-      .run(stepId, headSha, key);
+    this.db.prepare("UPDATE sessions SET current_step = ? WHERE pr_key = ?").run(stepId, key);
   }
 
   markSeen(key: string, headSha: string): void {
@@ -537,9 +558,11 @@ export class SessionStore {
 
   startOver(key: string, keepNotes: boolean): void {
     const tables = keepNotes ? PROGRESS_TABLES : [...PROGRESS_TABLES, "notes", "assist_threads"];
-    for (const table of tables) {
-      this.db.prepare(`DELETE FROM ${table} WHERE pr_key = ?`).run(key);
-    }
+    this.transaction(() => {
+      for (const table of tables) {
+        this.db.prepare(`DELETE FROM ${table} WHERE pr_key = ?`).run(key);
+      }
+    });
   }
 
   getCached(key: string): string | null {
@@ -602,6 +625,17 @@ export class SessionStore {
 
   inProgress(): InProgressSession[] {
     return (this.db.prepare(IN_PROGRESS).all() as InProgressRow[]).map(toInProgress);
+  }
+
+  private transaction(work: () => void): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      work();
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   private now(): string {

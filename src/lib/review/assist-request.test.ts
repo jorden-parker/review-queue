@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addedHunk, fileDiff } from "@/test/diff-builders";
+import { addedHunk, fileDiff, removedHunk } from "@/test/diff-builders";
 import { reviewPayload } from "@/test/review-fixture";
 import { checksFor } from "@/lib/hotspots/checks";
 import type { FileDiff, Hotspot, Step } from "@/lib/types";
@@ -32,6 +32,7 @@ const SOURCE: AssistSource = {
       return text;
     },
     listFiles: async () => Object.keys(HEAD_FILES),
+    definitionsIn: () => [],
     definitionsOf: () => [],
     referencesTo: async () => [],
     search: async () => [],
@@ -160,7 +161,9 @@ describe("assistInputFrom", () => {
     const flagged = { ...SOURCE, suggestedHotspots: () => [suggested] };
     const result = assistInputFrom(flagged, { ...withRange([0, 1], [0, 1]), action: "check" });
     if (!result.ok) throw new Error(result.error);
-    expect(result.input.flags).toEqual([{ title: "Odd retry", why: "Loops forever.", checks: [] }]);
+    expect(result.input.flags).toEqual([
+      { title: "Odd retry", why: "Loops forever.", checks: checksFor("ai") },
+    ]);
   });
 
   it("rejects a check on lines that have no flags", () => {
@@ -169,6 +172,29 @@ describe("assistInputFrom", () => {
       ok: false,
       error: "Those lines have no flags",
     });
+  });
+
+  it("does not attach a file-level flag to a deleted line", () => {
+    const deleted = prepared(fileDiff("src/a.ts", [removedHunk(["gone"], 5)]));
+    const fileLevel = { ...FLAG, id: "debug-output:src/a.ts:0", line: null };
+    const flagged = {
+      ...SOURCE,
+      data: { ...SOURCE.data, files: [deleted], hotspots: [fileLevel] },
+    };
+    expect(assistInputFrom(flagged, { ...withRange([0, 0], [0, 0]), action: "check" })).toEqual({
+      ok: false,
+      error: "Those lines have no flags",
+    });
+  });
+
+  it("keeps a line flag when a deleted line is selected with it", () => {
+    const mixed = prepared(
+      fileDiff("src/a.ts", [addedHunk(["keep"], 2), removedHunk(["gone"], 5)]),
+    );
+    const flagged = { ...SOURCE, data: { ...SOURCE.data, files: [mixed], hotspots: [FLAG] } };
+    const result = assistInputFrom(flagged, { ...withRange([0, 0], [1, 0]), action: "check" });
+    if (!result.ok) throw new Error(result.error);
+    expect(result.input.flags.map((flag) => flag.title)).toEqual([FLAG.title]);
   });
 
   it("sends no flags with other actions", () => {

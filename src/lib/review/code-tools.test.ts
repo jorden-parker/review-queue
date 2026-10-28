@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 import { ensureCheckout } from "@/lib/git/checkout";
 import { SymbolIndex } from "@/lib/symbols/symbol-index";
@@ -128,6 +128,21 @@ describe("codeTools", () => {
       const outcome = await run("read_file", { path: "src/wide.ts", start_line: 1, end_line: 150 });
       expect(outcome.content.length).toBeLessThanOrEqual(6_000);
       expect(outcome.content.endsWith("\n… (truncated)\n</pr_tool_result>")).toBe(true);
+    });
+  });
+
+  describe("tracked file listing", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("retries the listing after it fails", async () => {
+      vi.spyOn(index, "listFiles").mockRejectedValueOnce(new Error("ls-files failed"));
+      const tools = codeTools(index, "src/app.ts");
+      const readUtil = () =>
+        tools.run("read_file", { path: "src/util.ts", start_line: 1, end_line: 1 });
+      await expect(readUtil()).rejects.toThrow("ls-files failed");
+      await expect(readUtil()).resolves.toMatchObject({
+        content: expect.stringContaining("1: export function helper"),
+      });
     });
   });
 
