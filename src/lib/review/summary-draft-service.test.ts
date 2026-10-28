@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Note } from "@/lib/types";
 import { summaryDraftFor } from "./summary-draft-service";
+import { modelReply } from "@/test/fake-llm";
 
 const NOTES: Note[] = [
   {
@@ -22,22 +23,6 @@ const CONFIG = {
 };
 const OFF = { ...CONFIG, enabled: false };
 
-function reply(text: string): Response {
-  return new Response(
-    JSON.stringify({
-      id: "msg_1",
-      type: "message",
-      role: "assistant",
-      model: "m",
-      content: [{ type: "text", text }],
-      stop_reason: "end_turn",
-      stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1 },
-    }),
-    { status: 200, headers: { "content-type": "application/json" } },
-  );
-}
-
 describe("summaryDraftFor", () => {
   it("reports disabled without calling the model", async () => {
     const neverCalled = (async () => {
@@ -50,7 +35,7 @@ describe("summaryDraftFor", () => {
 
   it("returns the drafted summary as ready", async () => {
     const fetchImpl = (async () =>
-      reply(`{"summary": "Mostly fine; one rename."}`)) as typeof fetch;
+      modelReply(`{"summary": "Mostly fine; one rename."}`)) as typeof fetch;
     expect(await summaryDraftFor("Add cache", "COMMENT", NOTES, CONFIG, fetchImpl)).toEqual({
       status: "ready",
       summary: "Mostly fine; one rename.",

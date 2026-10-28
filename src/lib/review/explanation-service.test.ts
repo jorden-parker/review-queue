@@ -3,6 +3,7 @@ import type { PullRequest } from "@/lib/github/gh";
 import { SessionStore } from "@/lib/session/store";
 import { explanationFor, storedExplanation } from "./explanation-service";
 import type { ReviewData } from "./prepare";
+import { modelReply } from "@/test/fake-llm";
 
 const STEP = {
   id: "core:src/a.ts:0",
@@ -35,7 +36,7 @@ function countingFetch() {
   let calls = 0;
   const fetchImpl = (async () => {
     calls++;
-    return Response.json({ content: [{ type: "text", text: JSON.stringify(REPLY) }] });
+    return modelReply(JSON.stringify(REPLY));
   }) as unknown as typeof fetch;
   return { fetchImpl, calls: () => calls };
 }
