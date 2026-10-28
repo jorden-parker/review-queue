@@ -17,7 +17,13 @@ import { spawnProcess } from "@/lib/exec";
 import { languageIdOf, type LanguageServer } from "./servers";
 import { OpenDocuments } from "./open-documents";
 
-export type ServerLocation = { file: string; line: number; character: number; endLine: number };
+export type ServerLocation = {
+  file: string;
+  line: number;
+  character: number;
+  endLine: number;
+  declarationLine: number;
+};
 
 export type ReadSource = (file: string) => string;
 
@@ -44,12 +50,14 @@ function isLink(location: Location | LocationLink): location is LocationLink {
 function toServerLocation(location: Location | LocationLink): ServerLocation {
   const uri = isLink(location) ? location.targetUri : location.uri;
   const start = isLink(location) ? location.targetSelectionRange.start : location.range.start;
+  const declarationStart = isLink(location) ? location.targetRange.start : location.range.start;
   const end = isLink(location) ? location.targetRange.end : location.range.end;
   return {
     file: fileURLToPath(uri),
     line: start.line + 1,
     character: start.character,
     endLine: Math.max(end.line + 1, start.line + 1),
+    declarationLine: declarationStart.line + 1,
   };
 }
 

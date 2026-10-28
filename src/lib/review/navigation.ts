@@ -14,11 +14,14 @@ import {
   type PeekIndex,
   type ReferenceWithCode,
 } from "./peek-code";
+import { importSourceOf, isImportStatement, rankByImportSource } from "./import-binding";
 
 export type Navigation = {
-  index: PeekIndex & Pick<SymbolIndex, "filesMentioning">;
+  index: PeekIndex & Pick<SymbolIndex, "filesMentioning" | "linkedPackageDirectory">;
   clientFor: ClientFor;
 };
+
+type ServerAnswer = { definitions: DefinitionWithCode[]; unresolvedImport: string | null };
 
 async function clientAt({ clientFor }: Navigation, position: SymbolPosition) {
   return position.side === "new" ? clientFor(position.path) : null;
@@ -66,28 +69,64 @@ async function locatedDefinition(
   return hover ? { ...found, signature: hoverSummary(hover).signature } : found;
 }
 
+function importStatementAt(index: Navigation["index"], location: ServerLocation): string | null {
+  const file = index.relativePath(location.file);
+  if (file === null) return null;
+  const statement = index.readLines(file, location.declarationLine, location.endLine).join("\n");
+  return isImportStatement(statement) ? statement : null;
+}
+
+function unresolvedImportIn(
+  index: Navigation["index"],
+  locations: ServerLocation[],
+): string | null {
+  if (locations.length === 0) return null;
+  const statements = locations.map((location) => importStatementAt(index, location));
+  return statements.every((statement) => statement !== null) ? statements[0] : null;
+}
+
 async function serverDefinitions(
   navigation: Navigation,
   position: SymbolPosition,
-): Promise<DefinitionWithCode[]> {
+): Promise<ServerAnswer> {
   const client = await clientAt(navigation, position);
-  if (!client) return [];
+  if (!client) return { definitions: [], unresolvedImport: null };
   const { path: file, line, character } = position;
   const [locations, hover] = await Promise.all([
     client.definition(file, line, character),
     client.hover(file, line, character).catch(() => null),
   ]);
-  return Promise.all(
+  const definitions = await Promise.all(
     locations.map((location) => locatedDefinition(navigation, position, location, hover)),
   );
+  return { definitions, unresolvedImport: unresolvedImportIn(navigation.index, locations) };
+}
+
+async function indexedDefinitions(
+  navigation: Navigation,
+  position: SymbolPosition,
+  importStatement: string,
+): Promise<DefinitionWithCode[]> {
+  const found = await definitionsWithCode(navigation.index, position.name, position.path);
+  const source = importSourceOf(position.path, importStatement, (name) =>
+    navigation.index.linkedPackageDirectory(name),
+  );
+  return rankByImportSource(found, source);
 }
 
 export async function definitionsAt(
   navigation: Navigation,
   position: SymbolPosition,
 ): Promise<DefinitionWithCode[]> {
-  const found = await serverDefinitions(navigation, position).catch(() => []);
-  if (found.length > 0) return found;
+  const answer = await serverDefinitions(navigation, position).catch((): ServerAnswer => ({
+    definitions: [],
+    unresolvedImport: null,
+  }));
+  if (answer.unresolvedImport !== null) {
+    const indexed = await indexedDefinitions(navigation, position, answer.unresolvedImport);
+    if (indexed.length > 0) return indexed;
+  }
+  if (answer.definitions.length > 0) return answer.definitions;
   return definitionsWithCode(navigation.index, position.name, position.path);
 }
 
@@ -113,10 +152,22 @@ async function serverReferences(
   return highlightReferences(inside);
 }
 
+async function unresolvedImportAt(
+  navigation: Navigation,
+  position: SymbolPosition,
+): Promise<string | null> {
+  const client = await clientAt(navigation, position);
+  if (!client) return null;
+  const locations = await client.definition(position.path, position.line, position.character);
+  return unresolvedImportIn(navigation.index, locations);
+}
+
 export async function referencesAt(
   navigation: Navigation,
   position: SymbolPosition,
 ): Promise<ReferenceWithCode[]> {
+  const unresolvedImport = await unresolvedImportAt(navigation, position).catch(() => null);
+  if (unresolvedImport !== null) return referencesWithCode(navigation.index, position.name);
   const found = await serverReferences(navigation, position).catch(() => null);
   if (found && found.length > 0) return found;
   return referencesWithCode(navigation.index, position.name);
