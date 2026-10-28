@@ -8,6 +8,7 @@ import {
   type Message,
   type ModelRequest,
 } from "./client";
+import { reviewGuidance } from "./review-guidance";
 import { type LoopChunk, type ToolBox, toolLoop } from "./tool-loop";
 
 export type AssistFlag = { title: string; why: string; checks: string[] };
@@ -61,6 +62,8 @@ If the code could be written more simply, show the simpler version in a fenced c
 If it is already simple, say so.`,
   comment: `Draft a pull request review comment about the selection, based on the reviewer's concern.
 ${COMMENT_LABEL_RULE}
+When the concern rests on a design principle (SOLID, KISS, YAGNI) or a language practice, name the principle in a few words.
+Mark it (blocking) only for a real correctness, security or data-loss problem; use suggestion or nitpick for taste.
 Reply with only the comment text: kind, specific and actionable, at most four sentences, with a code suggestion only if it helps.`,
   ask: "Answer the reviewer's question about the selection. Say so when the diff does not show enough to be sure.",
   check: `The review tool flagged the selection for the reasons in <pr_flags>.
@@ -82,11 +85,16 @@ const SCOPE_RULES: Record<AssistInput["scope"], string[]> = {
   check: [CHECK_SCOPE],
 };
 
+function designRules(input: AssistInput): string[] {
+  return input.action === "simplify" ? [] : [reviewGuidance([input.path])];
+}
+
 function systemPrompt(input: AssistInput): string {
   return [
     ROLE,
     TASKS[input.action],
     ...SCOPE_RULES[input.scope],
+    ...designRules(input),
     CODE_NAME_RULE,
     CITE_RULE,
     LOOKUP_RULE,

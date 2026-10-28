@@ -8,7 +8,7 @@ import { PaneRow } from "@/components/common/pane-row";
 import { PathLabel } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { MarkdownField } from "@/components/common/markdown-field";
 import type { Note, NoteTag } from "@/lib/types";
 import { NoteKindBadge } from "./note-kind-badge";
 import { NoteTagPicker } from "./note-composer";
@@ -172,7 +172,7 @@ function NoteEditor({
     if (body.trim()) onSave(tag, body.trim());
   }
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+  function handleKeyDown(event: React.KeyboardEvent) {
     if (event.key === "Escape") onCancel();
     else if (isSaveShortcut(event)) save();
   }
@@ -180,7 +180,7 @@ function NoteEditor({
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
       {note.kind !== "parked" && <NoteTagPicker tag={tag} onChange={setTag} />}
-      <Textarea
+      <MarkdownField
         value={body}
         onChange={(event) => setBody(event.target.value)}
         onKeyDown={handleKeyDown}

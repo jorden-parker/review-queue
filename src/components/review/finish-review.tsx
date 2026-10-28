@@ -13,7 +13,7 @@ import { isPostable, postedBody } from "@/lib/review/submission";
 import { plural } from "@/lib/plural";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
+import { MarkdownField } from "@/components/common/markdown-field";
 import type { ReviewEvent } from "@/lib/github/gh";
 import type { Note } from "@/lib/types";
 import { NoteKindBadge } from "./note-kind-badge";
@@ -189,7 +189,7 @@ export function FinishReview({
           onDrafted={setSummary}
         />
       )}
-      <Textarea
+      <MarkdownField
         value={summary}
         onChange={(changeEvent) => setSummary(changeEvent.target.value)}
         rows={3}
