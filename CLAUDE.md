@@ -158,7 +158,10 @@ it), and `src/instrumentation.ts` prints a `http://127.0.0.1:4477/?token=…` li
 at startup. Opening that link sets the cookie (HttpOnly, SameSite=Strict).
 Non-GET requests must also be same-origin and `application/json`, and every
 response forbids framing. New mutating routes depend on this, so keep request
-bodies JSON.
+bodies JSON. Any request the browser marks `Sec-Fetch-Site: same-site` or
+`cross-site` is refused for every method, so another localhost port cannot read
+or write with the cookie; a request without that header is judged by the cookie
+alone (curl).
 
 **Shell-outs** all go through `lib/exec.ts` (`Runner`). It drops the repository
 variables git exports inside hooks (`lib/git-env.ts`), so checkouts never touch
