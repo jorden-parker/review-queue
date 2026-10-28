@@ -22,4 +22,9 @@ describe("POST session", () => {
     expect((await POST(request({ type: "resume" }), context("x"))).status).toBe(400);
     expect((await POST(request({ type: "nope" }), context())).status).toBe(400);
   });
+
+  it("archives a session", async () => {
+    const response = await POST(request({ type: "archive" }), context("9"));
+    expect(response.status).toBe(200);
+  });
 });
