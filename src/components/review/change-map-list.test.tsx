@@ -144,6 +144,14 @@ describe("ChangeMapList", () => {
     expect(screen.getByText("Entry point for saving settings.")).toBeTruthy();
   });
 
+  it("renders the Markdown in a model's part", () => {
+    const parts = new Map([
+      ["routes.ts#handler", { part: "Adds `retry` to the client", weight: "essential" }],
+    ]);
+    render(<ChangeMapList sections={[THREAD]} onOpen={vi.fn()} parts={parts} />);
+    expect(screen.getByText("retry").tagName).toBe("CODE");
+  });
+
   it("draws the line through a connected thread", () => {
     const { container } = render(<ChangeMapList sections={[THREAD]} onOpen={vi.fn()} />);
     expect(container.querySelectorAll('[data-map-line="trunk"]').length).toBeGreaterThan(0);
