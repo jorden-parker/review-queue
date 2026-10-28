@@ -42,19 +42,21 @@ highlights code with shiki (`lib/highlight.ts`). The result is a
 `PreparedReview`, memoized in a `globalThis` map keyed by PR and head SHA.
 
 **Re-review after a push** (`review_baselines` table,
-`lib/review/interdiff.ts`). When `markSeen` sees a new head, it stores the
-previous head as the session's baseline (once, so a second push does not move
-it) and clears `finished_at` so the PR shows as in progress again. The
-`catch-up` session action clears the baseline. `changes?sha=` returns the
-interdiff from the baseline (404 when there is none), `head` returns the current
-head, and `submit` answers 409 when the PR head no longer matches the `headSha`
-being posted.
+`lib/review/interdiff.ts`). The client posts `POST .../seen?sha=` once per load,
+after the review GET and before the workspace mounts. `markReviewSeen`
+(`lib/review/prepare.ts`) reopens finished steps whose files changed, then
+`markSeen` stores the previous head as the session's baseline (once, so a second
+push does not move it) and clears `finished_at` so the PR shows as in progress
+again; the review GET writes no session state. The `catch-up` session action
+clears the baseline. `changes?sha=` returns the interdiff from the baseline (404
+when there is none), `head` returns the current head, and `submit` answers 409
+when the PR head no longer matches the `headSha` being posted.
 
 **PR conversation and receipts** (`lib/github/conversation.ts`, `gh.ts`,
 `components/review/conversation-*`). The `conversation` route reads up to five
 pages of review comments (500 in all) and the first 100 reviews through
 `conditionalGet` (ETag cache in the store, TTL cache in `services.ts`), and the
-"On GitHub" pane shows them with threads per line. A `reply` route (POST
+"On GitHub" pane (`g g`) shows them with threads per line. A `reply` route (POST
 `{ commentId, body }`) posts through `postReplyToReviewComment`, records a
 `reply_receipts` row, and drops the cached conversation with
 `forgetConversation`; reply bodies render through `Markdown` only and stay out
@@ -162,7 +164,10 @@ it), and `src/instrumentation.ts` prints a `http://127.0.0.1:4477/?token=…` li
 at startup. Opening that link sets the cookie (HttpOnly, SameSite=Strict).
 Non-GET requests must also be same-origin and `application/json`, and every
 response forbids framing. New mutating routes depend on this, so keep request
-bodies JSON.
+bodies JSON. Any request the browser marks `Sec-Fetch-Site: same-site` or
+`cross-site` is refused for every method, so another localhost port cannot read
+or write with the cookie; a request without that header is judged by the cookie
+alone (curl).
 
 **Shell-outs** all go through `lib/exec.ts` (`Runner`). It drops the repository
 variables git exports inside hooks (`lib/git-env.ts`), so checkouts never touch
@@ -174,6 +179,7 @@ an enclosing repo. Modules take a `run` parameter so tests can inject fakes, and
 peek, jumps, shortcuts, return detection), and `api.ts` is the only place that
 fetches. Pure logic is kept in non-hook modules (`hunk-index.ts`, `locate.ts`,
 `display-hotspots.ts`, `unfinished.ts`, `shortcut-keys.ts`) and tested in node.
+The chords `g h` (Hotspots pane) and `g g` (GitHub pane) are rows of that table.
 `src/components/inbox/` is the home page's list of review requests.
 
 **UI** (`src/components/ui/`) holds shadcn/ui primitives (Radix base); add more

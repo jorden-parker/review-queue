@@ -60,6 +60,32 @@ describe("proxy", () => {
     expect(cookie).toMatchObject({ value: TOKEN, httpOnly: true, sameSite: "strict", path: "/" });
   });
 
+  it("refuses reads that another site or a sibling localhost port started", () => {
+    for (const fetchSite of ["same-site", "cross-site"]) {
+      for (const method of ["GET", "HEAD"]) {
+        expect(
+          proxy(requestFor({ ...SIGNED_IN, "sec-fetch-site": fetchSite }, method)).status,
+        ).toBe(403);
+      }
+    }
+  });
+
+  it("allows reads the app or a typed or printed link makes", () => {
+    for (const fetchSite of ["same-origin", "none"]) {
+      expect(proxy(requestFor({ ...SIGNED_IN, "sec-fetch-site": fetchSite }, "GET")).status).toBe(
+        200,
+      );
+    }
+  });
+
+  it("allows reads that send no Sec-Fetch-Site header, as curl does", () => {
+    expect(proxy(requestFor(SIGNED_IN, "GET")).status).toBe(200);
+  });
+
+  it("refuses a post whose Sec-Fetch-Site is not same-origin, even with matching origin headers", () => {
+    expect(proxy(requestFor({ ...JSON_HEADERS, "sec-fetch-site": "same-site" })).status).toBe(403);
+  });
+
   it("forbids framing on every response", () => {
     for (const response of [proxy(requestFor(SIGNED_IN, "GET")), proxy(requestFor({}, "GET"))]) {
       expect(response.headers.get("x-frame-options")).toBe("DENY");

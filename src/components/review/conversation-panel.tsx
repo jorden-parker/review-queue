@@ -7,7 +7,8 @@ import { Markdown } from "@/components/common/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Conversation } from "@/lib/github/conversation";
-import type { PostedReview, ReviewComment, ReviewEvent } from "@/lib/github/gh";
+import type { PostedReview, ReviewComment } from "@/lib/github/gh";
+import { VERDICT_LABELS } from "@/lib/review/verdict-labels";
 import type { Session } from "@/lib/session/store";
 import type { Thread } from "./conversation-threads";
 import type { LineTarget } from "./locate";
@@ -19,12 +20,6 @@ const REVIEW_STATE_LABELS: Record<PostedReview["state"], string> = {
   COMMENTED: "Commented",
   DISMISSED: "Dismissed",
   PENDING: "Pending",
-};
-
-const VERDICT_LABELS: Record<ReviewEvent, string> = {
-  APPROVE: "Approved",
-  REQUEST_CHANGES: "Changes requested",
-  COMMENT: "Commented",
 };
 
 type Receipt = Session["submissions"][number];

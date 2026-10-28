@@ -5,6 +5,7 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 const TOKEN_COOKIE = "review-queue-token";
 const TOKEN_PARAM = "token";
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+const ALLOWED_FETCH_SITES = new Set(["same-origin", "none"]);
 
 function hostName(host: string | null): string | null {
   if (!host) return null;
@@ -26,6 +27,20 @@ function isSameOriginJson(request: NextRequest): boolean {
   const sameOrigin = isLoopback(host) && originHost(request.headers.get("origin")) === host;
   const json = request.headers.get("content-type")?.startsWith("application/json") ?? false;
   return sameOrigin && json;
+}
+
+function isCrossSiteFetch(request: NextRequest): boolean {
+  const fetchSite = request.headers.get("sec-fetch-site");
+  return fetchSite !== null && !ALLOWED_FETCH_SITES.has(fetchSite);
+}
+
+function isReadMethod(method: string): boolean {
+  return method === "GET" || method === "HEAD";
+}
+
+function isAllowedRequest(request: NextRequest): boolean {
+  if (isCrossSiteFetch(request)) return false;
+  return isReadMethod(request.method) || isSameOriginJson(request);
 }
 
 function signInFromLink(request: NextRequest, token: string): NextResponse | null {
@@ -54,7 +69,7 @@ function guard(request: NextRequest, token: string): NextResponse {
       status: 401,
     });
   }
-  if (request.method !== "GET" && request.method !== "HEAD" && !isSameOriginJson(request)) {
+  if (!isAllowedRequest(request)) {
     return new NextResponse("Cross-site request refused", { status: 403 });
   }
   return NextResponse.next();
