@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Note } from "@/lib/types";
 import { CODE_NAME_RULE, UNTRUSTED_DATA_RULE } from "./client";
 import { buildSummaryPrompt, draftSummary, type SummaryDraftInput } from "./summary-draft";
+import { modelReply } from "@/test/fake-llm";
 
 const NOTES: Note[] = [
   {
@@ -38,27 +39,11 @@ const CONFIG = {
   timeoutMs: 1000,
 };
 
-function reply(text: string): Response {
-  return new Response(
-    JSON.stringify({
-      id: "msg_1",
-      type: "message",
-      role: "assistant",
-      model: "m",
-      content: [{ type: "text", text }],
-      stop_reason: "end_turn",
-      stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1 },
-    }),
-    { status: 200, headers: { "content-type": "application/json" } },
-  );
-}
-
 function scriptedFetch(texts: string[]) {
   const bodies: unknown[] = [];
   const fetchImpl = async (_url: unknown, init?: RequestInit) => {
     bodies.push(JSON.parse(String(init?.body)));
-    return reply(texts[bodies.length - 1]);
+    return modelReply(texts[bodies.length - 1]);
   };
   return { fetchImpl: fetchImpl as typeof fetch, bodies };
 }
