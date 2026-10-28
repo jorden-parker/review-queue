@@ -23,6 +23,7 @@ function fakeAssist(thread: AssistThread, overrides: Partial<Assist> = {}): Assi
     open: vi.fn(),
     reopen: vi.fn(),
     send: vi.fn(),
+    retry: vi.fn(),
     stop: vi.fn(),
     close: vi.fn(),
     ...overrides,
@@ -232,5 +233,45 @@ describe("AssistPanel comment draft", () => {
     );
     const textarea = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Comment draft" });
     expect(textarea.value).toBe("use `map`");
+  });
+});
+
+describe("AssistPanel retry", () => {
+  it("offers Retry instead of the long-thread message after a failed reply", () => {
+    const thread: AssistThread = { ...BASE_THREAD, turns: [QUESTION] };
+    const assist = fakeAssist(thread, { error: "LLM request failed (HTTP 503)" });
+    render(panel({ thread, assist }));
+
+    expect(screen.getByText(/Local model unavailable/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(assist.retry).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/long thread/)).toBeNull();
+  });
+
+  it("offers Retry after a stop that came before any reply", () => {
+    const { thread, assist } = chat([QUESTION]);
+    render(panel({ thread, assist }));
+
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+  });
+
+  it("offers no Retry on a thread asked on an older commit", () => {
+    const thread: AssistThread = { ...BASE_THREAD, turns: [QUESTION] };
+    render(panel({ thread, assist: fakeAssist(thread, { readOnly: true }) }));
+
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.getByText(/Asked on an older commit/)).toBeTruthy();
+  });
+
+  it("keeps the long-thread message once the thread is too long to continue", () => {
+    const turns: AssistTurn[] = Array.from({ length: 12 }, (_, index) => ({
+      role: index % 2 === 0 ? "reviewer" : "model",
+      text: `turn ${index}`,
+    }));
+    const { thread, assist } = chat(turns);
+    render(panel({ thread, assist }));
+
+    expect(screen.getByText(/long thread/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   });
 });

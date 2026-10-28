@@ -1,12 +1,12 @@
-import { jsonError, routeRef, type PrRouteContext } from "@/lib/review/route-context";
+import { logServerError } from "@/lib/log";
+import { GITHUB_FAILURE_MESSAGE, jsonError, withPullRequest } from "@/lib/review/route-context";
 import { conversation } from "@/lib/review/services";
 
-export async function GET(_request: Request, context: PrRouteContext) {
-  const ref = await routeRef(context);
-  if (!ref) return jsonError("Bad pull request reference", 400);
+export const GET = withPullRequest(async (_request, ref) => {
   try {
     return Response.json(await conversation(ref));
   } catch (error) {
-    return jsonError(error instanceof Error ? error.message : String(error), 502);
+    logServerError("load conversation", error);
+    return jsonError(GITHUB_FAILURE_MESSAGE, 502);
   }
-}
+});

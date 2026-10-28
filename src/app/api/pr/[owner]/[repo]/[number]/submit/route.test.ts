@@ -46,6 +46,15 @@ describe("POST submit", () => {
     expect((await POST(request({ event: "NOPE" }), context())).status).toBe(400);
   });
 
+  it("answers 400 for a body that is not JSON", async () => {
+    const response = await POST(
+      new Request("http://test/api", { method: "POST", body: "{nope" }),
+      context(),
+    );
+    expect(response.status).toBe(400);
+    expect(github.sent).toEqual([]);
+  });
+
   it("posts the chosen notes and removes them afterwards", async () => {
     const note = sessionStore().addNote(KEY, {
       path: "a.ts",
@@ -60,6 +69,31 @@ describe("POST submit", () => {
       { path: "a.ts", line: 2, body: "**nitpick:** rename" },
     ]);
     expect(sessionStore().getSession(KEY).notes).toEqual([]);
+  });
+
+  it("posts only the postable notes and keeps a parked note that was chosen with them", async () => {
+    const posted = sessionStore().addNote(KEY, {
+      path: "a.ts",
+      line: 2,
+      kind: "nitpick",
+      decorations: [],
+      body: "rename",
+    });
+    const parked = sessionStore().addNote(KEY, {
+      path: "b.ts",
+      line: 5,
+      kind: "parked",
+      decorations: [],
+      body: "private thought",
+    });
+    const response = await POST(request({ ...VALID, noteIds: [posted.id, parked.id] }), context());
+    expect(response.status).toBe(200);
+    expect(github.sent[0].comments).toEqual([
+      { path: "a.ts", line: 2, body: "**nitpick:** rename" },
+    ]);
+    const remaining = sessionStore().getSession(KEY).notes;
+    expect(remaining.map((note) => note.id)).toEqual([parked.id]);
+    sessionStore().deleteNote(KEY, parked.id);
   });
 
   it("records a receipt with the review link", async () => {
@@ -91,7 +125,7 @@ describe("POST submit", () => {
     expect(github.sent).toHaveLength(1);
   });
 
-  it("keeps notes and reports the error when GitHub fails", async () => {
+  it("keeps notes and answers a fixed message when GitHub fails", async () => {
     sessionStore().addNote(KEY, {
       path: null,
       line: null,
@@ -100,9 +134,12 @@ describe("POST submit", () => {
       body: "why?",
     });
     github.failure = "gh: 422";
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const response = await POST(request(VALID), context());
     expect(response.status).toBe(502);
-    expect(await response.json()).toEqual({ error: "gh: 422" });
+    expect(await response.json()).toEqual({ error: "GitHub request failed" });
+    expect(logged).toHaveBeenCalledOnce();
+    logged.mockRestore();
     expect(sessionStore().getSession(KEY).notes).toHaveLength(1);
   });
 });
