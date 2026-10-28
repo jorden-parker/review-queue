@@ -340,6 +340,13 @@ export function useWorkspace(
   const selection = useLineSelection();
   const jumps = useJumps(session, controls.act, openLocation, peek);
   const edits = useSessionEdits(ref, review.headSha, session, controls.act, controls.setSession);
+  const replyToThread = async (commentId: number, body: string) => {
+    try {
+      return await edits.postReply(commentId, body);
+    } finally {
+      await ui.refreshConversation();
+    }
+  };
   const hotspots = useMemo(
     () => displayHotspots(review.hotspots, orientation),
     [review.hotspots, orientation],
@@ -397,6 +404,7 @@ export function useWorkspace(
     ...openFileState,
     openLocation,
     ...edits,
+    replyToThread,
     ...pins,
     setSymbolPinned: context.setPinned,
     peek,
