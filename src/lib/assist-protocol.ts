@@ -6,6 +6,8 @@ export type AssistAction = (typeof ASSIST_ACTIONS)[number];
 
 export const ASSIST_ERROR_MARKER = "\u0000";
 
+export const ASSIST_LOOKUP_MARKER = "\u0001";
+
 export type AssistLookup = { tool: string; label: string; paths: string[] };
 
 export const MAX_HISTORY_TURNS = 10;

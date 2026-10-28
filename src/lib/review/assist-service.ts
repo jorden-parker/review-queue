@@ -1,17 +1,26 @@
-import { ASSIST_ERROR_MARKER } from "@/lib/assist-protocol";
+import { ASSIST_ERROR_MARKER, ASSIST_LOOKUP_MARKER } from "@/lib/assist-protocol";
 import { assistStream } from "@/lib/llm/assist";
 import type { LlmConfig } from "@/lib/llm/client";
+import type { LoopChunk } from "@/lib/llm/tool-loop";
+import { codeTools } from "./code-tools";
 import { AssistRequestSchema, type AssistSource, assistInputFrom } from "./assist-request";
 import { jsonError } from "./route-context";
 
-function textStream(chunks: AsyncGenerator<string>): ReadableStream<Uint8Array> {
+function encodedChunk(chunk: LoopChunk): string {
+  if (chunk.kind === "lookup") {
+    return `${ASSIST_LOOKUP_MARKER}${JSON.stringify(chunk.lookup)}${ASSIST_LOOKUP_MARKER}`;
+  }
+  return chunk.text.replaceAll(ASSIST_ERROR_MARKER, "").replaceAll(ASSIST_LOOKUP_MARKER, "");
+}
+
+function textStream(chunks: AsyncGenerator<LoopChunk>): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   return new ReadableStream({
     async pull(controller) {
       try {
         const next = await chunks.next();
         if (next.done) controller.close();
-        else controller.enqueue(encoder.encode(next.value.replaceAll(ASSIST_ERROR_MARKER, "")));
+        else controller.enqueue(encoder.encode(encodedChunk(next.value)));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         controller.enqueue(encoder.encode(`${ASSIST_ERROR_MARKER}${message}`));
@@ -36,7 +45,8 @@ export function assistResponse(
   if (!request.success) return jsonError(request.error.message, 400);
   const input = assistInputFrom(source, request.data);
   if (!input.ok) return jsonError(input.error, 400);
-  const chunks = assistStream(input.input, request.data.history, config, fetchImpl, signal);
+  const tools = codeTools(source.index, input.input.path);
+  const chunks = assistStream(input.input, request.data.history, config, fetchImpl, signal, tools);
   return new Response(textStream(chunks), {
     headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
   });
