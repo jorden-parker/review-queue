@@ -54,7 +54,9 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
                 className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
               >
                 <span className="flex items-start gap-2 text-sm font-medium wrap-anywhere">
-                  <InlineMarkdown text={hotspot.title} />
+                  <span className="min-w-0">
+                    <InlineMarkdown text={hotspot.title} />
+                  </span>
                   {hotspot.suggested && (
                     <span className="flex h-5 shrink-0 items-center">
                       <Sparkles className="size-3.5 text-primary" />

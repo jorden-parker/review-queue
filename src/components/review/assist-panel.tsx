@@ -40,9 +40,11 @@ function LookupList({ lookups = [] }: { lookups?: AssistLookup[] }) {
   return (
     <ul aria-label="Lookups" className="flex flex-col gap-0.5 text-xs text-muted-foreground">
       {lookups.map((lookup, index) => (
-        <li key={index} className="flex items-center gap-1.5">
-          <Search className="size-3 shrink-0" aria-hidden />
-          <InlineMarkdown text={lookup.label} />
+        <li key={index} className="flex items-start gap-1.5">
+          <Search className="mt-0.5 size-3 shrink-0" aria-hidden />
+          <span className="min-w-0">
+            <InlineMarkdown text={lookup.label} />
+          </span>
         </li>
       ))}
     </ul>
