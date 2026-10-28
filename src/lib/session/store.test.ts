@@ -526,4 +526,63 @@ describe("SessionStore", () => {
     store.setCurrentStep(KEY, "s2");
     expect(store.getSession(KEY)).toMatchObject({ currentStepId: "s2", lastHeadSha: "sha1" });
   });
+
+  it("archives a session out of the in-progress list and restores it", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.setStepDone(KEY, "s1", true);
+    store.archive(KEY);
+    expect(store.inProgress()).toEqual([]);
+    expect(store.archived()).toEqual([
+      expect.objectContaining({ key: KEY, title: "Add retry", doneCount: 1 }),
+    ]);
+    store.unarchive(KEY);
+    expect(store.inProgress()).toEqual([expect.objectContaining({ key: KEY })]);
+    expect(store.archived()).toEqual([]);
+  });
+
+  it("keeps an archived session's steps, notes and updated time", () => {
+    store.setStepDone(KEY, "s1", true);
+    store.addNote(KEY, { path: null, line: null, kind: "nitpick", decorations: [], body: "x" });
+    now = Date.parse("2026-10-26T11:00:00Z");
+    store.archive(KEY);
+    expect(store.archived()[0].updatedAt).toBe("2026-10-26T10:00:00.000Z");
+    expect(store.getSession(KEY).doneSteps).toEqual(["s1"]);
+    expect(store.getSession(KEY).notes).toHaveLength(1);
+  });
+
+  it("brings an archived session back when its head moves, but not on the same head", () => {
+    store.markSeen(KEY, "sha1");
+    store.setStepDone(KEY, "s1", true);
+    store.archive(KEY);
+    store.markSeen(KEY, "sha1");
+    expect(store.inProgress()).toEqual([]);
+    store.markSeen(KEY, "sha2");
+    expect(store.inProgress()).toEqual([expect.objectContaining({ key: KEY })]);
+    expect(store.archived()).toEqual([]);
+  });
+
+  it("keeps a finished session out of both lists", () => {
+    store.setStepDone(KEY, "s1", true);
+    store.archive(KEY);
+    store.markFinished(KEY);
+    expect(store.archived()).toEqual([]);
+    expect(store.inProgress()).toEqual([]);
+  });
+
+  it("adds the archived column once, to a database created before it", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "review-queue-"));
+    const file = path.join(directory, "before-archive.db");
+    const old = new DatabaseSync(file);
+    old.exec(
+      "CREATE TABLE sessions (pr_key TEXT PRIMARY KEY, current_step TEXT, head_sha TEXT, pause_note TEXT, paused_at TEXT, updated_at TEXT NOT NULL, title TEXT, finished_at TEXT)",
+    );
+    old.exec(
+      "INSERT INTO sessions (pr_key, updated_at, pause_note) VALUES ('acme/app#7', '2026-10-26T10:00:00.000Z', 'later')",
+    );
+    old.close();
+    const upgraded = new SessionStore(file);
+    expect(upgraded.inProgress()).toEqual([expect.objectContaining({ key: KEY })]);
+    upgraded.archive(KEY);
+    expect(new SessionStore(file).archived()).toEqual([expect.objectContaining({ key: KEY })]);
+  });
 });

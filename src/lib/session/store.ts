@@ -119,7 +119,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   paused_at TEXT,
   updated_at TEXT NOT NULL,
   title TEXT,
-  finished_at TEXT
+  finished_at TEXT,
+  archived_at TEXT
 );
 CREATE TABLE IF NOT EXISTS review_baselines (
   pr_key TEXT PRIMARY KEY,
@@ -258,14 +259,20 @@ DELETE FROM context_symbols WHERE pr_key = :key AND pinned = 0 AND rowid NOT IN 
   ORDER BY seen_at DESC LIMIT :limit
 )`;
 
-const IN_PROGRESS = `
+function progressSessionsQuery(archivedFilter: "IS NULL" | "IS NOT NULL"): string {
+  return `
 SELECT s.pr_key, s.title, s.pause_note, s.updated_at,
   (SELECT COUNT(*) FROM done_steps d WHERE d.pr_key = s.pr_key) AS done_count,
   (SELECT COUNT(*) FROM notes n WHERE n.pr_key = s.pr_key) AS note_count
 FROM sessions s
 WHERE s.finished_at IS NULL
+  AND s.archived_at ${archivedFilter}
   AND (done_count > 0 OR note_count > 0 OR s.pause_note IS NOT NULL)
 ORDER BY s.updated_at DESC`;
+}
+
+const IN_PROGRESS = progressSessionsQuery("IS NULL");
+const ARCHIVED = progressSessionsQuery("IS NOT NULL");
 
 function pauseOf(row: SessionRow | undefined): PauseState | null {
   return row?.pause_note != null ? { note: row.pause_note, at: row.paused_at ?? "" } : null;
@@ -329,6 +336,7 @@ function openDatabase(file: string): DatabaseSync {
   migrateNotes(db);
   ensureColumn(db, "sessions", "title", "TEXT");
   ensureColumn(db, "sessions", "finished_at", "TEXT");
+  ensureColumn(db, "sessions", "archived_at", "TEXT");
   return db;
 }
 
@@ -623,6 +631,18 @@ export class SessionStore {
     this.db.prepare("UPDATE sessions SET finished_at = ? WHERE pr_key = ?").run(this.now(), key);
   }
 
+  archive(key: string): void {
+    this.db.prepare("UPDATE sessions SET archived_at = ? WHERE pr_key = ?").run(this.now(), key);
+  }
+
+  unarchive(key: string): void {
+    this.db.prepare("UPDATE sessions SET archived_at = NULL WHERE pr_key = ?").run(key);
+  }
+
+  archived(): InProgressSession[] {
+    return (this.db.prepare(ARCHIVED).all() as InProgressRow[]).map(toInProgress);
+  }
+
   inProgress(): InProgressSession[] {
     return (this.db.prepare(IN_PROGRESS).all() as InProgressRow[]).map(toInProgress);
   }
@@ -666,7 +686,9 @@ export class SessionStore {
     this.db
       .prepare("INSERT OR IGNORE INTO review_baselines (pr_key, head_sha) VALUES (?, ?)")
       .run(key, previousHead);
-    this.db.prepare("UPDATE sessions SET finished_at = NULL WHERE pr_key = ?").run(key);
+    this.db
+      .prepare("UPDATE sessions SET finished_at = NULL, archived_at = NULL WHERE pr_key = ?")
+      .run(key);
   }
 
   private column(sql: string, key: string): string[] {
