@@ -28,7 +28,8 @@ function unwrapFence(text: string): string | null {
   if (!match || match[1].includes("```")) {
     return null;
   }
-  return match[1].trim();
+  const inner = match[1].trim();
+  return splitConventionalPrefix(inner).tag === null ? null : inner;
 }
 
 function unwrapLabelledBacktick(text: string): string | null {

@@ -128,10 +128,13 @@ describe("unwrappedDraft", () => {
     expect(unwrappedDraft(text)).toBe(expected);
   });
 
-  it.each(["`foo` and `bar`", "`code` only", "plain text", "```ts\na()\n```\nnitpick: x"])(
-    "leaves %j unchanged",
-    (text) => {
-      expect(unwrappedDraft(text)).toBe(text);
-    },
-  );
+  it.each([
+    "`foo` and `bar`",
+    "`code` only",
+    "plain text",
+    "```ts\na()\n```",
+    "```ts\na()\n```\nnitpick: x",
+  ])("leaves %j unchanged", (text) => {
+    expect(unwrappedDraft(text)).toBe(text);
+  });
 });
