@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AssistThread, AssistTurn } from "@/lib/assist-protocol";
 import { AssistPanel } from "./assist-panel";
+import { NOTE_KIND_STYLES } from "./note-kinds";
 import type { Assist } from "./use-assist";
 
 const BASE_THREAD: AssistThread = {
@@ -155,5 +156,25 @@ describe("AssistPanel scrolling", () => {
     rerender(panel(saved));
 
     expect(list.scrollTop).toBe(0);
+  });
+});
+
+describe("AssistPanel comment draft", () => {
+  it("opens on the label the model wrote and leaves that label out of the text", () => {
+    const thread: AssistThread = {
+      ...BASE_THREAD,
+      action: "comment",
+      turns: [{ role: "model", text: "suggestion: use `map`" }],
+    };
+    render(panel({ thread, assist: fakeAssist(thread) }));
+
+    expect(screen.getByRole("button", { name: "Suggestion" }).className).toContain(
+      NOTE_KIND_STYLES.suggestion,
+    );
+    expect(screen.getByRole("button", { name: "Question" }).className).not.toContain(
+      NOTE_KIND_STYLES.question,
+    );
+    const textarea = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Comment draft" });
+    expect(textarea.value).toBe("use `map`");
   });
 });

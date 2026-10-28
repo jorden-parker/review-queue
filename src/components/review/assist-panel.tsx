@@ -7,6 +7,7 @@ import { type CitationRenderer, Markdown } from "@/components/common/markdown-te
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { AssistThread, AssistTurn } from "@/lib/assist-protocol";
+import { splitConventionalPrefix } from "@/lib/review/conventional-comment";
 import type { NoteTag } from "@/lib/types";
 import { actionLabel, awaitsQuestion, canFollowUp, questionPrompt } from "./assist-thread";
 import { CitationChip, CitationWalk } from "./citation-walk";
@@ -113,8 +114,9 @@ function CommentDraft({
   commentLine: number | null;
   onSave: (tag: NoteTag, body: string) => void;
 }) {
-  const [tag, setTag] = useState<NoteTag>({ kind: "question", decorations: [] });
-  const [body, setBody] = useState(draft.trim());
+  const parsed = splitConventionalPrefix(draft.trim());
+  const [tag, setTag] = useState<NoteTag>(parsed.tag ?? { kind: "question", decorations: [] });
+  const [body, setBody] = useState(parsed.body);
   const [saved, setSaved] = useState(false);
   const save = () => {
     onSave(tag, body.trim());

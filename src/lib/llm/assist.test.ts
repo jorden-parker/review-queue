@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FileDiff, Hunk, Step } from "@/lib/types";
+import { type FileDiff, type Hunk, NOTE_LABELS, type Step } from "@/lib/types";
 import { addedHunk, lines } from "@/test/diff-builders";
 import { type AssistInput, assistRequest, buildAssistPrompt } from "./assist";
 import { CODE_NAME_RULE } from "./client";
@@ -123,6 +123,13 @@ describe("assistRequest", () => {
       (action) => assistRequest({ ...INPUT, action }, []).system,
     );
     expect(new Set(systems).size).toBe(4);
+  });
+
+  it("asks a comment to open with one Conventional Comments label", () => {
+    const system = assistRequest({ ...INPUT, action: "comment" }, []).system;
+    expect(system).toContain(`one of: ${NOTE_LABELS.join(", ")}`);
+    expect(system).toContain("suggestion");
+    expect(system).toContain("question");
   });
 
   it("puts the prompt first, then the follow-up history", () => {
