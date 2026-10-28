@@ -1,13 +1,48 @@
-import { NOTE_DECORATIONS, type NoteDecoration, type NoteTag } from "@/lib/types";
+import {
+  NOTE_DECORATIONS,
+  NOTE_LABELS,
+  type NoteDecoration,
+  type NoteLabel,
+  type NoteTag,
+} from "@/lib/types";
 
 const CONFLICTING_DECORATION: Partial<Record<NoteDecoration, NoteDecoration>> = {
   blocking: "non-blocking",
   "non-blocking": "blocking",
 };
 
+const CONVENTIONAL_PREFIX = new RegExp(
+  `^\\s*(?:\\*\\*)?(${NOTE_LABELS.join("|")})(?:\\s*\\(([^)]*)\\))?(?:\\*\\*)?:(?:\\*\\*)?\\s*`,
+  "i",
+);
+
 export function conventionalLabel(tag: NoteTag): string {
   const label = tag.kind === "parked" ? "aside" : tag.kind;
   return tag.decorations.length > 0 ? `${label} (${tag.decorations.join(",")})` : label;
+}
+
+export function splitConventionalPrefix(text: string): { tag: NoteTag | null; body: string } {
+  const match = CONVENTIONAL_PREFIX.exec(text);
+  if (!match) {
+    return { tag: null, body: text };
+  }
+  const [prefix, label = "", decorationList = ""] = match;
+  return {
+    tag: { kind: label.toLowerCase() as NoteLabel, decorations: parseDecorations(decorationList) },
+    body: text.slice(prefix.length),
+  };
+}
+
+function parseDecorations(list: string): NoteDecoration[] {
+  const named = list
+    .split(",")
+    .map((part) => part.trim().toLowerCase())
+    .filter(isNoteDecoration);
+  return exclusiveDecorations([], named);
+}
+
+function isNoteDecoration(value: string): value is NoteDecoration {
+  return (NOTE_DECORATIONS as readonly string[]).includes(value);
 }
 
 export function isBlocking(tag: NoteTag): boolean {
