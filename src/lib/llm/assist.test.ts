@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { type FileDiff, type Hunk, NOTE_LABELS, type Step } from "@/lib/types";
 import { addedHunk, lines } from "@/test/diff-builders";
-import { type AssistInput, assistRequest, buildAssistPrompt } from "./assist";
+import type { DeclarationUsage } from "@/lib/review/usage-context";
+import { type AssistInput, assistRequest, buildAssistPrompt, usageLookups } from "./assist";
 import { CODE_NAME_RULE } from "./client";
 
 const CONTEXT: Hunk[] = [addedHunk(["const a = 1;", "const b = 2;", "const c = 3;"], 10)];
@@ -16,7 +17,21 @@ const INPUT: AssistInput = {
   fileText: null,
   flags: [],
   stepCheck: null,
+  usages: [],
 };
+
+const USAGE: DeclarationUsage = {
+  name: "b",
+  kind: "constant",
+  path: "src/a.ts",
+  line: 11,
+  endLine: 11,
+  uses: [{ path: "src/page.ts", line: 4, text: "render(b);", caller: null, code: [] }],
+  useCount: 1,
+  otherDefinitions: [{ name: "b", kind: "constant", path: "src/old.ts", line: 2, endLine: 2 }],
+};
+
+const USAGE_INPUT: AssistInput = { ...INPUT, usages: [USAGE] };
 
 const FILE_INPUT: AssistInput = {
   ...INPUT,
@@ -81,6 +96,33 @@ describe("buildAssistPrompt", () => {
   });
 });
 
+describe("buildAssistPrompt with usages", () => {
+  it("shows where the changed declarations are used, fenced as PR code", () => {
+    expect(buildAssistPrompt(USAGE_INPUT)).toContain(
+      [
+        "## Where the changed code is used",
+        "<pr_usages>",
+        "b (constant) src/a.ts:11-11, 1 use elsewhere",
+        "  src/page.ts:4: render(b);",
+        "  Also defined at: src/old.ts:2 (constant)",
+        "</pr_usages>",
+      ].join("\n"),
+    );
+  });
+
+  it("leaves the usages out when there are none", () => {
+    expect(buildAssistPrompt(INPUT)).not.toContain("pr_usages");
+  });
+});
+
+describe("usageLookups", () => {
+  it("shows the reviewer one lookup row per declaration the model was given", () => {
+    expect(usageLookups([USAGE])).toEqual([
+      { tool: "usages", label: "Uses of `b` (1)", paths: ["src/page.ts", "src/old.ts"] },
+    ]);
+  });
+});
+
 describe("buildAssistPrompt for a whole file", () => {
   it("shows the file at the PR head and every change to it", () => {
     const prompt = buildAssistPrompt(FILE_INPUT);
@@ -116,6 +158,30 @@ describe("assistRequest", () => {
 
   it("asks the model to cite code as path:START-END in inline code", () => {
     expect(assistRequest(INPUT, []).system).toContain("`path:START-END`");
+  });
+
+  it("asks the model to judge the change against its callers when usages are given", () => {
+    const system = assistRequest(USAGE_INPUT, []).system;
+    expect(system).toContain("<pr_usages> lists where each declaration");
+    expect(system).toContain("does every caller still fit");
+    expect(system).toContain("the props or arguments each caller passes");
+    expect(assistRequest(INPUT, []).system).not.toContain("<pr_usages> lists");
+  });
+
+  it("asks the model to look for callers of removed names and for existing helpers", () => {
+    const system = assistRequest(INPUT, []).system;
+    expect(system).toContain("removes or renames");
+    expect(system).toContain("existing helper");
+  });
+
+  it("asks a review to check callers and redundant code", () => {
+    const system = assistRequest({ ...INPUT, action: "review" }, []).system;
+    expect(system).toContain("callers");
+    expect(system).toContain("duplicated or unused code");
+  });
+
+  it("asks simplify to reuse an existing helper", () => {
+    expect(assistRequest({ ...INPUT, action: "simplify" }, []).system).toContain("existing helper");
   });
 
   it("asks for markdown with code names in backticks for every action", () => {

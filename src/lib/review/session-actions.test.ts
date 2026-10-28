@@ -163,7 +163,17 @@ describe("applySessionAction", () => {
     };
     const saved = run(store, { type: "assist-save", thread });
     expect(saved.assistThreads).toEqual([expect.objectContaining({ turns: thread.turns })]);
-    const flood = Array.from({ length: 200 }, () => lookup);
+    const many = Array.from({ length: 30 }, () => lookup);
+    expect(() =>
+      SessionActionSchema.parse({
+        type: "assist-save",
+        thread: {
+          ...thread,
+          turns: [thread.turns[0], { role: "model", text: "x", lookups: many }],
+        },
+      }),
+    ).not.toThrow();
+    const flood = Array.from({ length: 501 }, () => lookup);
     expect(() =>
       SessionActionSchema.parse({
         type: "assist-save",

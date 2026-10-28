@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { ASSIST_ACTIONS, MAX_HISTORY_TURNS } from "@/lib/assist-protocol";
-import { MAX_TOOL_ROUNDS } from "@/lib/llm/tool-loop";
 import type { Session, SessionStore } from "@/lib/session/store";
 import { AssistTargetSchema } from "./assist-request";
 import { NOTE_DECORATIONS, NOTE_LABELS, SYMBOL_KINDS } from "@/lib/types";
 import { hasConsistentDecorations } from "./conventional-comment";
+
+const MAX_STORED_LOOKUPS = 500;
 
 const CommitShaSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 const NoteKindSchema = z.enum([...NOTE_LABELS, "parked"]);
@@ -37,10 +38,7 @@ const AssistLookupSchema = z.object({
 const AssistTurnSchema = z.object({
   role: z.enum(["reviewer", "model"]),
   text: z.string().max(16_000),
-  lookups: z
-    .array(AssistLookupSchema)
-    .max(MAX_TOOL_ROUNDS * 4)
-    .optional(),
+  lookups: z.array(AssistLookupSchema).max(MAX_STORED_LOOKUPS).optional(),
 });
 
 const AssistThreadSchema = z.object({
