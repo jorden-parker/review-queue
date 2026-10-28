@@ -167,6 +167,10 @@ describe("SymbolIndex with hostile checkouts", () => {
     fs.writeFileSync(path.join(root, "ok.ts"), "export function fine() {}\n");
     fs.symlinkSync(path.join(sandbox, "secret.ts"), path.join(root, "link.ts"));
     fs.symlinkSync("loop.ts", path.join(root, "loop.ts"));
+    fs.mkdirSync(path.join(root, "packages/lib"), { recursive: true });
+    fs.mkdirSync(path.join(root, "node_modules/@acme"), { recursive: true });
+    fs.symlinkSync("../../packages/lib", path.join(root, "node_modules/@acme/lib"));
+    fs.symlinkSync(sandbox, path.join(root, "node_modules/escape"));
   });
 
   afterEach(() => fs.rmSync(sandbox, { recursive: true, force: true }));
@@ -194,5 +198,13 @@ describe("SymbolIndex with hostile checkouts", () => {
     expect(await index.referencesTo("fine")).toEqual([
       { path: "src/a.ts", line: 3, text: "fine():1:2\r" },
     ]);
+  });
+
+  it("maps a linked workspace package to its directory in the checkout", async () => {
+    const index = await SymbolIndex.build(root, runnerListing("ok.ts\n"));
+    expect(index.linkedPackageDirectory("@acme/lib")).toBe("packages/lib");
+    expect(index.linkedPackageDirectory("missing")).toBeNull();
+    expect(index.linkedPackageDirectory("escape")).toBeNull();
+    expect(index.linkedPackageDirectory("../../etc")).toBeNull();
   });
 });
