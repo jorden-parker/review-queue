@@ -21,7 +21,11 @@ export type LoopChunk = { kind: "text"; text: string } | { kind: "lookup"; looku
 
 export const MAX_TOOL_ROUNDS = 5;
 
+export const MAX_TOOL_CALLS_PER_ROUND = 4;
+
 const ROUND_SEPARATOR = "\n\n";
+
+const SKIPPED_NOTE = `Skipped: at most ${MAX_TOOL_CALLS_PER_ROUND} lookups per round.`;
 
 type RoundOutcome = { text: string; toolUses: ToolUseBlock[] };
 
@@ -91,17 +95,21 @@ async function runOne(
   }
 }
 
+function skippedResults(toolUses: ToolUseBlock[]): ToolResultBlock[] {
+  return toolUses.map((toolUse) => resultBlock(toolUse.id, SKIPPED_NOTE, true));
+}
+
 async function* runTools(
   toolUses: ToolUseBlock[],
   tools: ToolBox,
 ): AsyncGenerator<LoopChunk, ToolResultBlock[]> {
   const results: ToolResultBlock[] = [];
-  for (const toolUse of toolUses) {
+  for (const toolUse of toolUses.slice(0, MAX_TOOL_CALLS_PER_ROUND)) {
     const { result, lookup } = await runOne(toolUse, tools);
     if (lookup) yield { kind: "lookup", lookup };
     results.push(result);
   }
-  return results;
+  return [...results, ...skippedResults(toolUses.slice(MAX_TOOL_CALLS_PER_ROUND))];
 }
 
 function assistantTurn(outcome: RoundOutcome): Message {

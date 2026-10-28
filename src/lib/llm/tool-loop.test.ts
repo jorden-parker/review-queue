@@ -3,6 +3,7 @@ import type { AssistLookup } from "@/lib/assist-protocol";
 import { type LlmClient, type Message, type ToolSpec } from "./client";
 import {
   type LoopChunk,
+  MAX_TOOL_CALLS_PER_ROUND,
   MAX_TOOL_ROUNDS,
   type ToolBox,
   type ToolOutcome,
@@ -62,6 +63,48 @@ function toolRound(id: string, input: object, leadingText = ""): string {
     sse("content_block_stop", { index }) +
     sse("message_delta", { delta: { stop_reason: "tool_use" } }) +
     sse("message_stop", {})
+  );
+}
+
+function rawToolRound(id: string, partialJson: string): string {
+  return (
+    sse("content_block_start", {
+      index: 0,
+      content_block: { type: "tool_use", id, name: "find_references", input: {} },
+    }) +
+    sse("content_block_delta", {
+      index: 0,
+      delta: { type: "input_json_delta", partial_json: partialJson },
+    }) +
+    sse("content_block_stop", { index: 0 }) +
+    sse("message_stop", {})
+  );
+}
+
+function manyToolsRound(count: number): string {
+  return (
+    Array.from({ length: count }, (_, position) => {
+      const index = position;
+      return (
+        sse("content_block_start", {
+          index,
+          content_block: {
+            type: "tool_use",
+            id: `m${position}`,
+            name: "find_references",
+            input: {},
+          },
+        }) +
+        sse("content_block_delta", {
+          index,
+          delta: {
+            type: "input_json_delta",
+            partial_json: JSON.stringify({ name: `name${position}` }),
+          },
+        }) +
+        sse("content_block_stop", { index })
+      );
+    }).join("") + sse("message_stop", {})
   );
 }
 
@@ -208,5 +251,47 @@ describe("toolLoop", () => {
     await expect(drain(toolLoop(client(fetchImpl), REQUEST, toolBox()))).rejects.toThrow(
       "LLM request failed (HTTP 500): overloaded",
     );
+  });
+
+  it("returns malformed tool input as an error result and keeps answering", async () => {
+    const { fetchImpl, requests } = scriptedFetch([
+      rawToolRound("t1", '{"name":'),
+      textRound("Retrying without that lookup."),
+    ]);
+    const run = vi.fn<ToolBox["run"]>(async (_name, input) => {
+      if (typeof input === "object" && input !== null && "invalid_json" in input) {
+        throw new Error("name is required");
+      }
+      return { content: "ok", lookup: lookupFor("loadReview") };
+    });
+    const chunks = await drain(toolLoop(client(fetchImpl), REQUEST, toolBox(run)));
+
+    expect(textOf(chunks)).toBe("Retrying without that lookup.");
+    expect(requests[1]?.messages.at(-1)).toEqual({
+      role: "user",
+      content: [
+        { type: "tool_result", tool_use_id: "t1", content: "name is required", is_error: true },
+      ],
+    });
+  });
+
+  it("runs at most MAX_TOOL_CALLS_PER_ROUND calls and skips the rest with an error result", async () => {
+    const extra = MAX_TOOL_CALLS_PER_ROUND + 1;
+    const { fetchImpl, requests } = scriptedFetch([manyToolsRound(extra), textRound("Done.")]);
+    const run = vi.fn(toolBox().run);
+    const chunks = await drain(toolLoop(client(fetchImpl), REQUEST, toolBox(run)));
+
+    expect(run).toHaveBeenCalledTimes(MAX_TOOL_CALLS_PER_ROUND);
+    expect(chunks.filter((chunk) => chunk.kind === "lookup")).toHaveLength(
+      MAX_TOOL_CALLS_PER_ROUND,
+    );
+    const results = requests[1]?.messages.at(-1)?.content;
+    expect(results).toHaveLength(extra);
+    expect(results?.at(-1)).toEqual({
+      type: "tool_result",
+      tool_use_id: `m${MAX_TOOL_CALLS_PER_ROUND}`,
+      content: `Skipped: at most ${MAX_TOOL_CALLS_PER_ROUND} lookups per round.`,
+      is_error: true,
+    });
   });
 });
