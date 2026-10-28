@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { memoizePromise } from "@/lib/memoize-promise";
 import type { FileLines } from "@/lib/review/file-lines";
 import type { PullRequestRef } from "@/lib/types";
 import { fetchFileLines } from "./api";
@@ -13,14 +14,7 @@ const NOT_LOADED: FileLoad = { lines: null, loading: false, failed: false };
 
 function cachedLoader(ref: PullRequestRef, headSha: string): LoadFile {
   const loaded = new Map<string, Promise<FileLines>>();
-  return (path) => {
-    const cached = loaded.get(path);
-    if (cached) return cached;
-    const request = fetchFileLines(ref, headSha, path);
-    loaded.set(path, request);
-    request.catch(() => loaded.delete(path));
-    return request;
-  };
+  return (path) => memoizePromise(loaded, path, () => fetchFileLines(ref, headSha, path));
 }
 
 export function useFileLoader(ref: PullRequestRef, headSha: string): LoadFile {

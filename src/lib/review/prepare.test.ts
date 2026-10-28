@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PullRequest } from "@/lib/github/gh";
 import { prKey } from "@/lib/pr-ref";
@@ -10,7 +12,7 @@ import {
   removeFixtureRepo,
   type FixtureRepo,
 } from "@/test/git-fixture";
-import { loadReview, type ReviewDeps } from "./prepare";
+import { findPrepared, loadReview, type ReviewDeps } from "./prepare";
 
 const REF = { owner: "acme", repo: "app", number: 5 };
 
@@ -118,6 +120,25 @@ describe("loadReview", () => {
     expect(second.reopenedStepIds).toEqual([retryStep.id]);
     expect(second.session.doneSteps).not.toContain(retryStep.id);
     expect(second.session.baselineHeadSha).toBe(first.headSha);
+  });
+
+  it("keeps the two newest heads of a pull request and forgets older ones", async () => {
+    (globalThis as { reviewQueuePrepared?: Map<string, unknown> }).reviewQueuePrepared?.clear();
+    const first = await loadReview(REF, deps);
+    pushFeatureCommit(fixture, REF.number, {
+      "src/retry.ts": "export function retry() {\n  return 1;\n}\n",
+    });
+    const second = await loadReview(REF, deps);
+    pushFeatureCommit(fixture, REF.number, {
+      "src/retry.ts": "export function retry() {\n  return 2;\n}\n",
+    });
+    const third = await loadReview(REF, deps);
+    expect(findPrepared(REF, first.headSha)).toBeNull();
+    expect(findPrepared(REF, second.headSha)).not.toBeNull();
+    expect(findPrepared(REF, third.headSha)).not.toBeNull();
+    expect(
+      fs.existsSync(path.join(fixture.cacheRoot, "worktrees", REF.owner, REF.repo, first.headSha)),
+    ).toBe(true);
   });
 });
 
