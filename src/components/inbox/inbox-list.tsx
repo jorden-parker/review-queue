@@ -8,9 +8,15 @@ import { Card } from "@/components/ui/card";
 import { REVIEW_REQUEST_LIMIT, type ReviewRequest } from "@/lib/github/gh";
 import { prKey, prPath } from "@/lib/pr-ref";
 import { reviewRequests, sessionStore } from "@/lib/review/services";
-import type { InProgressSession, PauseState, ProgressSummary } from "@/lib/session/store";
+import type {
+  InProgressSession,
+  PauseState,
+  ProgressSummary,
+  RecentSubmission,
+} from "@/lib/session/store";
 import { HomeSessions } from "./home-sessions";
 import { relativeTime } from "./in-progress-list";
+import { POSTED_REVIEW_LIMIT, PostedList } from "./posted-list";
 import { orderQueue, type QueueEntry } from "./queue";
 
 function ProgressBadges({ entry }: { entry: QueueEntry }) {
@@ -86,6 +92,7 @@ type Inbox = {
   progress: Record<string, ProgressSummary>;
   inProgress: InProgressSession[];
   archived: InProgressSession[];
+  posted: RecentSubmission[];
   error: string | null;
 };
 
@@ -93,6 +100,7 @@ async function loadInbox(): Promise<Inbox> {
   const store = sessionStore();
   const inProgress = store.inProgress();
   const archived = store.archived();
+  const posted = store.recentSubmissions(POSTED_REVIEW_LIMIT);
   try {
     const requests = await reviewRequests();
     const listedKeys = new Set(requests.map((request) => prKey(request.ref)));
@@ -101,6 +109,7 @@ async function loadInbox(): Promise<Inbox> {
       progress: store.progressSummaries([...listedKeys]),
       inProgress: inProgress.filter((session) => !listedKeys.has(session.key)),
       archived: archived.filter((session) => !listedKeys.has(session.key)),
+      posted,
       error: null,
     };
   } catch (error) {
@@ -109,6 +118,7 @@ async function loadInbox(): Promise<Inbox> {
       progress: {},
       inProgress,
       archived,
+      posted,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -166,11 +176,12 @@ function RequestQueue({
 
 export async function InboxList() {
   await connection();
-  const { requests, progress, inProgress, archived, error } = await loadInbox();
+  const { requests, progress, inProgress, archived, posted, error } = await loadInbox();
   return (
     <div className="flex flex-col gap-8">
       <RequestQueue requests={requests} progress={progress} error={error} />
       <HomeSessions inProgress={inProgress} archived={archived} />
+      <PostedList reviews={posted} />
     </div>
   );
 }
