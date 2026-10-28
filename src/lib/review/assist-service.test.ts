@@ -14,7 +14,6 @@ const DATA = {
   data: reviewPayload(),
   index: {
     readFile: () => "export const client = 1;",
-    definitionsIn: () => [],
     listFiles: async () => ["src/client.ts"],
     definitionsOf: () => [],
     referencesTo: async () => [],
@@ -138,81 +137,33 @@ describe("assistResponse", () => {
     );
   });
 
-  describe("usages of the selected declarations", () => {
-    const LOAD = {
-      name: "load",
-      kind: "function" as const,
-      path: "src/client.ts",
-      line: 10,
-      endLine: 12,
-    };
-    const CALLER = { path: "src/app.ts", line: 7, text: "load({ retries: 2 });" };
-
-    function capturingFetch(answer: string): { fetchImpl: typeof fetch; prompts: string[] } {
-      const prompts: string[] = [];
-      const fetchImpl = async (_url: string, init: RequestInit) => {
-        const body = JSON.parse(String(init.body)) as { messages: { content: string }[] };
-        prompts.push(body.messages[0]?.content ?? "");
-        return new Response(
-          sseEvents([
-            { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: answer } },
-          ]),
-          { headers: { "content-type": "text/event-stream" } },
-        );
-      };
-      return { fetchImpl: fetchImpl as unknown as typeof fetch, prompts };
-    }
-
-    const sourceWith = (referencesTo: () => Promise<(typeof CALLER)[]>) => ({
-      ...DATA,
-      index: { ...DATA.index, definitionsIn: () => [LOAD], referencesTo },
-    });
-
-    it("sends the model the callers in other files and shows them to the reviewer first", async () => {
-      const { fetchImpl, prompts } = capturingFetch("It breaks app.ts.");
-      const text = await assistResponse(
-        sourceWith(async () => [CALLER]),
-        BODY,
-        CONFIG,
-        fetchImpl,
-      ).text();
-      const lookup = {
-        tool: "usages",
-        label: "Path of `load`: 1 use, 1 call path",
-        paths: ["src/app.ts"],
-      };
-
-      expect(prompts[0]).toContain("<pr_usages>");
-      expect(prompts[0]).toContain("src/app.ts:7: load({ retries: 2 });");
-      expect(text).toBe(
-        `${ASSIST_LOOKUP_MARKER}${JSON.stringify(lookup)}${ASSIST_LOOKUP_MARKER}It breaks app.ts.`,
+  it("leaves finding the callers to the model instead of sending them first", async () => {
+    const prompts: string[] = [];
+    const fetchImpl = async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as { messages: { content: string }[] };
+      prompts.push(body.messages[0]?.content ?? "");
+      return new Response(
+        sseEvents([
+          { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Ok." } },
+        ]),
+        { headers: { "content-type": "text/event-stream" } },
       );
-    });
+    };
+    const source = {
+      ...DATA,
+      index: {
+        ...DATA.index,
+        referencesTo: async () => [{ path: "src/app.ts", line: 7, text: "load();" }],
+      },
+    };
+    const text = await assistResponse(
+      source,
+      BODY,
+      CONFIG,
+      fetchImpl as unknown as typeof fetch,
+    ).text();
 
-    it("sends no usages for a step check", async () => {
-      const { fetchImpl, prompts } = capturingFetch("Fine.");
-      const source = {
-        ...sourceWith(async () => [CALLER]),
-        explanationOf: () => ({ what: "", checks: ["Is the key stable?"], model: "m" }),
-      };
-      const body = {
-        ...BODY,
-        target: { kind: "check", stepId: "core:src/client.ts:0", check: 0, path: "src/client.ts" },
-      };
-      await assistResponse(source, body, CONFIG, fetchImpl).text();
-
-      expect(prompts[0]).not.toContain("<pr_usages>");
-    });
-
-    it("still answers when the usage lookup fails", async () => {
-      const { fetchImpl, prompts } = capturingFetch("It loads.");
-      const failingSource = sourceWith(async () => {
-        throw new Error("lookup failed");
-      });
-      const text = await assistResponse(failingSource, BODY, CONFIG, fetchImpl).text();
-
-      expect(text).toBe("It loads.");
-      expect(prompts[0]).not.toContain("<pr_usages>");
-    });
+    expect(text).toBe("Ok.");
+    expect(prompts[0]).not.toContain("src/app.ts");
   });
 });
