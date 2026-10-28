@@ -35,6 +35,34 @@ function symbol(name: string, line = 1): SeenSymbol {
   };
 }
 
+function withTempDirectory(run: (directory: string) => void): void {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rq-store-"));
+  try {
+    run(directory);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+function countRows(file: string, table: string): number {
+  const check = new DatabaseSync(file);
+  try {
+    return (check.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
+  } finally {
+    check.close();
+  }
+}
+
+function receipt(reviewId: number) {
+  return {
+    reviewId,
+    url: `https://github.com/acme/app/pull/7#pullrequestreview-${reviewId}`,
+    event: "COMMENT" as const,
+    headSha: "sha1",
+    body: "",
+  };
+}
+
 describe("SessionStore", () => {
   let store: SessionStore;
   let now: number;
@@ -46,8 +74,8 @@ describe("SessionStore", () => {
 
   it("starts empty and records the step you are on", () => {
     expect(store.getSession(KEY)).toMatchObject({ currentStepId: null, doneSteps: [], notes: [] });
-    store.setCurrentStep(KEY, "s2", "sha1");
-    expect(store.getSession(KEY)).toMatchObject({ currentStepId: "s2", lastHeadSha: "sha1" });
+    store.setCurrentStep(KEY, "s2");
+    expect(store.getSession(KEY)).toMatchObject({ currentStepId: "s2", lastHeadSha: null });
   });
 
   it("remembers the last head commit seen", () => {
@@ -264,7 +292,7 @@ describe("SessionStore", () => {
   });
 
   it("starts over, keeping notes unless told to drop them", () => {
-    store.setCurrentStep(KEY, "s2", "sha1");
+    store.setCurrentStep(KEY, "s2");
     store.setStepDone(KEY, "s1", true);
     store.setHotspotChecked(KEY, "h1", true);
     store.pushJump(KEY, { name: "f", path: "a.ts", line: 1 });
@@ -334,12 +362,12 @@ describe("SessionStore", () => {
 
   it("summarises progress for many sessions", () => {
     store.setStepDone(KEY, "s1", true);
-    store.setCurrentStep(KEY, "s2", "sha1");
+    store.setCurrentStep(KEY, "s2");
     expect(store.progressSummaries([KEY, "other#1"])).toEqual({
       [KEY]: {
         doneCount: 1,
         noteCount: 0,
-        lastHeadSha: "sha1",
+        lastHeadSha: null,
         updatedAt: "2026-10-26T10:00:00.000Z",
         pause: null,
       },
@@ -433,5 +461,235 @@ describe("SessionStore", () => {
     store.startOver(KEY, false);
     expect(store.getSession(KEY).doneSteps).toEqual([]);
     expect(store.getSession(KEY).submissions).toHaveLength(1);
+  });
+
+  it("keeps reply receipts newest first with the comment they answer", () => {
+    const reply = {
+      parentCommentId: 5,
+      url: "https://github.com/acme/app/pull/7#discussion_r77",
+    };
+    store.recordReply(KEY, { replyId: 77, ...reply, body: "Thanks" });
+    now += 1000;
+    store.recordReply(KEY, { replyId: 78, ...reply, body: "Thanks again" });
+    expect(store.getSession(KEY).replyReceipts).toEqual([
+      {
+        replyId: 78,
+        parentCommentId: 5,
+        url: reply.url,
+        body: "Thanks again",
+        postedAt: "2026-10-26T10:00:01.000Z",
+      },
+      {
+        replyId: 77,
+        parentCommentId: 5,
+        url: reply.url,
+        body: "Thanks",
+        postedAt: "2026-10-26T10:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("lists the latest receipts across pull requests, newest first, with each session's title", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.rememberTitle("acme/app#8", "Fix cache");
+    store.recordSubmission(KEY, receipt(1));
+    now += 1000;
+    store.recordSubmission("acme/app#8", receipt(2));
+    now += 1000;
+    store.recordSubmission(KEY, receipt(3));
+    expect(store.recentSubmissions(10)).toEqual([
+      {
+        key: KEY,
+        title: "Add retry",
+        reviewId: 3,
+        url: receipt(3).url,
+        event: "COMMENT",
+        postedAt: "2026-10-26T10:00:02.000Z",
+      },
+      {
+        key: "acme/app#8",
+        title: "Fix cache",
+        reviewId: 2,
+        url: receipt(2).url,
+        event: "COMMENT",
+        postedAt: "2026-10-26T10:00:01.000Z",
+      },
+      {
+        key: KEY,
+        title: "Add retry",
+        reviewId: 1,
+        url: receipt(1).url,
+        event: "COMMENT",
+        postedAt: "2026-10-26T10:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("keeps reply receipts across start over", () => {
+    store.recordReply(KEY, {
+      replyId: 77,
+      parentCommentId: 5,
+      url: "https://github.com/acme/app/pull/7#discussion_r77",
+      body: "Thanks",
+    });
+    store.setStepDone(KEY, "s1", true);
+    store.startOver(KEY, false);
+    expect(store.getSession(KEY).replyReceipts).toHaveLength(1);
+  });
+
+  it("keeps only the number of receipts asked for", () => {
+    store.recordSubmission(KEY, receipt(1));
+    store.recordSubmission(KEY, receipt(2));
+    store.recordSubmission(KEY, receipt(3));
+    expect(store.recentSubmissions(2).map((review) => review.reviewId)).toEqual([3, 2]);
+  });
+
+  it("lists a receipt with a null title when its session was never remembered", () => {
+    store.recordSubmission(KEY, receipt(1));
+    expect(store.recentSubmissions(10)).toEqual([
+      expect.objectContaining({ key: KEY, title: null }),
+    ]);
+  });
+
+  it("still lists a receipt after start over, without its title", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.recordSubmission(KEY, receipt(1));
+    store.startOver(KEY, false);
+    expect(store.recentSubmissions(10)).toEqual([
+      expect.objectContaining({ key: KEY, reviewId: 1, title: null }),
+    ]);
+  });
+
+  it("indexes the per-PR tables that have no primary key starting with pr_key", () => {
+    withTempDirectory((directory) => {
+      const file = path.join(directory, "review-queue.db");
+      new SessionStore(file);
+      const check = new DatabaseSync(file);
+      const indexes = check
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
+        .all() as { name: string }[];
+      check.close();
+      expect(indexes.map((index) => index.name)).toEqual(
+        expect.arrayContaining(["notes_pr_key", "jumps_pr_key", "submissions_pr_key"]),
+      );
+    });
+  });
+
+  it("opens the database in write-ahead logging mode", () => {
+    withTempDirectory((directory) => {
+      const file = path.join(directory, "review-queue.db");
+      new SessionStore(file);
+      const check = new DatabaseSync(file);
+      expect(check.prepare("PRAGMA journal_mode").get()).toEqual({ journal_mode: "wal" });
+      check.close();
+    });
+  });
+
+  it("keeps a new database file and its directory private to the user", () => {
+    withTempDirectory((directory) => {
+      const dataDirectory = path.join(directory, "data");
+      const file = path.join(dataDirectory, "review-queue.db");
+      new SessionStore(file);
+      expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+      expect(fs.statSync(dataDirectory).mode & 0o777).toBe(0o700);
+    });
+  });
+
+  it("tightens a database file that was created world-readable", () => {
+    withTempDirectory((directory) => {
+      const file = path.join(directory, "review-queue.db");
+      fs.writeFileSync(file, "");
+      fs.chmodSync(file, 0o644);
+      new SessionStore(file);
+      expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+    });
+  });
+
+  it("leaves every table untouched when a start over fails part way", () => {
+    withTempDirectory((directory) => {
+      const file = path.join(directory, "review-queue.db");
+      const fileStore = new SessionStore(file, () => new Date(now));
+      fileStore.setStepDone(KEY, "s1", true);
+      fileStore.pushJump(KEY, { name: "f", path: "a.ts", line: 1 });
+      fileStore.addNote(KEY, {
+        path: null,
+        line: null,
+        kind: "parked",
+        decorations: [],
+        body: "later",
+      });
+      const broken = new DatabaseSync(file);
+      broken.exec("DROP TABLE context_symbols");
+      broken.close();
+      expect(() => fileStore.startOver(KEY, false)).toThrow();
+      expect(countRows(file, "done_steps")).toBe(1);
+      expect(countRows(file, "jumps")).toBe(1);
+      expect(countRows(file, "notes")).toBe(1);
+    });
+  });
+
+  it("setting the step records it without touching the head seen", () => {
+    store.markSeen(KEY, "sha1");
+    store.setCurrentStep(KEY, "s2");
+    expect(store.getSession(KEY)).toMatchObject({ currentStepId: "s2", lastHeadSha: "sha1" });
+  });
+
+  it("archives a session out of the in-progress list and restores it", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.setStepDone(KEY, "s1", true);
+    store.archive(KEY);
+    expect(store.inProgress()).toEqual([]);
+    expect(store.archived()).toEqual([
+      expect.objectContaining({ key: KEY, title: "Add retry", doneCount: 1 }),
+    ]);
+    store.unarchive(KEY);
+    expect(store.inProgress()).toEqual([expect.objectContaining({ key: KEY })]);
+    expect(store.archived()).toEqual([]);
+  });
+
+  it("keeps an archived session's steps, notes and updated time", () => {
+    store.setStepDone(KEY, "s1", true);
+    store.addNote(KEY, { path: null, line: null, kind: "nitpick", decorations: [], body: "x" });
+    now = Date.parse("2026-10-26T11:00:00Z");
+    store.archive(KEY);
+    expect(store.archived()[0].updatedAt).toBe("2026-10-26T10:00:00.000Z");
+    expect(store.getSession(KEY).doneSteps).toEqual(["s1"]);
+    expect(store.getSession(KEY).notes).toHaveLength(1);
+  });
+
+  it("brings an archived session back when its head moves, but not on the same head", () => {
+    store.markSeen(KEY, "sha1");
+    store.setStepDone(KEY, "s1", true);
+    store.archive(KEY);
+    store.markSeen(KEY, "sha1");
+    expect(store.inProgress()).toEqual([]);
+    store.markSeen(KEY, "sha2");
+    expect(store.inProgress()).toEqual([expect.objectContaining({ key: KEY })]);
+    expect(store.archived()).toEqual([]);
+  });
+
+  it("keeps a finished session out of both lists", () => {
+    store.setStepDone(KEY, "s1", true);
+    store.archive(KEY);
+    store.markFinished(KEY);
+    expect(store.archived()).toEqual([]);
+    expect(store.inProgress()).toEqual([]);
+  });
+
+  it("adds the archived column once, to a database created before it", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "review-queue-"));
+    const file = path.join(directory, "before-archive.db");
+    const old = new DatabaseSync(file);
+    old.exec(
+      "CREATE TABLE sessions (pr_key TEXT PRIMARY KEY, current_step TEXT, head_sha TEXT, pause_note TEXT, paused_at TEXT, updated_at TEXT NOT NULL, title TEXT, finished_at TEXT)",
+    );
+    old.exec(
+      "INSERT INTO sessions (pr_key, updated_at, pause_note) VALUES ('acme/app#7', '2026-10-26T10:00:00.000Z', 'later')",
+    );
+    old.close();
+    const upgraded = new SessionStore(file);
+    expect(upgraded.inProgress()).toEqual([expect.objectContaining({ key: KEY })]);
+    upgraded.archive(KEY);
+    expect(new SessionStore(file).archived()).toEqual([expect.objectContaining({ key: KEY })]);
   });
 });

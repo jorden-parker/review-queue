@@ -2,21 +2,23 @@
 
 import { useCallback } from "react";
 import type { ReviewEvent } from "@/lib/github/gh";
+import type { SessionAction } from "@/lib/review/session-actions";
 import type { Session } from "@/lib/session/store";
 import type { Note, NoteTag, PullRequestRef } from "@/lib/types";
-import { requestSummaryDraft, submitReviewRequest } from "./api";
+import { requestSummaryDraft, sendReply, submitReviewRequest } from "./api";
 import type { LineTarget } from "./locate";
-import { toggled, type Act } from "./use-step-navigation";
+import type { OptimisticChange } from "./session-queue";
+import { toggled } from "./use-step-navigation";
 
-function withNote(session: Session, note: Omit<Note, "id" | "createdAt">): Session {
-  return { ...session, notes: [...session.notes, { ...note, id: -Date.now(), createdAt: "" }] };
+function withNote(session: Session, note: Omit<Note, "id" | "createdAt">, id: number): Session {
+  return { ...session, notes: [...session.notes, { ...note, id, createdAt: "" }] };
 }
 
 export function useSessionEdits(
   ref: PullRequestRef,
   headSha: string,
   session: Session,
-  act: Act,
+  act: (action: SessionAction, optimistic?: OptimisticChange) => Promise<void>,
   setSession: (session: Session) => void,
 ) {
   const toggleHotspot = useCallback(
@@ -39,7 +41,9 @@ export function useSessionEdits(
         decorations: tag.decorations,
         body,
       };
-      act({ type: "note-add", ...note }, (current) => withNote(current, note));
+      act({ type: "note-add", ...note }, (current, temporaryNoteId) =>
+        withNote(current, note, temporaryNoteId),
+      );
     },
     [act],
   );
@@ -65,11 +69,13 @@ export function useSessionEdits(
   );
 
   const pause = useCallback(
-    (note: string) =>
-      act({ type: "pause", note }, (current) => ({
+    (note: string) => {
+      const at = new Date().toISOString();
+      return act({ type: "pause", note }, (current) => ({
         ...current,
-        pause: { note, at: new Date().toISOString() },
-      })),
+        pause: { note, at },
+      }));
+    },
     [act],
   );
 
@@ -84,6 +90,15 @@ export function useSessionEdits(
     [ref, headSha, setSession],
   );
 
+  const postReply = useCallback(
+    async (commentId: number, body: string) => {
+      const updated = await sendReply(ref, { commentId, body });
+      setSession(updated);
+      return updated.replyReceipts[0].replyId;
+    },
+    [ref, setSession],
+  );
+
   const draftSummary = useCallback(
     async (event: ReviewEvent, noteIds: number[]) => {
       const result = await requestSummaryDraft(ref, headSha, { event, noteIds });
@@ -94,5 +109,15 @@ export function useSessionEdits(
     [ref, headSha],
   );
 
-  return { toggleHotspot, saveNote, deleteNote, editNote, pause, resume, submit, draftSummary };
+  return {
+    toggleHotspot,
+    saveNote,
+    deleteNote,
+    editNote,
+    pause,
+    resume,
+    submit,
+    postReply,
+    draftSummary,
+  };
 }

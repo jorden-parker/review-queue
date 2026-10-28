@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 import { ensureCheckout } from "@/lib/git/checkout";
-import { SymbolIndex } from "@/lib/symbols/symbol-index";
+import { type Reference, SymbolIndex } from "@/lib/symbols/symbol-index";
 import {
   createFixtureRepo,
   type FixtureRepo,
@@ -11,13 +11,32 @@ import {
   mainOf,
   removeFixtureRepo,
 } from "@/test/git-fixture";
-import { codeTools } from "./code-tools";
+import { codeTools, type CodeLookupIndex } from "./code-tools";
 
 const REF = { owner: "acme", repo: "app", number: 1 };
 
 const LONG_FILE = Array.from({ length: 500 }, (_, line) => `export const line${line} = ${line};`);
 
 const WIDE_FILE = Array.from({ length: 300 }, () => "x".repeat(100));
+
+function fakeIndex(overrides: Partial<CodeLookupIndex>): CodeLookupIndex {
+  return {
+    listFiles: async () => [],
+    definitionsOf: () => [],
+    referencesTo: async () => [],
+    search: async () => [],
+    readLines: () => [],
+    ...overrides,
+  };
+}
+
+function uses(count: number): Reference[] {
+  return Array.from({ length: count }, (_, index) => ({
+    path: "src/many.ts",
+    line: index + 1,
+    text: "helper();",
+  }));
+}
 
 describe("codeTools", () => {
   let fixture: FixtureRepo;
@@ -145,6 +164,21 @@ describe("codeTools", () => {
     });
   });
 
+  describe("tracked file listing", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("retries the listing after it fails", async () => {
+      vi.spyOn(index, "listFiles").mockRejectedValueOnce(new Error("ls-files failed"));
+      const tools = codeTools(index, "src/app.ts");
+      const readUtil = () =>
+        tools.run("read_file", { path: "src/util.ts", start_line: 1, end_line: 1 });
+      await expect(readUtil()).rejects.toThrow("ls-files failed");
+      await expect(readUtil()).resolves.toMatchObject({
+        content: expect.stringContaining("1: export function helper"),
+      });
+    });
+  });
+
   describe("input and output contract", () => {
     it("rejects input that does not match the schema without calling git", async () => {
       await expect(run("find_references", {})).rejects.toBeInstanceOf(ZodError);
@@ -175,6 +209,40 @@ describe("codeTools", () => {
 
     it("rejects a tool name it does not know", async () => {
       await expect(run("delete_everything", {})).rejects.toThrow("Unknown tool: delete_everything");
+    });
+  });
+
+  describe("lookup limits", () => {
+    it("keeps an exact count up to the limit", async () => {
+      const lookup = codeTools(fakeIndex({ referencesTo: async () => uses(40) }), "src/app.ts");
+      const outcome = await lookup.run("find_references", { name: "helper" });
+      expect(outcome.lookup.label).toBe("Callers and uses of `helper` (40)");
+    });
+
+    it("marks a reference lookup over the limit as open-ended and shows only the limit", async () => {
+      const lookup = codeTools(fakeIndex({ referencesTo: async () => uses(41) }), "src/app.ts");
+      const outcome = await lookup.run("find_references", { name: "helper" });
+      expect(outcome.lookup.label).toBe("Callers and uses of `helper` (40+)");
+      expect(outcome.content.match(/src\/many\.ts:\d+:/g)).toHaveLength(40);
+    });
+
+    it("marks a search over the limit as open-ended", async () => {
+      const lookup = codeTools(fakeIndex({ search: async () => uses(41) }), "src/app.ts");
+      const outcome = await lookup.run("search_code", { query: "helper" });
+      expect(outcome.lookup.label).toBe("Search for `helper` (40+)");
+    });
+
+    it("marks a definition list longer than it shows as open-ended", async () => {
+      const definitions = Array.from({ length: 4 }, (_, index) => ({
+        name: "helper",
+        kind: "function" as const,
+        path: `src/d${index}.ts`,
+        line: 1,
+        endLine: 1,
+      }));
+      const lookup = codeTools(fakeIndex({ definitionsOf: () => definitions }), "src/app.ts");
+      const outcome = await lookup.run("find_definition", { name: "helper" });
+      expect(outcome.lookup.label).toBe("Definition of `helper` (3+)");
     });
   });
 });

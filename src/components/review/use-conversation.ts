@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { threadsFor } from "./conversation-threads";
 import type { Conversation } from "@/lib/github/conversation";
 import type { PullRequestRef } from "@/lib/types";
@@ -32,5 +32,14 @@ export function useConversation(ref: PullRequestRef) {
     };
   }, [ref]);
 
-  return { conversation, threads, conversationError: error };
+  const refreshConversation = useCallback(async () => {
+    try {
+      setConversation(await fetchConversation(ref));
+      setError(null);
+    } catch (failure) {
+      setError(messageOf(failure));
+    }
+  }, [ref]);
+
+  return { conversation, threads, conversationError: error, refreshConversation };
 }

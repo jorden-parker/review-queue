@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ReviewComment } from "@/lib/github/gh";
@@ -626,6 +627,17 @@ describe("ReviewLoader", () => {
     );
   });
 
+  it("keeps a refused note out of the review and says why", async () => {
+    const { api, user } = await renderReview();
+    api.refuseNextSessionAction("Note body is too long");
+    await user.keyboard("c");
+    await user.click(screen.getByRole("button", { name: "Issue" }));
+    await user.type(screen.getByPlaceholderText(/What did you notice/), "Needs a default");
+    await user.click(screen.getByRole("button", { name: "Save note" }));
+    expect(await screen.findByText("Couldn't save: Note body is too long")).toBeTruthy();
+    expect(screen.queryByText("Needs a default")).toBeNull();
+  });
+
   it("offers every label and keeps a non-blocking decoration with its hint", async () => {
     const { api, user } = await renderReview();
     await user.keyboard("c");
@@ -692,6 +704,18 @@ describe("ReviewLoader", () => {
     render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
     expect(await screen.findByText("Welcome back")).toBeTruthy();
     expect(screen.getByText(/New commits changed 1 step/)).toBeTruthy();
+  });
+
+  it("posts the seen request once per load, even when React runs effects twice", async () => {
+    const api = installFakeApi(reviewPayload());
+    render(
+      <StrictMode>
+        <ReviewLoader pullRequest={REF} />
+      </StrictMode>,
+      { wrapper: TooltipProvider },
+    );
+    expect(await screen.findByText("Step 1 of 3")).toBeTruthy();
+    expect(api.calls.filter((call) => call.url.includes("/seen"))).toHaveLength(1);
   });
 
   it("finishes the review and posts selected notes", async () => {
@@ -769,9 +793,19 @@ describe("ReviewLoader", () => {
     const { user } = await renderReview();
     await user.keyboard("?");
     expect(screen.getByText("Keyboard")).toBeTruthy();
+    expect(screen.getByText("Hotspots: things to check in this PR")).toBeTruthy();
+    expect(screen.getByText("GitHub: the PR's comments and what you posted")).toBeTruthy();
     await user.click(screen.getByText("Keyboard"));
     await user.keyboard("{Escape}");
     expect(screen.queryByText("Keyboard")).toBeNull();
+  });
+
+  it("opens the Hotspots and GitHub panes from the keyboard", async () => {
+    const { user } = await renderReview();
+    await user.keyboard("gh");
+    expect(openPanes()).toEqual(["Hotspots"]);
+    await user.keyboard("gg");
+    expect(openPanes()).toEqual(["GitHub"]);
   });
 
   it("explains selected lines in a side panel and takes a follow-up", async () => {

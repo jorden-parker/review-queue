@@ -10,7 +10,13 @@ import { MarkdownField } from "@/components/common/markdown-field";
 import type { AssistLookup, AssistThread, AssistTurn } from "@/lib/assist-protocol";
 import { splitConventionalPrefix, unwrappedDraft } from "@/lib/review/conventional-comment";
 import type { NoteTag } from "@/lib/types";
-import { actionLabel, awaitsQuestion, canFollowUp, questionPrompt } from "./assist-thread";
+import {
+  actionLabel,
+  awaitsQuestion,
+  awaitsReply,
+  canFollowUp,
+  questionPrompt,
+} from "./assist-thread";
 import { CitationChip, CitationWalk } from "./citation-walk";
 import type { Citation } from "./citations";
 import { NoteTagPicker } from "./note-composer";
@@ -176,10 +182,12 @@ function Composer({
   thread,
   readOnly,
   onSend,
+  onRetry,
 }: {
   thread: AssistThread;
   readOnly: boolean;
   onSend: (text: string) => void;
+  onRetry: () => void;
 }) {
   const [text, setText] = useState("");
   const asking = awaitsQuestion(thread);
@@ -191,6 +199,13 @@ function Composer({
     );
   }
   if (!asking && !canFollowUp(thread)) {
+    if (awaitsReply(thread)) {
+      return (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      );
+    }
     return (
       <p className="text-xs text-muted-foreground">
         That&apos;s a long thread. Ask again to start fresh.
@@ -237,6 +252,10 @@ export function AssistPanel({
   const send = (text: string) => {
     pin();
     assist.send(text);
+  };
+  const retry = () => {
+    pin();
+    assist.retry();
   };
   return (
     <section
@@ -298,6 +317,7 @@ export function AssistPanel({
             thread={thread}
             readOnly={assist.readOnly}
             onSend={send}
+            onRetry={retry}
           />
         )}
       </footer>

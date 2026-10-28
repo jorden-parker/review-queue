@@ -9,3 +9,4 @@ coverage
 .claude/worktrees/
 
 /plans/
+.env*.local

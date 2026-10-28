@@ -1,5 +1,7 @@
+import { mapWithLimit } from "@/lib/map-with-limit";
+import { memoizePromise } from "@/lib/memoize-promise";
 import type { ClientFor } from "@/lib/lsp/pool";
-import type { SymbolIndex } from "@/lib/symbols/symbol-index";
+import { MAX_REFERENCES, type SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { FileDiff, ReferenceCount, SymbolDefinition } from "@/lib/types";
 import type { PreparedFile } from "./prepare";
 
@@ -9,6 +11,8 @@ export type CountSource = {
 };
 
 type Declaration = Omit<ReferenceCount, "count">;
+
+const CONCURRENT_COUNTS = 4;
 
 const IDENTIFIER_CHARACTER = /[\w$]/;
 
@@ -54,18 +58,30 @@ async function serverCount(
   return locations.filter((location) => source.index.relativePath(location.file) !== null).length;
 }
 
-async function textualCount(source: CountSource, name: string): Promise<number> {
-  return Math.max(0, (await source.index.referencesTo(name)).length - 1);
+async function textualTally(
+  source: CountSource,
+  name: string,
+): Promise<Pick<ReferenceCount, "count" | "capped">> {
+  const references = await source.index.referencesTo(name);
+  const count = Math.max(0, references.length - 1);
+  return references.length >= MAX_REFERENCES ? { count, capped: true } : { count };
+}
+
+async function countOne(
+  source: CountSource,
+  path: string,
+  declaration: Declaration,
+): Promise<ReferenceCount> {
+  const fromServer = await serverCount(source, path, declaration).catch(() => null);
+  if (fromServer !== null) return { ...declaration, count: fromServer };
+  return { ...declaration, ...(await textualTally(source, declaration.name)) };
 }
 
 async function countAll(source: CountSource, file: PreparedFile): Promise<ReferenceCount[]> {
-  const counts: ReferenceCount[] = [];
-  for (const declaration of lensDeclarations(file, source.index.definitionsIn(file.path))) {
-    const fromServer = await serverCount(source, file.path, declaration).catch(() => null);
-    const count = fromServer ?? (await textualCount(source, declaration.name));
-    counts.push({ ...declaration, count });
-  }
-  return counts;
+  const declarations = lensDeclarations(file, source.index.definitionsIn(file.path));
+  return mapWithLimit(declarations, CONCURRENT_COUNTS, (declaration) =>
+    countOne(source, file.path, declaration),
+  );
 }
 
 const computed = new WeakMap<CountSource, Map<string, Promise<ReferenceCount[]>>>();
@@ -76,10 +92,5 @@ export function referenceCountsIn(
 ): Promise<ReferenceCount[]> {
   const byPath = computed.get(source) ?? new Map<string, Promise<ReferenceCount[]>>();
   computed.set(source, byPath);
-  if (!byPath.has(file.path)) {
-    const pending = countAll(source, file);
-    pending.catch(() => byPath.delete(file.path));
-    byPath.set(file.path, pending);
-  }
-  return byPath.get(file.path)!;
+  return memoizePromise(byPath, file.path, () => countAll(source, file));
 }

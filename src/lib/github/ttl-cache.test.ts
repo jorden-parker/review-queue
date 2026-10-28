@@ -40,6 +40,15 @@ describe("TtlCache", () => {
     expect(loader.loads()).toBe(2);
   });
 
+  it("forgets an entry so the next get loads again", async () => {
+    const cache = new TtlCache(fakeClock().now);
+    const loader = countingLoader("pr");
+    await cache.get("a", 1000, loader.load);
+    cache.forget("a");
+    await cache.get("a", 1000, loader.load);
+    expect(loader.loads()).toBe(2);
+  });
+
   it("keeps keys apart", async () => {
     const cache = new TtlCache(fakeClock().now);
     await cache.get("a", 1000, async () => "first");

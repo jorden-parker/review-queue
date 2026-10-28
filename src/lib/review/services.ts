@@ -33,10 +33,18 @@ export function reviewRequests(): Promise<ReviewRequest[]> {
   return githubCache().get("review-requests", REVIEW_REQUESTS_TTL_MS, () => listReviewRequests());
 }
 
+function conversationKey(ref: PullRequestRef): string {
+  return `conversation:${prKey(ref)}`;
+}
+
 export function conversation(ref: PullRequestRef): Promise<Conversation> {
-  return githubCache().get(`conversation:${prKey(ref)}`, PULL_REQUEST_TTL_MS, () =>
+  return githubCache().get(conversationKey(ref), PULL_REQUEST_TTL_MS, () =>
     loadConversation(ref, sessionStore()),
   );
+}
+
+export function forgetConversation(ref: PullRequestRef): void {
+  githubCache().forget(conversationKey(ref));
 }
 
 export function reviewDeps(): ReviewDeps {

@@ -26,4 +26,12 @@ describe("serverFor", () => {
       CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER: "",
     });
   });
+
+  it("never lets cargo or rustup reach the network", () => {
+    vi.stubEnv("REVIEW_QUEUE_LSP_RUST", "on");
+    expect(serverFor("src/lib.rs")?.env).toMatchObject({
+      CARGO_NET_OFFLINE: "true",
+      RUSTUP_AUTO_INSTALL: "0",
+    });
+  });
 });

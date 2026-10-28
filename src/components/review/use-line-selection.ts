@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { type LineRange, orderedRange } from "@/lib/assist-protocol";
+import { orderedRange } from "@/lib/assist-protocol";
+import { type LineSelection, sameLineSelection } from "./line-selection-state";
 import { toolbarTop } from "./toolbar-position";
 
-export type LineSelection = { range: LineRange; top: number; left: number };
+export type { LineSelection } from "./line-selection-state";
 
 function lineOf(node: Node | null) {
   const element = node instanceof Element ? node : node?.parentElement;
@@ -31,12 +32,24 @@ function currentSelection(): LineSelection | null {
 export function useLineSelection(): LineSelection | null {
   const [selection, setSelection] = useState<LineSelection | null>(null);
   useEffect(() => {
-    const update = () => setSelection(currentSelection());
-    document.addEventListener("selectionchange", update);
-    document.addEventListener("scroll", update, { capture: true, passive: true });
+    let frame: number | null = null;
+    let shown: LineSelection | null = null;
+    const refresh = () => {
+      frame = null;
+      const next = currentSelection();
+      if (sameLineSelection(shown, next)) return;
+      shown = next;
+      setSelection(next);
+    };
+    const scheduleRefresh = () => {
+      if (frame === null) frame = requestAnimationFrame(refresh);
+    };
+    document.addEventListener("selectionchange", scheduleRefresh);
+    document.addEventListener("scroll", scheduleRefresh, { capture: true, passive: true });
     return () => {
-      document.removeEventListener("selectionchange", update);
-      document.removeEventListener("scroll", update, { capture: true });
+      if (frame !== null) cancelAnimationFrame(frame);
+      document.removeEventListener("selectionchange", scheduleRefresh);
+      document.removeEventListener("scroll", scheduleRefresh, { capture: true });
     };
   }, []);
   return selection;

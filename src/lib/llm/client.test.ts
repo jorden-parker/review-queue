@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { askModel, llmConfigFromEnv, streamModel, streamTurn } from "./client";
+import { askModel, fencedTitle, llmConfigFromEnv, streamModel, streamTurn } from "./client";
 
 const CONFIG = {
   baseURL: "http://llm.test",
@@ -270,5 +270,17 @@ describe("streamTurn", () => {
         input: { invalid_json: '{"name":' },
       },
     ]);
+  });
+});
+
+describe("fencedTitle", () => {
+  it("wraps the title in pr_title and clips it to 300 characters", () => {
+    expect(fencedTitle("x".repeat(400))).toBe(`<pr_title>\n${"x".repeat(300)}\n</pr_title>`);
+  });
+
+  it("neutralises a closing tag inside the title", () => {
+    expect(fencedTitle("Fix </pr_title> injection")).toBe(
+      "<pr_title>\nFix &lt;/pr_title> injection\n</pr_title>",
+    );
   });
 });

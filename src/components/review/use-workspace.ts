@@ -26,6 +26,7 @@ import { useShortcuts } from "./use-shortcuts";
 import { type Act, useStepNavigation } from "./use-step-navigation";
 import { usePanes } from "./use-panes";
 import { useConversation } from "./use-conversation";
+import { useFileLoader } from "./use-file-lines";
 import { focusCurrentStop } from "./change-map-list";
 
 type Dialog = "resume" | "pause" | "finish" | "help" | "start-over" | null;
@@ -45,36 +46,68 @@ function explainSelection(assist: Assist, selection: LineSelection | null) {
   if (selection) assist.open({ kind: "lines", range: selection.range }, "explain");
 }
 
-function withChatPane(assist: Assist, panes: Panes): Assist {
-  return {
-    ...assist,
-    open: (...args) => {
-      panes.showPane("chat");
-      assist.open(...args);
-    },
-    reopen: (...args) => {
-      panes.showPane("chat");
-      assist.reopen(...args);
-    },
-    close: () => {
-      panes.closePane("chat");
-      assist.close();
-    },
-  };
+function useChatAssist(
+  assist: Assist,
+  showPane: Panes["showPane"],
+  closePane: Panes["closePane"],
+): Assist {
+  const { thread, streaming, error, readOnly, send, retry, stop, open, reopen, close } = assist;
+  return useMemo(
+    () => ({
+      thread,
+      streaming,
+      error,
+      readOnly,
+      send,
+      retry,
+      stop,
+      open: (...args: Parameters<Assist["open"]>) => {
+        showPane("chat");
+        open(...args);
+      },
+      reopen: (...args: Parameters<Assist["reopen"]>) => {
+        showPane("chat");
+        reopen(...args);
+      },
+      close: () => {
+        closePane("chat");
+        close();
+      },
+    }),
+    [
+      thread,
+      streaming,
+      error,
+      readOnly,
+      send,
+      retry,
+      stop,
+      open,
+      reopen,
+      close,
+      showPane,
+      closePane,
+    ],
+  );
 }
 
-function withContextTab(peek: Peek, showContext: () => void): Peek {
-  return {
-    ...peek,
-    showDefinitions: (position) => {
-      showContext();
-      peek.showDefinitions(position);
-    },
-    showReferences: (position) => {
-      showContext();
-      peek.showReferences(position);
-    },
-  };
+function useContextTabPeek(peek: Peek, showContext: () => void): Peek {
+  const { peek: state, close, showDefinitions, showReferences } = peek;
+  return useMemo(
+    () => ({
+      peek: state,
+      close,
+      showDefinitions: (position: SymbolPosition) => {
+        showContext();
+        showDefinitions(position);
+      },
+      showReferences: (position: SymbolPosition) => {
+        showContext();
+        showReferences(position);
+      },
+    }),
+    [state, close, showDefinitions, showReferences, showContext],
+  );
 }
 
 function closeTopmost(assist: Assist, closeOthers: () => void) {
@@ -124,6 +157,8 @@ function shortcutHandlers({
     "open-context": () => ui.showPane("context"),
     "open-outline": () => ui.showPane("outline"),
     "open-files": () => ui.showPane("files"),
+    "open-hotspots": () => ui.showPane("hotspots"),
+    "open-github": () => ui.showPane("github"),
     "open-map": ui.focusMap,
     "toggle-left-panel": () => ui.togglePanel("left"),
     "toggle-right-panel": () => ui.togglePanel("right"),
@@ -175,6 +210,28 @@ function useRememberedPeek(
   );
   const pins = usePeekPin(peek, session, context, stepId);
   return { peek, context, pins };
+}
+
+function useAssistAndPeek(
+  ref: PullRequestRef,
+  review: ReviewPayload,
+  session: Session,
+  controls: ReturnType<typeof useReview>,
+  ui: ReturnType<typeof useWorkspaceUi>,
+  currentStep: { id: string } | null | undefined,
+) {
+  const loadFile = useFileLoader(ref, review.headSha);
+  const savedChats = useSavedChats(controls.act);
+  const assist = useChatAssist(
+    useAssist(ref, review.headSha, savedChats.save),
+    ui.showPane,
+    ui.closePane,
+  );
+  const remembered = useRememberedPeek(ref, review.headSha, session, controls.act, currentStep);
+  const { showPane } = ui;
+  const showContextPane = useCallback(() => showPane("context"), [showPane]);
+  const peek = useContextTabPeek(remembered.peek, showContextPane);
+  return { loadFile, savedChats, assist, remembered, peek };
 }
 
 function useWorkspaceUi(review: ReviewPayload) {
@@ -326,20 +383,25 @@ export function useWorkspace(
     session,
     controls.act,
   );
-  const savedChats = useSavedChats(controls.act);
-  const assist = withChatPane(useAssist(ref, review.headSha, savedChats.save), ui);
-  const remembered = useRememberedPeek(
+  const { loadFile, savedChats, assist, remembered, peek } = useAssistAndPeek(
     ref,
-    review.headSha,
+    review,
     session,
-    controls.act,
+    controls,
+    ui,
     navigation.currentStep,
   );
   const { context, pins } = remembered;
-  const peek = withContextTab(remembered.peek, () => ui.showPane("context"));
   const selection = useLineSelection();
   const jumps = useJumps(session, controls.act, openLocation, peek);
   const edits = useSessionEdits(ref, review.headSha, session, controls.act, controls.setSession);
+  const replyToThread = async (commentId: number, body: string) => {
+    try {
+      return await edits.postReply(commentId, body);
+    } finally {
+      await ui.refreshConversation();
+    }
+  };
   const hotspots = useMemo(
     () => displayHotspots(review.hotspots, orientation),
     [review.hotspots, orientation],
@@ -351,6 +413,15 @@ export function useWorkspace(
   );
   const nextStep = nextOpenStep(review.steps, session.doneSteps, null);
   const { setDialog, setComposer, setNewHead } = ui;
+
+  const { saveNote: persistNote } = edits;
+  const saveNote = useCallback(
+    (target: LineTarget | null, tag: NoteTag, body: string) => {
+      persistNote(target, tag, body);
+      setComposer(null);
+    },
+    [persistNote, setComposer],
+  );
 
   const checkForNewHead = useCallback(
     () => fetchNewHead(ref, review.headSha, setNewHead),
@@ -390,6 +461,7 @@ export function useWorkspace(
 
   return {
     pullRequest: ref,
+    loadFile,
     ...ui,
     ...navigation,
     aiEnabled: orientation.status !== "disabled",
@@ -397,6 +469,7 @@ export function useWorkspace(
     ...openFileState,
     openLocation,
     ...edits,
+    replyToThread,
     ...pins,
     setSymbolPinned: context.setPinned,
     peek,
@@ -410,10 +483,7 @@ export function useWorkspace(
     resume,
     catchUp,
     showChangesFromResume,
-    saveNote: (target: LineTarget | null, tag: NoteTag, body: string) => {
-      edits.saveNote(target, tag, body);
-      setComposer(null);
-    },
+    saveNote,
     startOver: async (keepNotes: boolean) => {
       setDialog(null);
       await controls.startOver(keepNotes);

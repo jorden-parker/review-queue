@@ -1,4 +1,7 @@
+import { Archive } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode, RefObject } from "react";
+import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { parsePullRequestRef, prPath } from "@/lib/pr-ref";
@@ -11,7 +14,13 @@ export function relativeTime(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function InProgressRow({ session }: { session: InProgressSession }) {
+export function InProgressRow({
+  session,
+  control,
+}: {
+  session: InProgressSession;
+  control?: ReactNode;
+}) {
   const ref = parsePullRequestRef(session.key);
   const body = (
     <>
@@ -31,31 +40,57 @@ function InProgressRow({ session }: { session: InProgressSession }) {
     </>
   );
   return (
-    <li>
+    <li className="flex items-center">
       {ref ? (
         <Link
           href={prPath(ref)}
-          className="flex items-center gap-4 px-5 py-4 transition-colors duration-calm hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none"
+          className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4 transition-colors duration-calm hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none"
         >
           {body}
         </Link>
       ) : (
-        <div className="flex items-center gap-4 px-5 py-4">{body}</div>
+        <div className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4">{body}</div>
       )}
+      {control && <div className="pr-4">{control}</div>}
     </li>
   );
 }
 
-export function InProgressList({ sessions }: { sessions: InProgressSession[] }) {
+export function InProgressList({
+  sessions,
+  busy,
+  onArchive,
+  headingRef,
+}: {
+  sessions: InProgressSession[];
+  busy: boolean;
+  onArchive: (session: InProgressSession) => void;
+  headingRef: RefObject<HTMLHeadingElement | null>;
+}) {
   if (sessions.length === 0) return null;
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-bold">
+      <h2 ref={headingRef} tabIndex={-1} className="text-lg font-bold">
         Also in progress <span className="text-muted-foreground">({sessions.length})</span>
       </h2>
       <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
         {sessions.map((session) => (
-          <InProgressRow key={session.key} session={session} />
+          <InProgressRow
+            key={session.key}
+            session={session}
+            control={
+              <HintButton
+                variant="ghost"
+                size="icon-sm"
+                hint="Move to Archived"
+                aria-label={`Archive ${session.key}`}
+                disabled={busy}
+                onClick={() => onArchive(session)}
+              >
+                <Archive />
+              </HintButton>
+            }
+          />
         ))}
       </ul>
     </section>
