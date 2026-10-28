@@ -35,6 +35,15 @@ function symbol(name: string, line = 1): SeenSymbol {
   };
 }
 
+function withTempDirectory(run: (directory: string) => void): void {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rq-store-"));
+  try {
+    run(directory);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 describe("SessionStore", () => {
   let store: SessionStore;
   let now: number;
@@ -433,5 +442,50 @@ describe("SessionStore", () => {
     store.startOver(KEY, false);
     expect(store.getSession(KEY).doneSteps).toEqual([]);
     expect(store.getSession(KEY).submissions).toHaveLength(1);
+  });
+
+  it("indexes the per-PR tables that have no primary key starting with pr_key", () => {
+    withTempDirectory((directory) => {
+      const file = path.join(directory, "review-queue.db");
+      new SessionStore(file);
+      const check = new DatabaseSync(file);
+      const indexes = check
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
+        .all() as { name: string }[];
+      check.close();
+      expect(indexes.map((index) => index.name)).toEqual(
+        expect.arrayContaining(["notes_pr_key", "jumps_pr_key", "submissions_pr_key"]),
+      );
+    });
+  });
+
+  it("opens the database in write-ahead logging mode", () => {
+    withTempDirectory((directory) => {
+      const file = path.join(directory, "review-queue.db");
+      new SessionStore(file);
+      const check = new DatabaseSync(file);
+      expect(check.prepare("PRAGMA journal_mode").get()).toEqual({ journal_mode: "wal" });
+      check.close();
+    });
+  });
+
+  it("keeps a new database file and its directory private to the user", () => {
+    withTempDirectory((directory) => {
+      const dataDirectory = path.join(directory, "data");
+      const file = path.join(dataDirectory, "review-queue.db");
+      new SessionStore(file);
+      expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+      expect(fs.statSync(dataDirectory).mode & 0o777).toBe(0o700);
+    });
+  });
+
+  it("tightens a database file that was created world-readable", () => {
+    withTempDirectory((directory) => {
+      const file = path.join(directory, "review-queue.db");
+      fs.writeFileSync(file, "");
+      fs.chmodSync(file, 0o644);
+      new SessionStore(file);
+      expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+    });
   });
 });
