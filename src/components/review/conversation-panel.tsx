@@ -6,7 +6,7 @@ import { Markdown } from "@/components/common/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Conversation } from "@/lib/github/conversation";
-import type { PostedReview, ReviewEvent } from "@/lib/github/gh";
+import type { PostedReview, ReviewComment, ReviewEvent } from "@/lib/github/gh";
 import type { Session } from "@/lib/session/store";
 import type { Thread } from "./conversation-threads";
 import type { LineTarget } from "./locate";
@@ -49,7 +49,9 @@ export function ConversationPanel({
       <ReviewsSection reviews={conversation.reviews} />
       <ThreadsSection threads={threads} onOpen={onOpen} />
       {conversation.truncated && (
-        <p className="text-xs text-muted-foreground">Showing the first 100</p>
+        <p className="text-xs text-muted-foreground">
+          Showing part of the conversation. The rest is on GitHub.
+        </p>
       )}
       <ReceiptsSection receipts={receipts} />
     </div>
@@ -148,6 +150,9 @@ function ThreadRow({ thread, onOpen }: { thread: Thread; onOpen: (target: LineTa
         {thread.outdated && <Badge variant="outline">Outdated</Badge>}
       </div>
       <Markdown text={root.body} className="wrap-anywhere" />
+      {replies.map((reply) => (
+        <ReplyItem key={reply.id} reply={reply} />
+      ))}
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{replies.length > 0 && replyCount(replies.length)}</span>
         {line !== null && side === "RIGHT" && (
@@ -162,6 +167,18 @@ function ThreadRow({ thread, onOpen }: { thread: Thread; onOpen: (target: LineTa
         )}
       </div>
     </article>
+  );
+}
+
+function ReplyItem({ reply }: { reply: ReviewComment }) {
+  return (
+    <div id={`comment-${reply.id}`} className="flex flex-col gap-1 border-l-2 pl-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">{reply.author}</span>
+        <span>{relativeTime(reply.createdAt)}</span>
+      </div>
+      <Markdown text={reply.body} className="wrap-anywhere" />
+    </div>
   );
 }
 

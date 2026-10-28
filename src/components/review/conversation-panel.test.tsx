@@ -81,6 +81,33 @@ describe("ConversationPanel", () => {
     expect(onOpen).toHaveBeenCalledWith({ path: "a.ts", line: 3 });
   });
 
+  it("shows the text of each reply under its thread, oldest first", () => {
+    renderPanel({
+      comments: [
+        comment({ id: 1, body: "Rename this" }),
+        comment({
+          id: 3,
+          inReplyTo: 1,
+          author: "sam",
+          body: "Thanks",
+          createdAt: "2026-10-01T11:00:00Z",
+        }),
+        comment({
+          id: 2,
+          inReplyTo: 1,
+          author: "kim",
+          body: "Done",
+          createdAt: "2026-10-01T10:30:00Z",
+        }),
+      ],
+    });
+    const done = screen.getByText("Done");
+    const thanks = screen.getByText("Thanks");
+    expect(done.compareDocumentPosition(thanks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeGreaterThan(
+      0,
+    );
+  });
+
   it("marks an outdated thread and offers no jump for it", () => {
     renderPanel({ comments: [comment({ id: 1, line: null })] });
     expect(screen.getByText("Outdated")).toBeTruthy();
@@ -93,9 +120,11 @@ describe("ConversationPanel", () => {
     expect(screen.queryByRole("button", { name: /Open a\.ts/ })).toBeNull();
   });
 
-  it("says when only the first page is shown", () => {
+  it("says when part of the conversation is not shown", () => {
     renderPanel({ reviews: [review({ id: 9 })], truncated: true });
-    expect(screen.getByText("Showing the first 100")).toBeTruthy();
+    expect(
+      screen.getByText("Showing part of the conversation. The rest is on GitHub."),
+    ).toBeTruthy();
   });
 
   it("lists your own receipts with their verdict and a link", () => {
