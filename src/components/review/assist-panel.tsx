@@ -6,6 +6,7 @@ import { Callout } from "@/components/common/callout";
 import { type CitationRenderer, InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownField } from "@/components/common/markdown-field";
 import type { AssistLookup, AssistThread, AssistTurn } from "@/lib/assist-protocol";
 import { splitConventionalPrefix, unwrappedDraft } from "@/lib/review/conventional-comment";
 import type { NoteTag } from "@/lib/types";
@@ -103,9 +104,10 @@ function ModelTurn({ turn, streaming, isLast, citationsOf, onShowCitation }: Tur
 function Turn(props: TurnProps) {
   if (props.turn.role === "reviewer") {
     return (
-      <p className="self-end rounded-lg bg-accent px-3 py-2 text-accent-foreground">
-        {props.turn.text}
-      </p>
+      <Markdown
+        text={props.turn.text}
+        className="flex flex-col gap-2 self-end rounded-lg bg-accent px-3 py-2 text-accent-foreground"
+      />
     );
   }
   return <ModelTurn {...props} />;
@@ -153,7 +155,7 @@ function CommentDraft({
   return (
     <div className="flex flex-col gap-2 rounded-lg border p-3">
       <NoteTagPicker tag={tag} onChange={setTag} />
-      <Textarea
+      <MarkdownField
         aria-label="Comment draft"
         value={body}
         onChange={(event) => setBody(event.target.value)}

@@ -92,6 +92,16 @@ describe("orient", () => {
     expect(bodies[0]).toMatchObject({ system: expect.stringContaining(CODE_NAME_RULE) });
   });
 
+  it("asks for a design review with rules for the languages in the diff", async () => {
+    const { fetchImpl, bodies } = scriptedFetch([JSON.stringify(GOOD)]);
+    await orient(INPUT, CONFIG, fetchImpl);
+    expect(bodies[0]).toMatchObject({ system: expect.stringContaining("YAGNI") });
+    expect(bodies[0]).toMatchObject({
+      system: expect.stringContaining("TypeScript and JavaScript:"),
+    });
+    expect(bodies[0]).toMatchObject({ system: expect.stringContaining("clear design problems") });
+  });
+
   it("retries once when the first reply is not valid JSON", async () => {
     const { fetchImpl, bodies } = scriptedFetch(["not json", JSON.stringify(GOOD)]);
     const orientation = await orient(INPUT, CONFIG, fetchImpl);

@@ -131,6 +131,25 @@ describe("assistRequest", () => {
     expect(new Set(systems).size).toBe(4);
   });
 
+  it("asks for a design review for every action that judges code", () => {
+    for (const action of ["explain", "comment", "ask", "check"] as const) {
+      expect(assistRequest({ ...INPUT, action }, []).system).toContain("YAGNI");
+    }
+    expect(assistRequest({ ...INPUT, action: "simplify" }, []).system).not.toContain("YAGNI");
+  });
+
+  it("adds the React rules only when the selection is in a component file", () => {
+    const comment = { ...INPUT, action: "comment" } as const;
+    expect(assistRequest(comment, []).system).not.toContain("React:");
+    expect(assistRequest({ ...comment, path: "src/view.tsx" }, []).system).toContain("React:");
+  });
+
+  it("asks a comment to name the principle it rests on and to block only on real problems", () => {
+    const system = assistRequest({ ...INPUT, action: "comment" }, []).system;
+    expect(system).toContain("name the principle");
+    expect(system).toContain("(blocking)");
+  });
+
   it("asks a comment to open with one Conventional Comments label", () => {
     const system = assistRequest({ ...INPUT, action: "comment" }, []).system;
     expect(system).toContain(`one of: ${NOTE_LABELS.join(", ")}`);

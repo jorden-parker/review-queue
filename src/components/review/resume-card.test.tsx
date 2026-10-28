@@ -37,6 +37,21 @@ describe("ResumeCard", () => {
     expect(screen.getByText("load, Options")).toBeTruthy();
   });
 
+  it("renders the pause note's Markdown inline", () => {
+    render(
+      <ResumeCard
+        session={emptySession({ pause: { note: "Check **retry** in `load`", at: "" } })}
+        steps={[]}
+        nextStep={null}
+        reopenedCount={0}
+        onContinue={vi.fn()}
+        onShowChanges={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("retry").tagName).toBe("STRONG");
+    expect(screen.getByText("load").tagName).toBe("CODE");
+  });
+
   it("renders the last note's Markdown inline", () => {
     render(
       <ResumeCard
