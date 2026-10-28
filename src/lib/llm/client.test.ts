@@ -13,7 +13,9 @@ function recordingFetch() {
   const bodies: unknown[] = [];
   const fetchImpl = async (_url: unknown, init?: RequestInit) => {
     bodies.push(JSON.parse(String(init?.body)));
-    return Response.json({ content: [{ type: "text", text: "ok" }] });
+    return new Response(
+      sseEvent("content_block_delta", { delta: { type: "text_delta", text: "ok" } }),
+    );
   };
   return { fetchImpl: fetchImpl as typeof fetch, bodies };
 }
@@ -48,7 +50,7 @@ describe("askModel", () => {
       max_tokens: 42 + 2048,
       messages: [{ role: "user", content: "hi" }],
       temperature: 0,
-      stream: false,
+      stream: true,
     });
     expect(bodies[0]).not.toHaveProperty("thinking");
   });
@@ -60,6 +62,22 @@ describe("askModel", () => {
       { system: "sys", maxTokens: 42, messages: [{ role: "user", content: "hi" }] },
     );
     expect(bodies[0]).toMatchObject({ max_tokens: 42, thinking: { type: "disabled" } });
+  });
+
+  it("waits past the timeout once the answer has started", async () => {
+    const config = { ...CONFIG, timeoutMs: 20 };
+    const reply = await askModel({ config, fetchImpl: slowAnswerFetch(60) }, REQUEST);
+    expect(reply).toBe("ab");
+  });
+
+  it("sends one request at a time, so a queued request's timeout starts when it is sent", async () => {
+    const config = { ...CONFIG, timeoutMs: 20 };
+    const fetchImpl = singleSlotFetch(60);
+    const replies = await Promise.all([
+      askModel({ config, fetchImpl }, REQUEST),
+      askModel({ config, fetchImpl }, REQUEST),
+    ]);
+    expect(replies).toEqual(["ab", "ab"]);
   });
 });
 
@@ -81,6 +99,51 @@ function streamingFetch(chunks: string[]) {
     return new Response(body, { headers: { "content-type": "text/event-stream" } });
   };
   return { fetchImpl: fetchImpl as typeof fetch, bodies };
+}
+
+function slowAnswerBody(
+  delayMs: number,
+  signal: AbortSignal | null | undefined,
+  onAnswered: () => void,
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const delta = (text: string) =>
+    encoder.encode(sseEvent("content_block_delta", { delta: { type: "text_delta", text } }));
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      controller.enqueue(delta("a"));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      onAnswered();
+      if (signal?.aborted) return controller.error(signal.reason);
+      controller.enqueue(delta("b"));
+      controller.close();
+    },
+  });
+}
+
+function slowAnswerFetch(delayMs: number): typeof fetch {
+  return (async (_url: unknown, init?: RequestInit) =>
+    new Response(slowAnswerBody(delayMs, init?.signal, () => {}))) as unknown as typeof fetch;
+}
+
+function abortRejection(signal: AbortSignal | null | undefined): Promise<never> {
+  return new Promise((_resolve, reject) =>
+    signal?.addEventListener("abort", () => reject(signal.reason)),
+  );
+}
+
+function singleSlotFetch(answerMs: number): typeof fetch {
+  let slotFree: Promise<void> = Promise.resolve();
+  return (async (_url: unknown, init?: RequestInit) => {
+    const previous = slotFree;
+    let freeSlot = () => {};
+    slotFree = new Promise<void>((resolve) => (freeSlot = resolve));
+    await Promise.race([previous, abortRejection(init?.signal)]).catch((reason: unknown) => {
+      freeSlot();
+      throw reason;
+    });
+    return new Response(slowAnswerBody(answerMs, init?.signal, freeSlot));
+  }) as unknown as typeof fetch;
 }
 
 async function collect<T>(stream: AsyncIterable<T>): Promise<T[]> {
@@ -132,23 +195,8 @@ describe("streamModel", () => {
   });
 
   it("keeps streaming past the timeout once the answer has started", async () => {
-    const encoder = new TextEncoder();
-    const delta = (text: string) =>
-      encoder.encode(sseEvent("content_block_delta", { delta: { type: "text_delta", text } }));
-    const slowBody = (async (_url: unknown, init?: RequestInit) => {
-      const body = new ReadableStream<Uint8Array>({
-        async start(controller) {
-          controller.enqueue(delta("a"));
-          await new Promise((resolve) => setTimeout(resolve, 60));
-          if (init?.signal?.aborted) return controller.error(init.signal.reason);
-          controller.enqueue(delta("b"));
-          controller.close();
-        },
-      });
-      return new Response(body);
-    }) as unknown as typeof fetch;
     const config = { ...CONFIG, timeoutMs: 20 };
-    const parts = await collect(streamModel({ config, fetchImpl: slowBody }, REQUEST));
+    const parts = await collect(streamModel({ config, fetchImpl: slowAnswerFetch(60) }, REQUEST));
     expect(parts.join("")).toBe("ab");
   });
 

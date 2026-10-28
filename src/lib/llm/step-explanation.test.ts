@@ -3,6 +3,7 @@ import type { FileDiff, Step } from "@/lib/types";
 import { addedHunk, fileDiff, lines } from "@/test/diff-builders";
 import { CODE_NAME_RULE, UNTRUSTED_DATA_RULE } from "./client";
 import { buildStepPrompt, explainStep, type StepExplanationInput } from "./step-explanation";
+import { modelReply } from "@/test/fake-llm";
 
 const STEP: Step = {
   id: "core:src/a.ts:1",
@@ -30,27 +31,11 @@ const GOOD = {
   checks: ["Is the key stable?", "Is eviction bounded?", "Is it thread safe?", "Extra one"],
 };
 
-function reply(text: string): Response {
-  return new Response(
-    JSON.stringify({
-      id: "msg_1",
-      type: "message",
-      role: "assistant",
-      model: "m",
-      content: [{ type: "text", text }],
-      stop_reason: "end_turn",
-      stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1 },
-    }),
-    { status: 200, headers: { "content-type": "application/json" } },
-  );
-}
-
 function scriptedFetch(texts: string[]) {
   const bodies: unknown[] = [];
   const fetchImpl = async (_url: unknown, init?: RequestInit) => {
     bodies.push(JSON.parse(String(init?.body)));
-    return reply(texts[bodies.length - 1]);
+    return modelReply(texts[bodies.length - 1]);
   };
   return { fetchImpl: fetchImpl as typeof fetch, bodies };
 }
