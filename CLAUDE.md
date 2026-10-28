@@ -9,7 +9,9 @@ review-queue is a local-only Next.js app for reviewing GitHub pull requests in
 an ADHD-friendly way. It turns a PR into a guided reading path of steps, flags
 hotspots, tracks progress and notes across pauses, and submits the review
 through the `gh` CLI. It needs `gh` to be installed and logged in, and Node >=
-22.5 because it uses `node:sqlite`.
+22.22.2 because it uses `node:sqlite` and the installed jsdom, vitest and
+typescript-language-server engines require that floor. `.env.local` at the repo
+root holds local overrides; it is git-ignored and should be `chmod 600`.
 
 ## Commands
 
@@ -19,9 +21,10 @@ through the `gh` CLI. It needs `gh` to be installed and logged in, and Node >=
 - `bunx vitest run src/lib/plan/reading-path.test.ts`: one file; add
   `-t "<name>"` for a single test
 - `bunx vitest run --project node` or `--project dom`: one test environment only
-- `bun run typecheck`, `bun run lint`, `bunx fallow`
-- `.claude/verify`: runs the full gate (tests, tsc, eslint, fallow). It must
-  pass before you finish.
+- `bun run typecheck`, `bun run lint`, `bunx fallow`. Fallow reads
+  `coverage/coverage-final.json`, so run `bun run test` first.
+- `.claude/verify` (also `bun run verify`): runs the full gate (tests, tsc,
+  eslint, fallow). It must pass before you finish.
 
 Vitest has two projects. `*.test.ts` runs in node and `*.test.tsx` runs in jsdom
 (setup: `src/test/dom-setup.ts`). Shared test helpers live in `src/test/`:
