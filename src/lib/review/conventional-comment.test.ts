@@ -4,6 +4,7 @@ import {
   exclusiveDecorations,
   hasConsistentDecorations,
   isBlocking,
+  splitConventionalPrefix,
 } from "./conventional-comment";
 
 describe("conventionalLabel", () => {
@@ -73,4 +74,34 @@ describe("hasConsistentDecorations", () => {
   it("accepts blocking with if-minor", () => {
     expect(hasConsistentDecorations(["blocking", "if-minor"])).toBe(true);
   });
+});
+
+describe("splitConventionalPrefix", () => {
+  it.each([
+    ["**question:** why?", { kind: "question", decorations: [] }, "why?"],
+    ["Suggestion: use map", { kind: "suggestion", decorations: [] }, "use map"],
+    ["**issue (blocking):** leaks", { kind: "issue", decorations: ["blocking"] }, "leaks"],
+    [
+      "nitpick (non-blocking, if-minor): x",
+      { kind: "nitpick", decorations: ["non-blocking", "if-minor"] },
+      "x",
+    ],
+    ["**suggestion**: use map", { kind: "suggestion", decorations: [] }, "use map"],
+    [
+      "**suggestion:**\n\n```ts\na()\n```",
+      { kind: "suggestion", decorations: [] },
+      "```ts\na()\n```",
+    ],
+    ["**issue (urgent):** x", { kind: "issue", decorations: [] }, "x"],
+    ["**issue (blocking, non-blocking):** x", { kind: "issue", decorations: ["blocking"] }, "x"],
+  ])("reads the label from %j", (text, tag, body) => {
+    expect(splitConventionalPrefix(text)).toEqual({ tag, body });
+  });
+
+  it.each(["Note that this is fine", "bug: x", "Notes: x", "aside: x"])(
+    "leaves %j alone when it has no known label",
+    (text) => {
+      expect(splitConventionalPrefix(text)).toEqual({ tag: null, body: text });
+    },
+  );
 });
