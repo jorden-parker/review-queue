@@ -99,6 +99,39 @@ describe("SymbolIndex", () => {
   });
 });
 
+describe("SymbolIndex.listFiles", () => {
+  let sandbox: string;
+  let root: string;
+
+  function runnerListing(listing: string): Runner {
+    return async (_command, args) => (args[0] === "ls-files" ? listing : "");
+  }
+
+  beforeEach(() => {
+    sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "symbol-index-list-"));
+    root = path.join(sandbox, "checkout");
+    fs.mkdirSync(root);
+  });
+
+  afterEach(() => fs.rmSync(sandbox, { recursive: true, force: true }));
+
+  it("lists every tracked file, including non-code and vendored paths", async () => {
+    const index = await SymbolIndex.build(
+      root,
+      runnerListing("a.ts\ndocs/readme.md\nvendor/x.go\n"),
+    );
+    expect(await index.listFiles()).toEqual(["a.ts", "docs/readme.md", "vendor/x.go"]);
+  });
+
+  it("drops blank lines and caps the listing", async () => {
+    const tracked = Array.from({ length: 20_005 }, (_, number) => `f${number}.txt`);
+    const index = await SymbolIndex.build(root, runnerListing(`${tracked.join("\n")}\n\n`));
+    const listed = await index.listFiles();
+    expect(listed).toHaveLength(20_000);
+    expect(listed).not.toContain("");
+  });
+});
+
 describe("SymbolIndex with hostile checkouts", () => {
   let sandbox: string;
   let root: string;
