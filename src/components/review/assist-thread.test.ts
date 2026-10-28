@@ -3,6 +3,7 @@ import { type AssistAction, type AssistTarget, MAX_HISTORY_TURNS } from "@/lib/a
 import {
   actionLabel,
   askedThread,
+  awaitsReply,
   canFollowUp,
   hasModelReply,
   openThread as openThreadAt,
@@ -131,5 +132,24 @@ describe("hasModelReply", () => {
     expect(hasModelReply(thread)).toBe(false);
     expect(hasModelReply(withModelText(thread, " "))).toBe(false);
     expect(hasModelReply(withModelText(thread, "It sets a."))).toBe(true);
+  });
+});
+
+describe("awaitsReply", () => {
+  it("is false before the reviewer has asked anything", () => {
+    expect(awaitsReply(openThread(LINES, "comment"))).toBe(false);
+  });
+
+  it("is true while the last turn is from the reviewer", () => {
+    expect(awaitsReply(openThread(LINES, "explain"))).toBe(true);
+    const followUp = withFollowUp(
+      withModelText(openThread(LINES, "explain"), "It sets a."),
+      "Why?",
+    );
+    expect(awaitsReply(followUp)).toBe(true);
+  });
+
+  it("is false once the model has answered", () => {
+    expect(awaitsReply(withModelText(openThread(LINES, "explain"), "It sets a."))).toBe(false);
   });
 });
