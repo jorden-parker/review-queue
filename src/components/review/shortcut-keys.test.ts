@@ -25,10 +25,19 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut("g", "o")).toBe("open-outline");
     expect(resolveShortcut("g", "f")).toBe("open-files");
     expect(resolveShortcut("g", "m")).toBe("open-map");
+    expect(resolveShortcut("g", "h")).toBe("open-hotspots");
+    expect(resolveShortcut("g", "g")).toBe("open-github");
+  });
+
+  it("gives every g chord its own action", () => {
+    const keys = ["d", "r", "c", "o", "f", "m", "h", "g"];
+    const actions = keys.map((key) => resolveShortcut("g", key));
+    expect(new Set(actions).size).toBe(keys.length);
   });
 
   it("drops unknown chords and keys", () => {
     expect(resolveShortcut("g", "z")).toBeNull();
     expect(resolveShortcut(null, "q")).toBeNull();
+    expect(resolveShortcut(null, "h")).toBeNull();
   });
 });
