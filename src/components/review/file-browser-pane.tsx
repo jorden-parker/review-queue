@@ -8,12 +8,18 @@ import { PaneRow } from "@/components/common/pane-row";
 import { PathLabel } from "@/components/common/path-label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { PullRequestRef } from "@/lib/types";
-import { fetchWorktreeFiles } from "./api";
+import type { Reference } from "@/lib/symbols/symbol-index";
+import { fetchSearch, fetchWorktreeFiles } from "./api";
 import { buildFileTree, type FileTreeNode, filterPaths } from "./file-tree";
 import type { LineTarget } from "./locate";
 
 const MAX_FLAT_RESULTS = 200;
+const SEARCH_RESULT_LIMIT = 200;
+const SEARCH_DEBOUNCE_MS = 250;
+
+type SearchMode = "names" | "text";
 
 type FileBrowserPaneProps = {
   pullRequest: PullRequestRef;
@@ -23,6 +29,48 @@ type FileBrowserPaneProps = {
 };
 
 type ListState = { paths: string[] | null; failed: boolean };
+
+type TextSearchState = { query: string; results: Reference[] | null; failed: boolean };
+
+function useDebouncedValue<Value>(value: Value, delayMs: number): Value {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
+function useTextSearch(
+  pullRequest: PullRequestRef,
+  headSha: string,
+  text: string,
+): TextSearchState {
+  const [state, setState] = useState<TextSearchState>({ query: "", results: null, failed: false });
+  useEffect(() => {
+    if (text.trim() === "") return;
+    let current = true;
+    fetchSearch(pullRequest, headSha, text)
+      .then(({ results }) => {
+        if (current) setState({ query: text, results, failed: false });
+      })
+      .catch(() => {
+        if (current) setState({ query: text, results: null, failed: true });
+      });
+    return () => {
+      current = false;
+    };
+  }, [pullRequest, headSha, text]);
+  return state;
+}
+
+function groupByPath(results: Reference[]): Map<string, Reference[]> {
+  const groups = new Map<string, Reference[]>();
+  for (const result of results) {
+    groups.set(result.path, [...(groups.get(result.path) ?? []), result]);
+  }
+  return groups;
+}
 
 function useWorktreeFiles(pullRequest: PullRequestRef, headSha: string): ListState {
   const [state, setState] = useState<ListState>({ paths: null, failed: false });
@@ -211,29 +259,137 @@ function FileList({
   );
 }
 
+function NameResults({
+  pullRequest,
+  headSha,
+  query,
+  inPullRequest,
+  onOpen,
+}: {
+  pullRequest: PullRequestRef;
+  headSha: string;
+  query: string;
+  inPullRequest: (path: string) => boolean;
+  onOpen: (path: string) => void;
+}) {
+  const { paths, failed } = useWorktreeFiles(pullRequest, headSha);
+  if (failed) return <Callout tone="error">Could not list the files.</Callout>;
+  if (!paths) return <p className="text-sm text-muted-foreground">Loading files…</p>;
+  if (paths.length === 0) {
+    return <EmptyState emoji="📂">This commit has no tracked files.</EmptyState>;
+  }
+  return <FileList paths={paths} query={query} inPullRequest={inPullRequest} onOpen={onOpen} />;
+}
+
+function TextResults({
+  pullRequest,
+  headSha,
+  query,
+  onOpen,
+}: {
+  pullRequest: PullRequestRef;
+  headSha: string;
+  query: string;
+  onOpen: (target: LineTarget) => void;
+}) {
+  const settledQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
+  const search = useTextSearch(pullRequest, headSha, settledQuery);
+  if (settledQuery.trim() === "") {
+    return <p className="text-sm text-muted-foreground">Type to search the text of every file.</p>;
+  }
+  if (search.query !== settledQuery) {
+    return <p className="text-sm text-muted-foreground">Searching…</p>;
+  }
+  if (search.failed || search.results === null) {
+    return <Callout tone="error">Could not search the files.</Callout>;
+  }
+  if (search.results.length === 0) {
+    return <EmptyState emoji="🔎">No text matches &ldquo;{settledQuery}&rdquo;.</EmptyState>;
+  }
+  return (
+    <>
+      <MatchGroups results={search.results} onOpen={onOpen} />
+      {search.results.length >= SEARCH_RESULT_LIMIT && (
+        <p className="pt-2 text-xs text-muted-foreground">
+          Showing the first {SEARCH_RESULT_LIMIT}.
+        </p>
+      )}
+    </>
+  );
+}
+
+function MatchGroups({
+  results,
+  onOpen,
+}: {
+  results: Reference[];
+  onOpen: (target: LineTarget) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      {[...groupByPath(results)].map(([path, matches]) => (
+        <section key={path} className="flex flex-col gap-1">
+          <PathLabel path={path} className="py-1" />
+          <ul className="flex flex-col">
+            {matches.map((match) => (
+              <PaneRow key={match.line}>
+                <button
+                  onClick={() => onOpen({ path, line: match.line })}
+                  className="flex w-full gap-3 text-left font-mono text-sm"
+                >
+                  <span className="w-8 shrink-0 text-right text-muted-foreground/70 select-none">
+                    {match.line}
+                  </span>
+                  <span className="min-w-0 wrap-anywhere">{match.text}</span>
+                </button>
+              </PaneRow>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export function FileBrowserPane({
   pullRequest,
   headSha,
   inPullRequest,
   onOpen,
 }: FileBrowserPaneProps) {
-  const { paths, failed } = useWorktreeFiles(pullRequest, headSha);
+  const [mode, setMode] = useState<SearchMode>("names");
   const [query, setQuery] = useState("");
   const openFile = (path: string) => onOpen({ path, line: 1 });
-  if (failed) return <Callout tone="error">Could not list the files.</Callout>;
-  if (!paths) return <p className="text-sm text-muted-foreground">Loading files…</p>;
+  const isText = mode === "text";
   return (
     <div className="flex flex-col gap-3">
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
+        value={mode}
+        onValueChange={(value) => value && setMode(value as SearchMode)}
+        aria-label="Search mode"
+      >
+        <ToggleGroupItem value="names">Names</ToggleGroupItem>
+        <ToggleGroupItem value="text">Text</ToggleGroupItem>
+      </ToggleGroup>
       <Input
-        aria-label="Filter files"
-        placeholder="Filter files"
+        aria-label={isText ? "Search file text" : "Filter files"}
+        placeholder={isText ? "Search file text" : "Filter files"}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />
-      {paths.length === 0 ? (
-        <EmptyState emoji="📂">This commit has no tracked files.</EmptyState>
+      {isText ? (
+        <TextResults pullRequest={pullRequest} headSha={headSha} query={query} onOpen={onOpen} />
       ) : (
-        <FileList paths={paths} query={query} inPullRequest={inPullRequest} onOpen={openFile} />
+        <NameResults
+          pullRequest={pullRequest}
+          headSha={headSha}
+          query={query}
+          inPullRequest={inPullRequest}
+          onOpen={openFile}
+        />
       )}
     </div>
   );

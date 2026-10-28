@@ -14,6 +14,7 @@ import type { SessionAction } from "@/lib/review/session-actions";
 import type { SummaryDraftResult } from "@/lib/review/summary-draft-service";
 import type { Session } from "@/lib/session/store";
 import type { DefinitionWithCode, ReferenceWithCode } from "@/lib/review/peek-code";
+import type { Reference } from "@/lib/symbols/symbol-index";
 import type { OutlineSymbol, PullRequestRef, ReferenceCount, SymbolPosition } from "@/lib/types";
 
 export type SubmitInput = {
@@ -114,6 +115,16 @@ export function fetchFileLines(ref: PullRequestRef, sha: string, path: string): 
 
 export function fetchWorktreeFiles(ref: PullRequestRef, sha: string): Promise<{ paths: string[] }> {
   return fetch(apiPath(ref, `/files${query({ sha })}`)).then(json<{ paths: string[] }>);
+}
+
+export function fetchSearch(
+  ref: PullRequestRef,
+  sha: string,
+  searchText: string,
+): Promise<{ results: Reference[] }> {
+  return fetch(apiPath(ref, `/search${query({ sha, q: searchText })}`)).then(
+    json<{ results: Reference[] }>,
+  );
 }
 
 function post<T>(url: string, body: unknown): Promise<T> {
