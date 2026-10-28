@@ -1,4 +1,6 @@
-const RULE_CHECKS: Record<string, string[]> = {
+import type { RuleId } from "@/lib/types";
+
+const RULE_CHECKS: Record<RuleId, string[]> = {
   "runs-commands": [
     "Trace every argument back to where it comes from.",
     "Prefer an argument array over a shell string.",
@@ -46,6 +48,11 @@ const RULE_CHECKS: Record<string, string[]> = {
     "Open the references and check each caller.",
     "Do default values keep old callers working?",
   ],
+  "busy-function-change": [
+    "What do the callers assume about this body?",
+    "Open the callers that reach the changed lines and read each path.",
+    "Do tests cover those callers, not only this function?",
+  ],
   "big-hunk": ["Skim it once for shape, then read it in parts.", "Could it be split up?"],
   branching: ["List the paths and find a test for each.", "Is there a missing else?"],
   migration: [
@@ -64,8 +71,13 @@ const RULE_CHECKS: Record<string, string[]> = {
     "If not, the tests should come back or be replaced.",
   ],
   "no-tests": ["Which behaviour changed?", "Ask for a test that would fail without this change."],
+  ai: [
+    "Does the code do what the model says? Check it yourself.",
+    "Do the cited lines exist in this diff?",
+    "Is it a real risk for this change, or only a style point?",
+  ],
 };
 
-export function checksFor(rule: string): string[] {
-  return RULE_CHECKS[rule] ?? [];
+export function checksFor(rule: RuleId): string[] {
+  return RULE_CHECKS[rule];
 }
