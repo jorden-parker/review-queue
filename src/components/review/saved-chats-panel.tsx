@@ -26,7 +26,8 @@ export function SavedChatsPanel({
   if (chats.length === 0) {
     return (
       <EmptyState emoji="✨">
-        Chats with the local model are kept here. Select lines or use “Ask about file” to start one.
+        Chats with the local model are kept here. Select lines or use a file’s “Actions” to start
+        one.
       </EmptyState>
     );
   }

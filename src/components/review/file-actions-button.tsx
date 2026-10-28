@@ -4,14 +4,14 @@ import { Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { AssistAction } from "@/lib/assist-protocol";
-import { ASSIST_ACTION_BUTTONS } from "./assist-actions";
+import { FILE_ACTION_BUTTONS } from "./assist-actions";
 
-export function FileAskButton({ onAsk }: { onAsk: (action: AssistAction) => void }) {
+export function FileActionsButton({ onAsk }: { onAsk: (action: AssistAction) => void }) {
   const [choosing, setChoosing] = useState(false);
   if (!choosing) {
     return (
       <Button variant="ghost" size="xs" onClick={() => setChoosing(true)}>
-        <Sparkles /> Ask about file
+        <Sparkles /> Actions
       </Button>
     );
   }
@@ -20,12 +20,8 @@ export function FileAskButton({ onAsk }: { onAsk: (action: AssistAction) => void
     onAsk(action);
   };
   return (
-    <div
-      role="toolbar"
-      aria-label="Ask the model about this file"
-      className="flex items-center gap-1"
-    >
-      {ASSIST_ACTION_BUTTONS.map(({ action, label, icon }) => (
+    <div role="toolbar" aria-label="File actions" className="flex items-center gap-1">
+      {FILE_ACTION_BUTTONS.map(({ action, label, icon }) => (
         <Button key={action} variant="ghost" size="xs" onClick={() => ask(action)}>
           {icon} {label}
         </Button>
