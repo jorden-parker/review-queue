@@ -43,6 +43,7 @@ function fakeIndex(
       ...elsewhere.filter((candidate) => candidate.name === name),
     ],
     referencesTo: vi.fn(async (name: string) => references[name] ?? []),
+    readLines: () => [],
   };
 }
 
@@ -66,7 +67,7 @@ describe("usageContext", () => {
     });
     const [usage] = await usageContext(index, PATH, lines(10));
 
-    expect(usage?.uses).toEqual([
+    expect(usage?.uses).toMatchObject([
       { path: "src/page.ts", line: 4, text: "const user = await fetchUser(id);" },
       { path: PATH, line: 60, text: "fetchUser(1);" },
     ]);
@@ -159,9 +160,67 @@ describe("usageContext over a real checkout", () => {
     const text = usageText(await usageContext(index, "src/user.ts", new Set([1, 2, 3, 4, 5])));
 
     expect(text).toContain("fetchUser (function) src/user.ts:1-4, 3 uses elsewhere");
-    expect(text).toContain("src/page.ts:2: export const page = () => fetchUser('1');");
+    expect(text).toContain(
+      "src/page.ts:2 in page:\n    1: import { fetchUser } from './user';\n    2: export const page = () => fetchUser('1');",
+    );
     expect(text).toContain("Also defined at: src/legacy.ts:1 (function)");
     expect(text).toContain("LIMIT (constant) src/user.ts:5-5, no uses outside its own definition");
     expect(text).not.toContain("cached (");
+  });
+});
+
+describe("usageContext for a component changed inside its body", () => {
+  const REF = { owner: "acme", repo: "app", number: 1 };
+  let fixture: FixtureRepo;
+  let index: SymbolIndex;
+
+  beforeEach(async () => {
+    fixture = createFixtureRepo(
+      {
+        "src/page.tsx": [
+          "import { Panel } from './panel';",
+          "",
+          "export function Page() {",
+          "  return (",
+          "    <Panel",
+          '      title="Hi"',
+          "      onClose={() => {}}",
+          "    />",
+          "  );",
+          "}",
+        ].join("\n"),
+      },
+      {
+        "src/panel.tsx": [
+          "export function Panel({ title }: { title: string }) {",
+          "  const heading = title.toUpperCase();",
+          "  return <h1>{heading}</h1>;",
+          "}",
+        ].join("\n"),
+      },
+      REF.number,
+    );
+    const checkout = await ensureCheckout(
+      REF,
+      { baseBranch: "main", baseSha: mainOf(fixture), headSha: headOf(fixture, REF.number) },
+      { cacheRoot: fixture.cacheRoot, remoteUrl: fixture.origin },
+    );
+    index = await SymbolIndex.build(checkout.worktreePath, checkout.run);
+  });
+
+  afterEach(() => removeFixtureRepo(fixture));
+
+  it("covers the component that encloses the changed lines", async () => {
+    const usages = await usageContext(index, "src/panel.tsx", new Set([3]));
+
+    expect(usages.map((usage) => usage.name)).toEqual(["Panel"]);
+  });
+
+  it("shows the calling component's code around each use, not just the matching line", async () => {
+    const text = usageText(await usageContext(index, "src/panel.tsx", new Set([3])));
+
+    expect(text).toContain("src/page.tsx:5 in Page:");
+    expect(text).toContain('      title="Hi"');
+    expect(text).toContain("      onClose={() => {}}");
   });
 });
