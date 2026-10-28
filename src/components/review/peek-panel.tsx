@@ -2,7 +2,6 @@
 
 import { ArrowRight, FoldVertical, Pin, PinOff, Telescope, UnfoldVertical, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { cn } from "cn";
 import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
 import { HintButton } from "@/components/common/hint-button";
@@ -16,8 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DefinitionWithCode } from "@/lib/review/peek-code";
 import type { SymbolPosition } from "@/lib/types";
-import type { Token } from "@/lib/highlight";
 import { CodeTokens } from "./code-tokens";
+import { CodeRows, WRAPPED_CODE } from "./code-rows";
 import type { LineTarget } from "./locate";
 import { groupReferencesByFile, type ReferenceGroup } from "./reference-groups";
 import { useFileLines, type LoadFile } from "./use-file-lines";
@@ -92,56 +91,6 @@ function DefinitionHeader({
         </Button>
       )}
     </div>
-  );
-}
-
-const WRAPPED_CODE = "min-w-0 flex-1 tab-2 break-words whitespace-pre-wrap wrap-anywhere";
-
-type LineRange = { from: number; to: number };
-
-function scrollToCentre(element: HTMLElement | null) {
-  element?.scrollIntoView?.({ block: "center" });
-}
-
-function CodeRows({
-  path,
-  startLine,
-  tokens,
-  focus,
-  onIdentifier,
-}: Pick<PanelBodyProps, "onIdentifier"> & {
-  path: string;
-  startLine: number;
-  tokens: Token[][];
-  focus: LineRange | null;
-}) {
-  const focused = (line: number) => focus !== null && line >= focus.from && line <= focus.to;
-  return (
-    <pre className="py-2 font-mono text-code">
-      {tokens.map((row, index) => {
-        const line = startLine + index;
-        return (
-          <div
-            key={index}
-            ref={focus?.from === line ? scrollToCentre : undefined}
-            className={cn(
-              "flex px-3 transition-colors duration-calm hover:bg-muted/60",
-              focused(line) && "bg-primary/10",
-            )}
-          >
-            <span className="w-8 shrink-0 pr-3 text-right text-muted-foreground/70 select-none">
-              {line}
-            </span>
-            <code className={WRAPPED_CODE}>
-              <CodeTokens
-                tokens={row}
-                onIdentifier={(target) => onIdentifier({ ...target, path, line, side: "new" })}
-              />
-            </code>
-          </div>
-        );
-      })}
-    </pre>
   );
 }
 
