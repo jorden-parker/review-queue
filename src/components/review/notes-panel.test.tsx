@@ -38,6 +38,18 @@ function renderPanel(notes: Note[], onEdit = vi.fn()) {
   return onEdit;
 }
 
+describe("NotesPanel rendering", () => {
+  it("renders a note's Markdown as code", () => {
+    renderPanel([{ ...NIT_NOTE, body: "Rename `foo`" }]);
+    expect(screen.getByText("foo").tagName).toBe("CODE");
+  });
+
+  it("keeps a link in the note body out of the open button", () => {
+    renderPanel([{ ...NIT_NOTE, body: "see [docs](https://example.com)" }]);
+    expect(screen.getByRole("link", { name: "docs" }).closest("button")).toBeNull();
+  });
+});
+
 describe("NotesPanel editing", () => {
   it("edits a note's text and kind", async () => {
     const onEdit = renderPanel([NIT_NOTE]);

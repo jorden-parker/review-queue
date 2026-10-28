@@ -37,6 +37,32 @@ describe("ResumeCard", () => {
     expect(screen.getByText("load, Options")).toBeTruthy();
   });
 
+  it("renders the last note's Markdown inline", () => {
+    render(
+      <ResumeCard
+        session={emptySession({
+          notes: [
+            {
+              id: 9,
+              path: null,
+              line: null,
+              kind: "nitpick",
+              decorations: [],
+              body: "Rename `foo`",
+              createdAt: "",
+            },
+          ],
+        })}
+        steps={[]}
+        nextStep={null}
+        reopenedCount={0}
+        onContinue={vi.fn()}
+        onShowChanges={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("foo").tagName).toBe("CODE");
+  });
+
   it("offers to show what changed only when a baseline was kept", () => {
     const onShowChanges = vi.fn();
     const { rerender } = render(

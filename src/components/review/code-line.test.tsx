@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { DiffLine } from "@/lib/types";
+import type { DiffLine, Note } from "@/lib/types";
 import { CodeLine } from "./code-line";
 import type { DisplayHotspot } from "./hotspot-list";
 import type { LineTarget } from "./locate";
@@ -10,6 +10,16 @@ const LINE: DiffLine = {
   text: "const total = sum(items);",
   oldLine: null,
   newLine: 7,
+};
+
+const NOTE: Note = {
+  id: 5,
+  path: "src/app.ts",
+  line: 7,
+  kind: "nitpick",
+  decorations: [],
+  body: "Rename `foo`",
+  createdAt: "",
 };
 
 const FLAG: DisplayHotspot = {
@@ -22,7 +32,11 @@ const FLAG: DisplayHotspot = {
   why: "Likely meant to be removed before merging.",
 };
 
-function renderLine(landed: LineTarget | null, hotspots: DisplayHotspot[] = []) {
+function renderLine(
+  landed: LineTarget | null,
+  hotspots: DisplayHotspot[] = [],
+  notes: Note[] = [],
+) {
   return render(
     <CodeLine
       path="src/app.ts"
@@ -33,7 +47,7 @@ function renderLine(landed: LineTarget | null, hotspots: DisplayHotspot[] = []) 
       linked
       hotspots={hotspots}
       checkedHotspots={[]}
-      notes={[]}
+      notes={notes}
       threadCount={0}
       onOpenThreads={vi.fn()}
       elementId="line-src/app.ts-7"
@@ -74,6 +88,11 @@ describe("CodeLine", () => {
     const flags = screen.getByRole("button", { name: /1 flag/ });
     expect(container.querySelector("[data-line]")?.contains(flags)).toBe(false);
     expect(flags.textContent).toBe(FLAG.title);
+  });
+
+  it("renders a note's Markdown under the line", () => {
+    renderLine(null, [], [{ ...NOTE, body: "Rename `foo`" }]);
+    expect(screen.getByText("foo").tagName).toBe("CODE");
   });
 
   it("keeps the flag row in the same hover group as its line", () => {

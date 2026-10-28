@@ -2,6 +2,7 @@
 
 import { MessageSquare, MessageSquarePlus, Trash2 } from "lucide-react";
 import { cn } from "cn";
+import { Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import type { LineRange } from "@/lib/assist-protocol";
 import type { Token } from "@/lib/highlight";
@@ -65,7 +66,10 @@ function LineNotes({ notes, onDelete }: { notes: Note[]; onDelete: (id: number) 
       {notes.map((note) => (
         <div key={note.id} className="group/note flex items-start gap-2">
           <NoteKindBadge tag={note} />
-          <span className="flex-1 whitespace-pre-wrap">{note.body}</span>
+          <Markdown
+            text={note.body}
+            className="flex min-w-0 flex-1 flex-col gap-1.5 wrap-anywhere"
+          />
           <Button
             variant="ghost"
             size="icon-xs"
