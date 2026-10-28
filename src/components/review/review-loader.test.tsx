@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ReviewComment } from "@/lib/github/gh";
@@ -703,6 +704,18 @@ describe("ReviewLoader", () => {
     render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
     expect(await screen.findByText("Welcome back")).toBeTruthy();
     expect(screen.getByText(/New commits changed 1 step/)).toBeTruthy();
+  });
+
+  it("posts the seen request once per load, even when React runs effects twice", async () => {
+    const api = installFakeApi(reviewPayload());
+    render(
+      <StrictMode>
+        <ReviewLoader pullRequest={REF} />
+      </StrictMode>,
+      { wrapper: TooltipProvider },
+    );
+    expect(await screen.findByText("Step 1 of 3")).toBeTruthy();
+    expect(api.calls.filter((call) => call.url.includes("/seen"))).toHaveLength(1);
   });
 
   it("finishes the review and posts selected notes", async () => {

@@ -42,13 +42,15 @@ highlights code with shiki (`lib/highlight.ts`). The result is a
 `PreparedReview`, memoized in a `globalThis` map keyed by PR and head SHA.
 
 **Re-review after a push** (`review_baselines` table,
-`lib/review/interdiff.ts`). When `markSeen` sees a new head, it stores the
-previous head as the session's baseline (once, so a second push does not move
-it) and clears `finished_at` so the PR shows as in progress again. The
-`catch-up` session action clears the baseline. `changes?sha=` returns the
-interdiff from the baseline (404 when there is none), `head` returns the current
-head, and `submit` answers 409 when the PR head no longer matches the `headSha`
-being posted.
+`lib/review/interdiff.ts`). The client posts `POST .../seen?sha=` once per load,
+after the review GET and before the workspace mounts. `markReviewSeen`
+(`lib/review/prepare.ts`) reopens finished steps whose files changed, then
+`markSeen` stores the previous head as the session's baseline (once, so a second
+push does not move it) and clears `finished_at` so the PR shows as in progress
+again; the review GET writes no session state. The `catch-up` session action
+clears the baseline. `changes?sha=` returns the interdiff from the baseline (404
+when there is none), `head` returns the current head, and `submit` answers 409
+when the PR head no longer matches the `headSha` being posted.
 
 **PR conversation and receipts** (`lib/github/conversation.ts`, `gh.ts`,
 `components/review/conversation-*`). The `conversation` route reads the first
@@ -158,7 +160,10 @@ it), and `src/instrumentation.ts` prints a `http://127.0.0.1:4477/?token=…` li
 at startup. Opening that link sets the cookie (HttpOnly, SameSite=Strict).
 Non-GET requests must also be same-origin and `application/json`, and every
 response forbids framing. New mutating routes depend on this, so keep request
-bodies JSON.
+bodies JSON. Any request the browser marks `Sec-Fetch-Site: same-site` or
+`cross-site` is refused for every method, so another localhost port cannot read
+or write with the cookie; a request without that header is judged by the cookie
+alone (curl).
 
 **Shell-outs** all go through `lib/exec.ts` (`Runner`). It drops the repository
 variables git exports inside hooks (`lib/git-env.ts`), so checkouts never touch

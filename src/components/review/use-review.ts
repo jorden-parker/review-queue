@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { OrientationResult } from "@/lib/review/orientation-service";
-import type { ReviewPayload } from "@/lib/review/prepare";
+import type { ReviewPayload, SeenResult } from "@/lib/review/prepare";
 import type { SessionAction } from "@/lib/review/session-actions";
 import type { Session } from "@/lib/session/store";
+import { prKey } from "@/lib/pr-ref";
 import type { PullRequestRef } from "@/lib/types";
-import { fetchOrientation, fetchReview, sendSessionAction } from "./api";
+import { fetchOrientation, fetchReview, postSeen, sendSessionAction } from "./api";
 import {
   createSerialQueue,
   createTemporaryIds,
@@ -50,15 +51,26 @@ export function useReview(ref: PullRequestRef) {
   const [serverIds] = useState(() => new Map<number, number>());
   const sequence = useRef(0);
   const epoch = useRef(0);
+  const seenRequests = useRef(new Map<string, Promise<SeenResult>>());
 
   useEffect(() => {
     let cancelled = false;
     epoch.current += 1;
+    const seenOnce = (sha: string) => {
+      const requests = seenRequests.current;
+      const key = `${prKey(ref)}@${sha}`;
+      if (!requests.has(key)) requests.set(key, postSeen(ref, sha));
+      return requests.get(key)!;
+    };
     fetchReview(ref)
-      .then((review) => {
+      .then((review) => seenOnce(review.headSha).then((seen) => ({ review, seen })))
+      .then(({ review, seen }) => {
         if (cancelled) return;
-        setLoad({ status: "ready", review });
-        setLedger({ confirmed: review.session, appliedSeq: 0, pending: [] });
+        setLoad({
+          status: "ready",
+          review: { ...review, session: seen.session, reopenedStepIds: seen.reopenedStepIds },
+        });
+        setLedger({ confirmed: seen.session, appliedSeq: 0, pending: [] });
         return orientationOrError(ref, review.headSha);
       })
       .then((result) => {
