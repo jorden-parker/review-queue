@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DefinitionWithCode } from "@/lib/review/peek-code";
 import type { ReviewPayload } from "@/lib/review/prepare";
 import type { Session } from "@/lib/session/store";
@@ -10,6 +10,7 @@ import { useContextSymbols } from "./use-context-symbols";
 import type { NoteTag, PullRequestRef, SymbolPosition } from "@/lib/types";
 import { displayHotspots } from "./display-hotspots";
 import { firstNoteLine } from "./hunk-index";
+import { runnableHunkMove } from "./hunk-move";
 import { locationKind, nextOpenStep, type LineTarget } from "./locate";
 import { scrollToElement } from "./scroll-motion";
 import type { ShortcutAction } from "./shortcut-keys";
@@ -243,13 +244,51 @@ function useOpenFile() {
   return { openFile, setOpenFile, closeFile };
 }
 
+function useClosingFileAction<Args extends unknown[], Result>(
+  action: (...args: Args) => Result,
+  closeFile: () => void,
+) {
+  return useCallback(
+    (...args: Args) => {
+      closeFile();
+      return action(...args);
+    },
+    [action, closeFile],
+  );
+}
+
 function useFileAwareNavigation(review: ReviewPayload, session: Session, act: Act) {
   const stepNavigation = useStepNavigation(review, session, act);
   const openFileState = useOpenFile();
-  const navigation = navigationClosingFile(stepNavigation, openFileState.closeFile);
+  const { openFile, setOpenFile, closeFile } = openFileState;
+  const pendingHunkMove = useRef(0);
+  const stepMoveHunk = stepNavigation.moveHunk;
+
+  useEffect(() => {
+    const move = runnableHunkMove(pendingHunkMove.current, openFile !== null);
+    if (move === null) return;
+    pendingHunkMove.current = 0;
+    stepMoveHunk(move);
+  }, [openFile, stepMoveHunk]);
+
+  const moveHunk = useCallback(
+    (offset: number) => {
+      if (openFile === null) stepMoveHunk(offset);
+      else {
+        pendingHunkMove.current += offset;
+        closeFile();
+      }
+    },
+    [openFile, closeFile, stepMoveHunk],
+  );
+  const selectStep = useClosingFileAction(stepNavigation.selectStep, closeFile);
+  const goTo = useClosingFileAction(stepNavigation.goTo, closeFile);
+  const moveStep = useClosingFileAction(stepNavigation.moveStep, closeFile);
+  const doneAndNext = useClosingFileAction(stepNavigation.doneAndNext, closeFile);
+  const navigation = { ...stepNavigation, selectStep, goTo, moveStep, doneAndNext, moveHunk };
   const openLocation = useMemo(
-    () => locationOpener(review.files, navigation.goTo, openFileState.setOpenFile),
-    [review.files, navigation.goTo, openFileState.setOpenFile],
+    () => locationOpener(review.files, goTo, setOpenFile),
+    [review.files, goTo, setOpenFile],
   );
   return { navigation, openFileState, openLocation };
 }
@@ -260,30 +299,6 @@ function locationOpener(
   showFile: (target: LineTarget) => void,
 ): (target: LineTarget) => void {
   return (target) => (locationKind(files, target) === "diff" ? goTo(target) : showFile(target));
-}
-
-function closingFileBefore<Args extends unknown[], Result>(
-  closeFile: () => void,
-  action: (...args: Args) => Result,
-): (...args: Args) => Result {
-  return (...args) => {
-    closeFile();
-    return action(...args);
-  };
-}
-
-function navigationClosingFile(
-  navigation: ReturnType<typeof useStepNavigation>,
-  closeFile: () => void,
-): ReturnType<typeof useStepNavigation> {
-  return {
-    ...navigation,
-    selectStep: closingFileBefore(closeFile, navigation.selectStep),
-    goTo: closingFileBefore(closeFile, navigation.goTo),
-    moveStep: closingFileBefore(closeFile, navigation.moveStep),
-    moveHunk: closingFileBefore(closeFile, navigation.moveHunk),
-    doneAndNext: closingFileBefore(closeFile, navigation.doneAndNext),
-  };
 }
 
 function resumeStepId(
