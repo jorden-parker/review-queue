@@ -11,6 +11,18 @@ describe("Markdown", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
+  it("styles the GFM blocks that the browser reset would flatten", () => {
+    const { container } = render(
+      <Markdown text={"> quoted\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n---\n\n#### Small"} />,
+    );
+    expect(container.querySelector("blockquote")?.classList.contains("border-l-2")).toBe(true);
+    expect(screen.getByRole("columnheader", { name: "a" }).classList.contains("border-b")).toBe(
+      true,
+    );
+    expect(container.querySelector("hr")?.classList.contains("border-border")).toBe(true);
+    expect(screen.getByRole("heading", { name: "Small" }).tagName).toBe("H4");
+  });
+
   it("strips raw HTML", () => {
     const { container } = render(
       <Markdown text={'<script>alert(1)</script>\n\n<img src="x" onerror="alert(1)">'} />,
