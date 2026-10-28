@@ -5,8 +5,9 @@ import {
   type AssistTurn,
   MAX_HISTORY_TURNS,
 } from "@/lib/assist-protocol";
-import type { Message } from "@/lib/llm/client";
 import type { AssistRequest } from "@/lib/review/assist-request";
+
+type HistoryMessage = AssistRequest["history"][number];
 
 const SUBJECTS: Record<AssistTarget["kind"], string> = {
   lines: "these lines",
@@ -80,7 +81,7 @@ export function canFollowUp(thread: AssistThread): boolean {
   return thread.turns.at(-1)?.role === "model" && thread.turns.length <= MAX_HISTORY_TURNS;
 }
 
-function asMessage(turn: AssistTurn): Message {
+function asMessage(turn: AssistTurn): HistoryMessage {
   return { role: turn.role === "model" ? "assistant" : "user", content: turn.text };
 }
 
