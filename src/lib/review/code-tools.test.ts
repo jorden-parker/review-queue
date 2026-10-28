@@ -15,9 +15,9 @@ import { codeTools } from "./code-tools";
 
 const REF = { owner: "acme", repo: "app", number: 1 };
 
-const LONG_FILE = Array.from({ length: 200 }, (_, line) => `export const line${line} = ${line};`);
+const LONG_FILE = Array.from({ length: 500 }, (_, line) => `export const line${line} = ${line};`);
 
-const WIDE_FILE = Array.from({ length: 150 }, () => "x".repeat(100));
+const WIDE_FILE = Array.from({ length: 300 }, () => "x".repeat(100));
 
 describe("codeTools", () => {
   let fixture: FixtureRepo;
@@ -104,11 +104,24 @@ describe("codeTools", () => {
       });
     });
 
-    it("clamps a read to 150 lines", async () => {
-      const outcome = await run("read_file", { path: "src/long.ts", start_line: 1, end_line: 200 });
-      expect(outcome.content).toContain("150: export const line149 = 149;");
-      expect(outcome.content).not.toContain("151: ");
-      expect(outcome.lookup.label).toBe("Read `src/long.ts` L1–L150");
+    it("reads the whole file when no range is given", async () => {
+      const outcome = await run("read_file", { path: "src/util.ts" });
+      expect(outcome.content).toContain("1: export function helper(a: number) {");
+      expect(outcome.content).toContain("3: }");
+      expect(outcome.lookup.label).toBe("Read `src/util.ts` L1–L4");
+    });
+
+    it("reads from a start line to the end of the file", async () => {
+      const outcome = await run("read_file", { path: "src/util.ts", start_line: 2 });
+      expect(outcome.content).not.toContain("1: export function");
+      expect(outcome.content).toContain("3: }");
+    });
+
+    it("clamps a read to 400 lines", async () => {
+      const outcome = await run("read_file", { path: "src/long.ts", start_line: 1, end_line: 500 });
+      expect(outcome.content).toContain("400: export const line399 = 399;");
+      expect(outcome.content).not.toContain("401: ");
+      expect(outcome.lookup.label).toBe("Read `src/long.ts` L1–L400");
     });
 
     it("refuses paths that are not tracked files of the checkout", async () => {
@@ -125,8 +138,9 @@ describe("codeTools", () => {
     });
 
     it("truncates a result that is over the cap, inside the fence", async () => {
-      const outcome = await run("read_file", { path: "src/wide.ts", start_line: 1, end_line: 150 });
-      expect(outcome.content.length).toBeLessThanOrEqual(6_000);
+      const outcome = await run("read_file", { path: "src/wide.ts" });
+      expect(outcome.content.length).toBeGreaterThan(6_000);
+      expect(outcome.content.length).toBeLessThanOrEqual(16_000);
       expect(outcome.content.endsWith("\n… (truncated)\n</pr_tool_result>")).toBe(true);
     });
   });
