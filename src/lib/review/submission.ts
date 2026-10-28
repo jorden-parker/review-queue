@@ -6,11 +6,11 @@ type PostableNote = Note & { kind: Exclude<NoteKind, "parked"> };
 
 const BLOCK_START = /^(?:```|~~~|[-*] |\d+\. |> |#|\|)/;
 
-function isPostable(note: Note): note is PostableNote {
+export function isPostable(note: Note): note is PostableNote {
   return note.kind !== "parked";
 }
 
-function postedBody(note: PostableNote): string {
+export function postedBody(note: PostableNote): string {
   const { tag, body } = splitConventionalPrefix(note.body);
   const text = (tag?.kind === note.kind ? body : note.body).trim();
   const label = `**${conventionalLabel(note)}:**`;

@@ -9,6 +9,7 @@ import { Markdown } from "@/components/common/markdown-text";
 import { EmptyState } from "@/components/common/empty-state";
 import { PathLabel } from "@/components/common/path-label";
 import { isBlocking } from "@/lib/review/conventional-comment";
+import { isPostable, postedBody } from "@/lib/review/submission";
 import { plural } from "@/lib/plural";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -117,7 +118,10 @@ function NoteChecklist({ notes, selected, onToggle }: NoteChecklistProps) {
           />
           <NoteKindBadge tag={note} />
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <Markdown text={note.body} className="flex flex-col gap-1.5 wrap-anywhere" />
+            <Markdown
+              text={isPostable(note) ? postedBody(note) : note.body}
+              className="flex flex-col gap-1.5 wrap-anywhere"
+            />
             {note.path && <PathLabel path={note.path} line={note.line} />}
           </span>
         </label>
