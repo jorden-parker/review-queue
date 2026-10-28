@@ -11,12 +11,11 @@ import { PathLabel } from "@/components/common/path-label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DefinitionWithCode } from "@/lib/review/peek-code";
 import type { SymbolPosition } from "@/lib/types";
 import { CodeTokens } from "./code-tokens";
-import { CodeRows, WRAPPED_CODE } from "./code-rows";
+import { CodeRows, LoadingRows, WRAPPED_CODE } from "./code-rows";
 import type { LineTarget } from "./locate";
 import { groupReferencesByFile, type ReferenceGroup } from "./reference-groups";
 import { useFileLines, type LoadFile } from "./use-file-lines";
@@ -35,16 +34,6 @@ type PeekPanelProps = {
 };
 
 type PanelBodyProps = Omit<PeekPanelProps, "onTab" | "onClose" | "pinned" | "onTogglePin">;
-
-function LoadingRows() {
-  return (
-    <div className="flex flex-col gap-2" aria-label="Loading">
-      {[0, 1, 2].map((row) => (
-        <Skeleton key={row} className="h-16 w-full" />
-      ))}
-    </div>
-  );
-}
 
 const SCOPE_LABELS: Record<DefinitionWithCode["scope"], string | null> = {
   file: "this file",
