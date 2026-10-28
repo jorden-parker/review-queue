@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prKey } from "@/lib/pr-ref";
-import { jsonError, preparedFromRequest, type PrRouteContext } from "@/lib/review/route-context";
+import { parseJsonBody, withPreparedReview } from "@/lib/review/route-context";
 import { currentLlmConfig, sessionStore } from "@/lib/review/services";
 import { summaryDraftFor } from "@/lib/review/summary-draft-service";
 
@@ -9,20 +9,13 @@ const SummaryDraftSchema = z.object({
   noteIds: z.array(z.number().int()),
 });
 
-export async function POST(request: Request, context: PrRouteContext) {
-  const prepared = await preparedFromRequest(request, context);
-  if (prepared instanceof Response) return prepared;
-  const input = SummaryDraftSchema.safeParse(await request.json());
-  if (!input.success) return jsonError(input.error.message, 400);
+export const POST = withPreparedReview(async (request, prepared) => {
+  const input = await parseJsonBody(request, SummaryDraftSchema);
+  if (input instanceof Response) return input;
   const notes = sessionStore()
     .getSession(prKey(prepared.data.pr.ref))
-    .notes.filter((note) => input.data.noteIds.includes(note.id));
+    .notes.filter((note) => input.noteIds.includes(note.id));
   return Response.json(
-    await summaryDraftFor(
-      prepared.data.pr.title,
-      input.data.event,
-      notes,
-      await currentLlmConfig(),
-    ),
+    await summaryDraftFor(prepared.data.pr.title, input.event, notes, await currentLlmConfig()),
   );
-}
+});

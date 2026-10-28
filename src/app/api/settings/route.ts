@@ -1,3 +1,4 @@
+import { readJson } from "@/lib/review/route-context";
 import { sessionStore } from "@/lib/review/services";
 import { settingsView, updateSettings } from "@/lib/settings/settings-service";
 
@@ -6,6 +7,5 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const body = await request.json().catch(() => null);
-  return updateSettings(sessionStore(), body);
+  return updateSettings(sessionStore(), await readJson(request));
 }
