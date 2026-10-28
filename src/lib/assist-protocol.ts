@@ -6,6 +6,8 @@ export type AssistAction = (typeof ASSIST_ACTIONS)[number];
 
 export const ASSIST_ERROR_MARKER = "\u0000";
 
+export type AssistLookup = { tool: string; label: string; paths: string[] };
+
 export const MAX_HISTORY_TURNS = 10;
 
 export type LinePosition = { hunk: number; line: number };
@@ -17,7 +19,7 @@ type StepCheckTarget = { kind: "check"; stepId: string; check: number; path: str
 export type AssistTarget =
   { kind: "lines"; range: LineRange } | { kind: "file"; path: string } | StepCheckTarget;
 
-export type AssistTurn = { role: "reviewer" | "model"; text: string };
+export type AssistTurn = { role: "reviewer" | "model"; text: string; lookups?: AssistLookup[] };
 
 export type AssistThread = {
   id: string;
