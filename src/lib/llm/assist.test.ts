@@ -27,6 +27,8 @@ const USAGE: DeclarationUsage = {
   line: 11,
   endLine: 11,
   uses: [{ path: "src/page.ts", line: 4, text: "render(b);", caller: null, code: [] }],
+  callPaths: [],
+  dependencies: [],
   useCount: 1,
   otherDefinitions: [{ name: "b", kind: "constant", path: "src/old.ts", line: 2, endLine: 2 }],
 };
@@ -118,7 +120,38 @@ describe("buildAssistPrompt with usages", () => {
 describe("usageLookups", () => {
   it("shows the reviewer one lookup row per declaration the model was given", () => {
     expect(usageLookups([USAGE])).toEqual([
-      { tool: "usages", label: "Uses of `b` (1)", paths: ["src/page.ts", "src/old.ts"] },
+      { tool: "usages", label: "Path of `b`: 1 use", paths: ["src/page.ts", "src/old.ts"] },
+    ]);
+  });
+  it("names the call paths and dependencies it traced, and their files", () => {
+    const traced: DeclarationUsage = {
+      ...USAGE,
+      callPaths: [
+        {
+          end: "entry",
+          steps: [
+            {
+              name: "routes",
+              kind: "constant",
+              path: "src/routes.ts",
+              line: 1,
+              endLine: 9,
+              call: { path: "src/routes.ts", line: 4, text: "<Page />" },
+            },
+          ],
+        },
+      ],
+      dependencies: [
+        { name: "format", kind: "function", path: "src/format.ts", line: 1, endLine: 3, code: [] },
+      ],
+    };
+
+    expect(usageLookups([traced])).toEqual([
+      {
+        tool: "usages",
+        label: "Path of `b`: 1 use, 1 call path, 1 dependency",
+        paths: ["src/page.ts", "src/routes.ts", "src/format.ts", "src/old.ts"],
+      },
     ]);
   });
 });
@@ -166,10 +199,12 @@ describe("assistRequest", () => {
 
   it("asks the model to judge the change against its callers when usages are given", () => {
     const system = assistRequest(USAGE_INPUT, []).system;
-    expect(system).toContain("<pr_usages> lists where each declaration");
-    expect(system).toContain("does every caller still fit");
+    expect(system).toContain("<pr_usages> maps the whole path");
+    expect(system).toContain("Does every caller still fit");
     expect(system).toContain("the props or arguments each caller passes");
-    expect(assistRequest(INPUT, []).system).not.toContain("<pr_usages> lists");
+    expect(system).toContain("Trace the whole path before you judge");
+    expect(system).toContain("what it relies on");
+    expect(assistRequest(INPUT, []).system).not.toContain("<pr_usages> maps");
   });
 
   it("asks the model to look for callers of removed names and for existing helpers", () => {
