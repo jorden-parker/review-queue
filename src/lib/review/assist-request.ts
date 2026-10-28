@@ -163,9 +163,11 @@ function contentFor(
 const SUGGESTED_RULE = "ai";
 
 function flagsOn(source: AssistSource, path: string, selected: DiffLine[]): AssistFlag[] {
-  const lines = new Set(selected.map((line) => line.newLine));
+  const lines = new Set(
+    selected.map((line) => line.newLine).filter((line): line is number => line !== null),
+  );
   const onSelectedLines = (hotspot: Hotspot | SuggestedHotspot) =>
-    hotspot.path === path && lines.has(hotspot.line ?? null);
+    hotspot.path === path && typeof hotspot.line === "number" && lines.has(hotspot.line);
   const found = source.data.hotspots.filter(onSelectedLines).map((hotspot) => ({
     title: hotspot.title,
     why: hotspot.why,
