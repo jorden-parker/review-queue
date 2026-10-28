@@ -138,6 +138,12 @@ describe("assistRequest", () => {
     expect(system).toContain("question");
   });
 
+  it("asks for the comment label in plain text, not wrapped in backticks", () => {
+    const system = assistRequest({ ...INPUT, action: "comment" }, []).system;
+    expect(system).toContain("plain text");
+    expect(system).not.toContain("`suggestion:");
+  });
+
   it("puts the prompt first, then the follow-up history", () => {
     const history = [
       { role: "assistant" as const, content: "It sets b." },

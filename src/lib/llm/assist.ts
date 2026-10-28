@@ -51,7 +51,7 @@ Make only the lookups you need, then answer. Never guess about code you have not
 
 const ROLE = "You help a code reviewer with ADHD. Be brief, concrete and calm. Use plain words.";
 
-const COMMENT_LABEL_RULE = `Start with one Conventional Comments label that fits, followed by a colon (one of: ${NOTE_LABELS.join(", ")}), for example \`suggestion: …\`.`;
+const COMMENT_LABEL_RULE = `Begin the reply with one Conventional Comments label in plain text, followed by a colon (one of: ${NOTE_LABELS.join(", ")}), for example: suggestion: rename this. Do not wrap the whole reply in backticks or a code block.`;
 
 const TASKS: Record<AssistAction, string> = {
   explain: `Explain what the selection does and why it matters in this pull request.

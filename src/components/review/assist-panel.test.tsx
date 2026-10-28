@@ -194,4 +194,19 @@ describe("AssistPanel comment draft", () => {
     const textarea = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Comment draft" });
     expect(textarea.value).toBe("use `map`");
   });
+
+  it("reads the label from a draft the model wrapped in backticks", () => {
+    const thread: AssistThread = {
+      ...BASE_THREAD,
+      action: "comment",
+      turns: [{ role: "model", text: "`suggestion: use `map``" }],
+    };
+    render(panel({ thread, assist: fakeAssist(thread) }));
+
+    expect(screen.getByRole("button", { name: "Suggestion" }).className).toContain(
+      NOTE_KIND_STYLES.suggestion,
+    );
+    const textarea = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Comment draft" });
+    expect(textarea.value).toBe("use `map`");
+  });
 });

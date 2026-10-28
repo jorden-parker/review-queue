@@ -16,6 +16,34 @@ const CONVENTIONAL_PREFIX = new RegExp(
   "i",
 );
 
+const FENCED_BLOCK = /^```[^\n`]*\n([\s\S]*?)\n?```$/;
+
+export function unwrappedDraft(text: string): string {
+  const trimmed = text.trim();
+  return unwrapFence(trimmed) ?? unwrapLabelledBacktick(trimmed) ?? trimmed;
+}
+
+function unwrapFence(text: string): string | null {
+  const match = FENCED_BLOCK.exec(text);
+  if (!match || match[1].includes("```")) {
+    return null;
+  }
+  return match[1].trim();
+}
+
+function unwrapLabelledBacktick(text: string): string | null {
+  if (
+    !text.startsWith("`") ||
+    text.startsWith("``") ||
+    !text.endsWith("`") ||
+    text.endsWith("```")
+  ) {
+    return null;
+  }
+  const inner = text.slice(1, -1).trim();
+  return splitConventionalPrefix(inner).tag === null ? null : inner;
+}
+
 export function conventionalLabel(tag: NoteTag): string {
   const label = tag.kind === "parked" ? "aside" : tag.kind;
   return tag.decorations.length > 0 ? `${label} (${tag.decorations.join(",")})` : label;
