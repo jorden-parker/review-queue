@@ -53,6 +53,16 @@ function countRows(file: string, table: string): number {
   }
 }
 
+function receipt(reviewId: number) {
+  return {
+    reviewId,
+    url: `https://github.com/acme/app/pull/7#pullrequestreview-${reviewId}`,
+    event: "COMMENT" as const,
+    headSha: "sha1",
+    body: "",
+  };
+}
+
 describe("SessionStore", () => {
   let store: SessionStore;
   let now: number;
@@ -451,6 +461,65 @@ describe("SessionStore", () => {
     store.startOver(KEY, false);
     expect(store.getSession(KEY).doneSteps).toEqual([]);
     expect(store.getSession(KEY).submissions).toHaveLength(1);
+  });
+
+  it("lists the latest receipts across pull requests, newest first, with each session's title", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.rememberTitle("acme/app#8", "Fix cache");
+    store.recordSubmission(KEY, receipt(1));
+    now += 1000;
+    store.recordSubmission("acme/app#8", receipt(2));
+    now += 1000;
+    store.recordSubmission(KEY, receipt(3));
+    expect(store.recentSubmissions(10)).toEqual([
+      {
+        key: KEY,
+        title: "Add retry",
+        reviewId: 3,
+        url: receipt(3).url,
+        event: "COMMENT",
+        postedAt: "2026-10-26T10:00:02.000Z",
+      },
+      {
+        key: "acme/app#8",
+        title: "Fix cache",
+        reviewId: 2,
+        url: receipt(2).url,
+        event: "COMMENT",
+        postedAt: "2026-10-26T10:00:01.000Z",
+      },
+      {
+        key: KEY,
+        title: "Add retry",
+        reviewId: 1,
+        url: receipt(1).url,
+        event: "COMMENT",
+        postedAt: "2026-10-26T10:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("keeps only the number of receipts asked for", () => {
+    store.recordSubmission(KEY, receipt(1));
+    store.recordSubmission(KEY, receipt(2));
+    store.recordSubmission(KEY, receipt(3));
+    expect(store.recentSubmissions(2).map((review) => review.reviewId)).toEqual([3, 2]);
+  });
+
+  it("lists a receipt with a null title when its session was never remembered", () => {
+    store.recordSubmission(KEY, receipt(1));
+    expect(store.recentSubmissions(10)).toEqual([
+      expect.objectContaining({ key: KEY, title: null }),
+    ]);
+  });
+
+  it("still lists a receipt after start over, without its title", () => {
+    store.rememberTitle(KEY, "Add retry");
+    store.recordSubmission(KEY, receipt(1));
+    store.startOver(KEY, false);
+    expect(store.recentSubmissions(10)).toEqual([
+      expect.objectContaining({ key: KEY, reviewId: 1, title: null }),
+    ]);
   });
 
   it("indexes the per-PR tables that have no primary key starting with pr_key", () => {
