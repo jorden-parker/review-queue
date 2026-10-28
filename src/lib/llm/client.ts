@@ -110,7 +110,10 @@ function firstResponseDeadline(timeoutMs: number): Deadline {
   const timer = setTimeout(
     () =>
       controller.abort(
-        new DOMException("The model took too long to start answering", "TimeoutError"),
+        new DOMException(
+          "The model took too long to start answering; raise Timeout in Settings for a slow machine or a whole-file review",
+          "TimeoutError",
+        ),
       ),
     timeoutMs,
   );

@@ -6,7 +6,7 @@ export const LlmSettingsSchema = z.object({
   enabled: z.boolean(),
   model: z.string().trim().min(1).max(200).nullable(),
   thinking: z.boolean(),
-  timeoutMs: z.number().int().min(1_000).max(600_000),
+  timeoutMs: z.number().int().min(1_000).max(3_600_000),
 });
 
 export type LlmSettings = z.infer<typeof LlmSettingsSchema>;
