@@ -626,6 +626,17 @@ describe("ReviewLoader", () => {
     );
   });
 
+  it("keeps a refused note out of the review and says why", async () => {
+    const { api, user } = await renderReview();
+    api.refuseNextSessionAction("Note body is too long");
+    await user.keyboard("c");
+    await user.click(screen.getByRole("button", { name: "Issue" }));
+    await user.type(screen.getByPlaceholderText(/What did you notice/), "Needs a default");
+    await user.click(screen.getByRole("button", { name: "Save note" }));
+    expect(await screen.findByText("Couldn't save: Note body is too long")).toBeTruthy();
+    expect(screen.queryByText("Needs a default")).toBeNull();
+  });
+
   it("offers every label and keeps a non-blocking decoration with its hint", async () => {
     const { api, user } = await renderReview();
     await user.keyboard("c");
