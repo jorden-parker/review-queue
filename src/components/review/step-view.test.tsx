@@ -97,6 +97,17 @@ describe("StepView context expansion", () => {
     expect(screen.queryByRole("button", { name: /Expand/ })).toBeNull();
   });
 
+  it("opens the unchanged lines around a landed line so it can be scrolled to", async () => {
+    const context = {
+      ...contextFor(async () => fileLines()),
+      landed: { path: "src/client.ts", line: 3 },
+    };
+    renderStep(CLIENT_STEP, context);
+    expect(await screen.findByText(code("line 3"))).toBeTruthy();
+    const row = document.getElementById("line-src/client.ts-3");
+    expect(row?.getAttribute("aria-current")).toBe("location");
+  });
+
   it("offers a retry when the file cannot be loaded", async () => {
     const { user } = renderStep(
       CLIENT_STEP,

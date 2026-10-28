@@ -22,9 +22,10 @@ type ScrollRequest = { id: string; kind: ScrollKind; landed: LineTarget | null }
 function useScrollRequest() {
   const [request, setRequest] = useState<ScrollRequest | null>(null);
 
-  useLayoutEffect(() => {
-    if (request) scrollToElement(request.id, request.kind);
-  }, [request]);
+  useLayoutEffect(
+    () => (request ? scrollToElement(request.id, request.kind) : undefined),
+    [request],
+  );
 
   return { landed: request?.landed ?? null, requestScroll: setRequest };
 }

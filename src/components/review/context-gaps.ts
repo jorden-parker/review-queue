@@ -52,3 +52,12 @@ export function fileLayout(hunks: Hunk[], shown: number[], lineCount: number | n
   }
   return items;
 }
+
+function gapHolds(gap: ContextGap, line: number): boolean {
+  return line >= gap.from && (gap.to === null || line <= gap.to);
+}
+
+export function gapContaining(layout: LayoutItem[], line: number): number | null {
+  const found = layout.find((item) => item.kind === "gap" && gapHolds(item.gap, line));
+  return found?.kind === "gap" ? found.gap.from : null;
+}
