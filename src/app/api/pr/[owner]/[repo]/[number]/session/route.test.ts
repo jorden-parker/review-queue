@@ -23,6 +23,11 @@ describe("POST session", () => {
     expect((await POST(request({ type: "nope" }), context())).status).toBe(400);
   });
 
+  it("archives a session", async () => {
+    const response = await POST(request({ type: "archive" }), context("9"));
+    expect(response.status).toBe(200);
+  });
+
   it("answers 400 for a body that is not JSON", async () => {
     const response = await POST(
       new Request("http://test/api", { method: "POST", body: "{nope" }),
