@@ -53,6 +53,8 @@ export type ReviewPayload = ReviewData & {
   reopenedStepIds: string[];
 };
 
+export type SeenResult = { session: Session; reopenedStepIds: string[] };
+
 const globals = globalThis as { reviewQueuePrepared?: Map<string, Promise<PreparedReview>> };
 const prepared = (globals.reviewQueuePrepared ??= new Map());
 const MAX_HEADS_PER_PULL_REQUEST = 2;
@@ -206,8 +208,20 @@ async function reopenChangedSteps(review: PreparedReview, store: SessionStore): 
 export async function loadReview(ref: PullRequestRef, deps: ReviewDeps): Promise<ReviewPayload> {
   const pr = await deps.fetchPullRequest(ref);
   const review = await preparedReview(pr, deps);
-  const reopenedStepIds = await reopenChangedSteps(review, deps.store);
-  deps.store.markSeen(prKey(ref), review.data.headSha);
-  deps.store.rememberTitle(prKey(ref), pr.title);
-  return { ...review.data, pr, session: deps.store.getSession(prKey(ref)), reopenedStepIds };
+  return { ...review.data, pr, session: deps.store.getSession(prKey(ref)), reopenedStepIds: [] };
+}
+
+export async function markReviewSeen(
+  ref: PullRequestRef,
+  headSha: string,
+  store: SessionStore,
+): Promise<SeenResult | null> {
+  const pending = findPrepared(ref, headSha);
+  if (!pending) return null;
+  const review = await pending;
+  const key = prKey(ref);
+  const reopenedStepIds = await reopenChangedSteps(review, store);
+  store.markSeen(key, headSha);
+  store.rememberTitle(key, review.data.pr.title);
+  return { session: store.getSession(key), reopenedStepIds };
 }
