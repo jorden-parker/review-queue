@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Callout } from "@/components/common/callout";
 import { EmptyState } from "@/components/common/empty-state";
+import { splitPath } from "@/components/common/path-label";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import type { PullRequestRef, Step } from "@/lib/types";
 import { AssistPanel } from "./assist-panel";
 import { citationsInText, parseCitation } from "./citations";
 import { ChangesView } from "./changes-view";
+import { FileView } from "./file-view";
 import { FinishReview } from "./finish-review";
 import { FocusTimer } from "./focus-timer";
 import { fetchChangeParts } from "./api";
@@ -68,7 +70,7 @@ import { occurrencesOf } from "./occurrences";
 import { orderedSteps, stepReasons } from "./step-order";
 import { SavedChatsPanel } from "./saved-chats-panel";
 import { SelectionToolbar } from "./selection-toolbar";
-import { useFileLoader } from "./use-file-lines";
+import { useFileLoader, type LoadFile } from "./use-file-lines";
 import { useReferenceCounts } from "./use-file-symbols";
 import { WorkspaceOutline } from "./workspace-outline";
 import { StepSummary } from "./step-summary";
@@ -430,6 +432,7 @@ function StepTrack({ steps, currentIndex, doneSteps }: StepTrackProps) {
 type StepTrackProps = { steps: Step[]; currentIndex: number; doneSteps: string[] };
 
 function stepBarTitle(workspace: Workspace, step: Step): string {
+  if (workspace.openFile) return splitPath(workspace.openFile.path).name;
   if (workspace.showChanges) return "What changed";
   return workspace.showAll ? "Whole PR" : step.title;
 }
@@ -688,6 +691,53 @@ function navigablePaths(steps: Step[], files: ReadonlyMap<string, PreparedFile>)
   return [...new Set(paths)].filter((path) => files.get(path)?.navigable);
 }
 
+function CentreBody({
+  workspace,
+  review,
+  context,
+  loadFile,
+}: {
+  workspace: Workspace;
+  review: ReviewPayload;
+  context: StepViewContext;
+  loadFile: LoadFile;
+}) {
+  if (workspace.openFile) {
+    return (
+      <FileView
+        key={workspace.openFile.path}
+        target={workspace.openFile}
+        loadFile={loadFile}
+        onIdentifier={workspace.peekName}
+        onClose={workspace.closeFile}
+      />
+    );
+  }
+  if (workspace.showChanges) {
+    return (
+      <ChangesView
+        pullRequest={workspace.pullRequest}
+        headSha={review.headSha}
+        context={context}
+        onCaughtUp={workspace.catchUp}
+      />
+    );
+  }
+  return (
+    <div
+      key={workspace.showAll ? "all" : workspace.currentStep?.id}
+      className="flex animate-step-enter flex-col gap-8"
+    >
+      {workspace.visibleSteps.map((step) => (
+        <div key={step.id} className="flex flex-col gap-3">
+          {workspace.showAll && <h3 className="text-base font-bold">{step.title}</h3>}
+          <StepView step={step} context={context} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ReviewWorkspace({
   pullRequest,
   review: payload,
@@ -773,26 +823,12 @@ export function ReviewWorkspace({
           </div>
           <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-24 sm:px-8">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-6 pt-6">
-              {workspace.showChanges ? (
-                <ChangesView
-                  pullRequest={workspace.pullRequest}
-                  headSha={review.headSha}
-                  context={context}
-                  onCaughtUp={workspace.catchUp}
-                />
-              ) : (
-                <div
-                  key={workspace.showAll ? "all" : workspace.currentStep?.id}
-                  className="flex animate-step-enter flex-col gap-8"
-                >
-                  {workspace.visibleSteps.map((step) => (
-                    <div key={step.id} className="flex flex-col gap-3">
-                      {workspace.showAll && <h3 className="text-base font-bold">{step.title}</h3>}
-                      <StepView step={step} context={context} />
-                    </div>
-                  ))}
-                </div>
-              )}
+              <CentreBody
+                workspace={workspace}
+                review={review}
+                context={context}
+                loadFile={loadFile}
+              />
               <NoSteps review={payload} orientation={orientation} />
             </div>
           </main>

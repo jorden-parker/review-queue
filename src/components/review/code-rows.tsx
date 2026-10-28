@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "cn";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Token } from "@/lib/highlight";
 import type { SymbolPosition } from "@/lib/types";
 import { CodeTokens } from "./code-tokens";
@@ -11,6 +12,16 @@ type LineRange = { from: number; to: number };
 
 function scrollToCentre(element: HTMLElement | null) {
   element?.scrollIntoView?.({ block: "center" });
+}
+
+export function LoadingRows() {
+  return (
+    <div className="flex flex-col gap-2" aria-label="Loading">
+      {[0, 1, 2].map((row) => (
+        <Skeleton key={row} className="h-16 w-full" />
+      ))}
+    </div>
+  );
 }
 
 export function CodeRows({
