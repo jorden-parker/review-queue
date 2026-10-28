@@ -10,9 +10,31 @@ export type LlmConfig = {
 
 export type LlmClient = { config: LlmConfig; fetchImpl: typeof fetch };
 
-export type Message = { role: "user" | "assistant"; content: string };
+export type ToolSpec = { name: string; description: string; input_schema: Record<string, unknown> };
 
-export type ModelRequest = { system: string; maxTokens: number; messages: Message[] };
+export type TextBlock = { type: "text"; text: string };
+
+export type ToolUseBlock = { type: "tool_use"; id: string; name: string; input: unknown };
+
+export type ToolResultBlock = {
+  type: "tool_result";
+  tool_use_id: string;
+  content: string;
+  is_error?: boolean;
+};
+
+export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock;
+
+export type Message = { role: "user" | "assistant"; content: string | ContentBlock[] };
+
+export type ModelRequest = {
+  system: string;
+  maxTokens: number;
+  messages: Message[];
+  tools?: ToolSpec[];
+};
+
+export type TurnEvent = { type: "text"; text: string } | ToolUseBlock;
 
 const THINKING_TOKENS = 2048;
 
@@ -121,6 +143,7 @@ async function postMessages(
         stream,
         system: request.system,
         messages: request.messages,
+        ...(request.tools ? { tools: request.tools } : {}),
       }),
       signal: signal ? AbortSignal.any([deadline.signal, signal]) : deadline.signal,
     })
@@ -139,22 +162,28 @@ export async function askModel(client: LlmClient, request: ModelRequest): Promis
 
 type StreamEvent = {
   type?: string;
-  delta?: { type?: string; text?: string };
+  index?: number;
+  content_block?: { type?: string; id?: string; name?: string };
+  delta?: { type?: string; text?: string; partial_json?: string };
   error?: { message?: string };
 };
 
-function eventText(rawEvent: string): string {
+type PendingToolUse = { id: string; name: string; json: string };
+
+function parseEvent(rawEvent: string): StreamEvent | null {
   const data = rawEvent
     .split("\n")
     .filter((line) => line.startsWith("data:"))
     .map((line) => line.slice(5).trim())
     .join("");
-  if (!data) return "";
+  if (!data) return null;
   const event = JSON.parse(data) as StreamEvent;
   if (event.type === "error") throw new Error(event.error?.message ?? "LLM stream failed");
-  return event.type === "content_block_delta" && event.delta?.type === "text_delta"
-    ? (event.delta.text ?? "")
-    : "";
+  return event;
+}
+
+function parseEvents(rawEvents: string[]): StreamEvent[] {
+  return rawEvents.map(parseEvent).filter((event): event is StreamEvent => event !== null);
 }
 
 async function* textChunks(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
@@ -165,24 +194,86 @@ async function* textChunks(body: ReadableStream<Uint8Array>): AsyncGenerator<str
   }
 }
 
+async function* streamEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<StreamEvent> {
+  let pending = "";
+  for await (const chunk of textChunks(body)) {
+    const rawEvents = (pending + chunk).replaceAll("\r\n", "\n").split("\n\n");
+    pending = rawEvents.pop() ?? "";
+    yield* parseEvents(rawEvents);
+  }
+  yield* parseEvents([pending]);
+}
+
+function startToolBlock(event: StreamEvent, toolBlocks: Map<number, PendingToolUse>): void {
+  if (event.content_block?.type !== "tool_use") return;
+  toolBlocks.set(event.index ?? 0, {
+    id: event.content_block.id ?? "",
+    name: event.content_block.name ?? "",
+    json: "",
+  });
+}
+
+function appendToolJson(event: StreamEvent, toolBlocks: Map<number, PendingToolUse>): void {
+  const block = toolBlocks.get(event.index ?? 0);
+  if (block) block.json += event.delta?.partial_json ?? "";
+}
+
+function finishToolBlock(
+  event: StreamEvent,
+  toolBlocks: Map<number, PendingToolUse>,
+): ToolUseBlock | null {
+  const index = event.index ?? 0;
+  const block = toolBlocks.get(index);
+  if (!block) return null;
+  toolBlocks.delete(index);
+  return {
+    type: "tool_use",
+    id: block.id,
+    name: block.name,
+    input: JSON.parse(block.json || "{}"),
+  };
+}
+
+function textEventOf(event: StreamEvent): TurnEvent | null {
+  if (event.type !== "content_block_delta" || event.delta?.type !== "text_delta") return null;
+  return event.delta.text ? { type: "text", text: event.delta.text } : null;
+}
+
+function turnEventOf(
+  event: StreamEvent,
+  toolBlocks: Map<number, PendingToolUse>,
+): TurnEvent | null {
+  if (event.type === "content_block_start") startToolBlock(event, toolBlocks);
+  if (event.type === "content_block_stop") return finishToolBlock(event, toolBlocks);
+  if (event.type === "content_block_delta" && event.delta?.type === "input_json_delta") {
+    appendToolJson(event, toolBlocks);
+    return null;
+  }
+  return textEventOf(event);
+}
+
+export async function* streamTurn(
+  client: LlmClient,
+  request: ModelRequest,
+  signal?: AbortSignal,
+): AsyncGenerator<TurnEvent> {
+  const response = await postMessages(client, request, true, signal);
+  if (!response.body) return;
+  const toolBlocks = new Map<number, PendingToolUse>();
+  for await (const event of streamEvents(response.body)) {
+    const turnEvent = turnEventOf(event, toolBlocks);
+    if (turnEvent) yield turnEvent;
+  }
+}
+
 export async function* streamModel(
   client: LlmClient,
   request: ModelRequest,
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
-  const response = await postMessages(client, request, true, signal);
-  if (!response.body) return;
-  let pending = "";
-  for await (const chunk of textChunks(response.body)) {
-    const events = (pending + chunk).replaceAll("\r\n", "\n").split("\n\n");
-    pending = events.pop() ?? "";
-    for (const rawEvent of events) {
-      const text = eventText(rawEvent);
-      if (text) yield text;
-    }
+  for await (const event of streamTurn(client, request, signal)) {
+    if (event.type === "text") yield event.text;
   }
-  const last = eventText(pending);
-  if (last) yield last;
 }
 
 export async function askForJson<T>(

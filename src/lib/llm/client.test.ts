@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { askModel, llmConfigFromEnv, streamModel } from "./client";
+import { askModel, llmConfigFromEnv, streamModel, streamTurn } from "./client";
 
 const CONFIG = {
   baseURL: "http://llm.test",
@@ -83,8 +83,8 @@ function streamingFetch(chunks: string[]) {
   return { fetchImpl: fetchImpl as typeof fetch, bodies };
 }
 
-async function collect(stream: AsyncIterable<string>): Promise<string[]> {
-  const parts: string[] = [];
+async function collect<T>(stream: AsyncIterable<T>): Promise<T[]> {
+  const parts: T[] = [];
   for await (const part of stream) parts.push(part);
   return parts;
 }
@@ -164,5 +164,88 @@ describe("streamModel", () => {
     await expect(collect(streamModel({ config: CONFIG, fetchImpl }, REQUEST))).rejects.toThrow(
       "overloaded",
     );
+  });
+});
+
+describe("streamTurn", () => {
+  it("yields a tool_use block whose input arrives in split JSON chunks", async () => {
+    const events =
+      sseEvent("content_block_start", {
+        index: 0,
+        content_block: { type: "tool_use", id: "t1", name: "find_references", input: {} },
+      }) +
+      sseEvent("content_block_delta", {
+        index: 0,
+        delta: { type: "input_json_delta", partial_json: '{"name":' },
+      }) +
+      sseEvent("content_block_delta", {
+        index: 0,
+        delta: { type: "input_json_delta", partial_json: '"loadReview"}' },
+      }) +
+      sseEvent("content_block_stop", { index: 0 }) +
+      sseEvent("message_stop", {});
+    const { fetchImpl } = streamingFetch([events]);
+    const turn = await collect(streamTurn({ config: CONFIG, fetchImpl }, REQUEST));
+    expect(turn).toEqual([
+      { type: "tool_use", id: "t1", name: "find_references", input: { name: "loadReview" } },
+    ]);
+  });
+
+  it("yields text and tool calls in stream order", async () => {
+    const events =
+      sseEvent("content_block_start", { index: 0, content_block: { type: "text" } }) +
+      sseEvent("content_block_delta", {
+        index: 0,
+        delta: { type: "text_delta", text: "Let me look." },
+      }) +
+      sseEvent("content_block_stop", { index: 0 }) +
+      sseEvent("content_block_start", {
+        index: 1,
+        content_block: { type: "tool_use", id: "t2", name: "read_file", input: {} },
+      }) +
+      sseEvent("content_block_delta", {
+        index: 1,
+        delta: { type: "input_json_delta", partial_json: '{"path":"src/a.ts"}' },
+      }) +
+      sseEvent("content_block_stop", { index: 1 });
+    const { fetchImpl } = streamingFetch([events]);
+    const turn = await collect(streamTurn({ config: CONFIG, fetchImpl }, REQUEST));
+    expect(turn).toEqual([
+      { type: "text", text: "Let me look." },
+      { type: "tool_use", id: "t2", name: "read_file", input: { path: "src/a.ts" } },
+    ]);
+  });
+
+  it("ignores thinking blocks and their deltas", async () => {
+    const events =
+      sseEvent("content_block_start", { index: 0, content_block: { type: "thinking" } }) +
+      sseEvent("content_block_delta", {
+        index: 0,
+        delta: { type: "thinking_delta", thinking: "Draft" },
+      }) +
+      sseEvent("content_block_stop", { index: 0 }) +
+      sseEvent("content_block_delta", { index: 1, delta: { type: "text_delta", text: "Answer" } });
+    const { fetchImpl } = streamingFetch([events]);
+    const turn = await collect(streamTurn({ config: CONFIG, fetchImpl }, REQUEST));
+    expect(turn).toEqual([{ type: "text", text: "Answer" }]);
+  });
+
+  it("sends tools in the request body only when the request sets them", async () => {
+    const tools = [
+      {
+        name: "find_references",
+        description: "List uses of a name.",
+        input_schema: { type: "object", properties: {} },
+      },
+    ];
+    const withTools = streamingFetch([sseEvent("message_stop", {})]);
+    await collect(
+      streamTurn({ config: CONFIG, fetchImpl: withTools.fetchImpl }, { ...REQUEST, tools }),
+    );
+    expect(withTools.bodies[0]).toMatchObject({ tools });
+
+    const withoutTools = streamingFetch([sseEvent("message_stop", {})]);
+    await collect(streamTurn({ config: CONFIG, fetchImpl: withoutTools.fetchImpl }, REQUEST));
+    expect(withoutTools.bodies[0]).not.toHaveProperty("tools");
   });
 });
