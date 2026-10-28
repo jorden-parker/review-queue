@@ -33,7 +33,7 @@ export type AssistInput = {
 const CONTEXT_CHAR_BUDGET = 24_000;
 const SELECTION_CHAR_BUDGET = 8_000;
 const FILE_CHAR_BUDGET = 24_000;
-const USAGE_CHAR_BUDGET = 8_000;
+const USAGE_CHAR_BUDGET = 12_000;
 const MAX_LOOKUP_PATHS = 20;
 const MAX_TOKENS = 800;
 const TITLE_LIMIT = 300;
@@ -57,8 +57,9 @@ Before you call new logic novel, search_code for an existing helper that already
 When a one-line use is not enough to tell whether a caller still works, read_file around it.
 Never guess about code you have not seen.`;
 
-const USAGE_RULE = `<pr_usages> lists where each declaration in the selection is used in the PR's head checkout, and any other definition with the same name.
+const USAGE_RULE = `<pr_usages> lists where each declaration in or around the selection is used in the PR's head checkout, with the calling code and the component or function it sits in, and any other definition with the same name.
 Judge the change against them: does every caller still fit the new signature, return value, errors and null cases?
+Read the props or arguments each caller passes and say which caller breaks or behaves differently. When the shown lines are not enough, read_file the caller.
 Code with no uses outside its own definition may be dead. A same-named definition elsewhere may be duplicated logic; say so if they do the same job.`;
 
 const ROLE = "You help a code reviewer with ADHD. Be brief, concrete and calm. Use plain words.";

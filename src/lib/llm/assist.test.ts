@@ -26,7 +26,7 @@ const USAGE: DeclarationUsage = {
   path: "src/a.ts",
   line: 11,
   endLine: 11,
-  uses: [{ path: "src/page.ts", line: 4, text: "render(b);" }],
+  uses: [{ path: "src/page.ts", line: 4, text: "render(b);", caller: null, code: [] }],
   useCount: 1,
   otherDefinitions: [{ name: "b", kind: "constant", path: "src/old.ts", line: 2, endLine: 2 }],
 };
@@ -164,6 +164,7 @@ describe("assistRequest", () => {
     const system = assistRequest(USAGE_INPUT, []).system;
     expect(system).toContain("<pr_usages> lists where each declaration");
     expect(system).toContain("does every caller still fit");
+    expect(system).toContain("the props or arguments each caller passes");
     expect(assistRequest(INPUT, []).system).not.toContain("<pr_usages> lists");
   });
 
