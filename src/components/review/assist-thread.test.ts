@@ -119,6 +119,7 @@ describe("labels", () => {
   it("name lines or a whole file", () => {
     expect(actionLabel("simplify", LINES)).toBe("Simplify these lines");
     expect(actionLabel("simplify", WHOLE_FILE)).toBe("Simplify this file");
+    expect(actionLabel("review", WHOLE_FILE)).toBe("Review this file");
     expect(questionPrompt("comment", WHOLE_FILE)).toBe("What worries you about this file?");
     expect(questionPrompt("explain", WHOLE_FILE)).toBeNull();
   });

@@ -119,23 +119,30 @@ describe("assistRequest", () => {
   });
 
   it("asks for markdown with code names in backticks for every action", () => {
-    for (const action of ["explain", "simplify", "comment", "ask"] as const) {
+    for (const action of ["explain", "simplify", "comment", "ask", "review"] as const) {
       expect(assistRequest({ ...INPUT, action }, []).system).toContain(CODE_NAME_RULE);
     }
   });
 
   it("uses a different system prompt for each action", () => {
-    const systems = (["explain", "simplify", "comment", "ask"] as const).map(
+    const systems = (["explain", "simplify", "comment", "ask", "review"] as const).map(
       (action) => assistRequest({ ...INPUT, action }, []).system,
     );
-    expect(new Set(systems).size).toBe(4);
+    expect(new Set(systems).size).toBe(5);
   });
 
   it("asks for a design review for every action that judges code", () => {
-    for (const action of ["explain", "comment", "ask", "check"] as const) {
+    for (const action of ["explain", "comment", "ask", "check", "review"] as const) {
       expect(assistRequest({ ...INPUT, action }, []).system).toContain("YAGNI");
     }
     expect(assistRequest({ ...INPUT, action: "simplify" }, []).system).not.toContain("YAGNI");
+  });
+
+  it("asks a review to list only real problems with their lines and say when the file is fine", () => {
+    const system = assistRequest({ ...FILE_INPUT, action: "review" }, []).system;
+    expect(system).toContain("Review the selection");
+    expect(system).toContain("line numbers");
+    expect(system).toContain("looks good");
   });
 
   it("adds the React rules only when the selection is in a component file", () => {
