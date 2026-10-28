@@ -11,6 +11,9 @@ const MAX_FILES = 6000;
 const MAX_LISTED_FILES = 20000;
 export const MAX_FILE_BYTES = 300 * 1024;
 const MAX_REFERENCES = 60;
+const MAX_SEARCH_RESULTS = 200;
+const MAX_SEARCH_TEXT = 200;
+const MIN_SEARCH_QUERY = 2;
 const MAX_DEFINITIONS = 20;
 const MAX_MENTIONING_FILES = 300;
 const IGNORED_SEGMENTS = /(^|\/)(node_modules|vendor|dist|build|\.next|third_party)\//;
@@ -99,6 +102,19 @@ export class SymbolIndex {
       .filter((reference): reference is Reference => reference !== null)
       .filter((reference) => !IGNORED_SEGMENTS.test(reference.path))
       .slice(0, MAX_REFERENCES);
+  }
+
+  async search(query: string): Promise<Reference[]> {
+    if (query.length < MIN_SEARCH_QUERY) return [];
+    const output = await this.run("git", ["grep", "-n", "-F", "-I", "-i", "-e", query], {
+      cwd: this.root,
+    }).catch(() => "");
+    return output
+      .split("\n")
+      .map(parseGrepLine)
+      .filter((match): match is Reference => match !== null)
+      .slice(0, MAX_SEARCH_RESULTS)
+      .map((match) => ({ ...match, text: match.text.slice(0, MAX_SEARCH_TEXT) }));
   }
 
   async filesMentioning(name: string): Promise<string[]> {
