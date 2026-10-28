@@ -3,7 +3,7 @@ import { refFromParams } from "@/lib/pr-ref";
 import type { PullRequestRef } from "@/lib/types";
 import { findPrepared, type PreparedReview } from "./prepare";
 
-export type PrRouteContext = { params: Promise<{ owner: string; repo: string; number: string }> };
+type PrRouteContext = { params: Promise<{ owner: string; repo: string; number: string }> };
 
 export const GITHUB_FAILURE_MESSAGE = "GitHub request failed";
 const BAD_REFERENCE_MESSAGE = "Bad pull request reference";
@@ -42,7 +42,7 @@ export function withPullRequest(handler: PullRequestHandler) {
   };
 }
 
-export async function preparedFromRequest(
+async function preparedFromRequest(
   request: Request,
   context: PrRouteContext,
 ): Promise<PreparedReview | Response> {
