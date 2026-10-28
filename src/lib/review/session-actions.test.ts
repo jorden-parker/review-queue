@@ -147,6 +147,34 @@ describe("applySessionAction", () => {
     expect(run(store, { type: "assist-delete", id: thread.id }).assistThreads).toEqual([]);
   });
 
+  it("saves the lookups a model turn made, and rejects an unreasonable number of them", () => {
+    const store = new SessionStore(":memory:");
+    const lookup = { tool: "find_references", label: "Callers of `a` (1)", paths: ["src/b.ts"] };
+    const thread = {
+      id: "6f1c8f9e-1d2b-4c3a-9e8f-7a6b5c4d3e2f",
+      headSha: HEAD_SHA,
+      target: { kind: "file", path: "src/a.ts" },
+      action: "explain",
+      question: null,
+      turns: [
+        { role: "reviewer", text: "Explain this file" },
+        { role: "model", text: "It loads.", lookups: [lookup] },
+      ],
+    };
+    const saved = run(store, { type: "assist-save", thread });
+    expect(saved.assistThreads).toEqual([expect.objectContaining({ turns: thread.turns })]);
+    const flood = Array.from({ length: 200 }, () => lookup);
+    expect(() =>
+      SessionActionSchema.parse({
+        type: "assist-save",
+        thread: {
+          ...thread,
+          turns: [thread.turns[0], { role: "model", text: "x", lookups: flood }],
+        },
+      }),
+    ).toThrow();
+  });
+
   it("rejects a chat with an unknown target or too many turns", () => {
     const thread = {
       id: "6f1c8f9e-1d2b-4c3a-9e8f-7a6b5c4d3e2f",

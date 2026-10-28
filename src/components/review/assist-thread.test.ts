@@ -79,6 +79,17 @@ describe("follow-ups", () => {
     ]);
   });
 
+  it("keep lookups on the model's turn but never send them back as history", () => {
+    const lookup = { tool: "find_references", label: "Callers of `a` (1)", paths: ["src/b.ts"] };
+    const answered = withModelText(openThread(LINES, "explain"), "It sets a.", [lookup]);
+    expect(answered.turns.at(-1)).toEqual({ role: "model", text: "It sets a.", lookups: [lookup] });
+    const thread = withFollowUp(answered, "Why?");
+    expect(threadRequest(thread).history).toEqual([
+      { role: "assistant", content: "It sets a." },
+      { role: "user", content: "Why?" },
+    ]);
+  });
+
   it("replace the model's turn as more text streams in", () => {
     const first = withModelText(openThread(LINES, "explain"), "It");
     expect(withModelText(first, "It sets a.").turns.at(-1)).toEqual({

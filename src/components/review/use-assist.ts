@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AssistAction, AssistTarget, AssistThread } from "@/lib/assist-protocol";
 import type { PullRequestRef } from "@/lib/types";
+import type { ParsedAssistStream } from "./assist-stream";
 import { streamAssist } from "./api";
 import {
   askedThread,
@@ -42,11 +43,11 @@ export function useAssist(
       setThread(next);
       setStreaming(true);
       setError(null);
-      const onText = (text: string) => {
-        latest = withModelText(latest, text);
+      const onUpdate = ({ text, lookups }: ParsedAssistStream) => {
+        latest = withModelText(latest, text, lookups);
         setThread((current) => (current?.id === latest.id ? latest : current));
       };
-      streamAssist(ref, headSha, threadRequest(next), onText, abort.signal)
+      streamAssist(ref, headSha, threadRequest(next), onUpdate, abort.signal)
         .catch((failure: Error) => {
           if (!abort.signal.aborted) setError(failure.message);
         })

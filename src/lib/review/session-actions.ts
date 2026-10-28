@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ASSIST_ACTIONS, MAX_HISTORY_TURNS } from "@/lib/assist-protocol";
+import { MAX_TOOL_ROUNDS } from "@/lib/llm/tool-loop";
 import type { Session, SessionStore } from "@/lib/session/store";
 import { AssistTargetSchema } from "./assist-request";
 import { NOTE_DECORATIONS, NOTE_LABELS, SYMBOL_KINDS } from "@/lib/types";
@@ -27,15 +28,28 @@ const SymbolSchema = z.object({
   }),
 });
 
+const AssistLookupSchema = z.object({
+  tool: z.string().max(40),
+  label: z.string().max(300),
+  paths: z.array(z.string().max(500)).max(20),
+});
+
+const AssistTurnSchema = z.object({
+  role: z.enum(["reviewer", "model"]),
+  text: z.string().max(16_000),
+  lookups: z
+    .array(AssistLookupSchema)
+    .max(MAX_TOOL_ROUNDS * 4)
+    .optional(),
+});
+
 const AssistThreadSchema = z.object({
   id: z.uuid(),
   headSha: CommitShaSchema,
   target: AssistTargetSchema,
   action: z.enum(ASSIST_ACTIONS),
   question: z.string().max(2_000).nullable(),
-  turns: z
-    .array(z.object({ role: z.enum(["reviewer", "model"]), text: z.string().max(16_000) }))
-    .max(MAX_HISTORY_TURNS + 2),
+  turns: z.array(AssistTurnSchema).max(MAX_HISTORY_TURNS + 2),
 });
 
 export const SessionActionSchema = z.discriminatedUnion("type", [
