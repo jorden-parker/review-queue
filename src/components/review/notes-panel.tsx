@@ -3,6 +3,7 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "@/components/common/empty-state";
+import { Markdown } from "@/components/common/markdown-text";
 import { PaneRow } from "@/components/common/pane-row";
 import { PathLabel } from "@/components/common/path-label";
 import { Button } from "@/components/ui/button";
@@ -121,13 +122,14 @@ function NoteRow({
   return (
     <PaneRow className="group">
       <NoteKindBadge tag={note} />
-      <button
-        onClick={() => onOpen(note)}
-        className="flex min-w-0 flex-1 flex-col gap-0.5 text-left text-sm"
-      >
-        <span className="whitespace-pre-wrap wrap-anywhere">{note.body}</span>
-        {note.path && <PathLabel path={note.path} line={note.line} />}
-      </button>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm">
+        <Markdown text={note.body} className="flex flex-col gap-1.5 wrap-anywhere" />
+        {note.path && (
+          <button onClick={() => onOpen(note)} className="self-start text-left">
+            <PathLabel path={note.path} line={note.line} />
+          </button>
+        )}
+      </div>
       <Button
         variant="ghost"
         size="icon-xs"

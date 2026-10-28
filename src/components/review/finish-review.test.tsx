@@ -42,6 +42,11 @@ function renderDialog({
 }
 
 describe("FinishReview", () => {
+  it("renders each postable note's Markdown", () => {
+    renderDialog({ notes: [note({ id: 2, kind: "nitpick", body: "Rename `foo`" })] });
+    expect(screen.getByText("foo").tagName).toBe("CODE");
+  });
+
   it("keeps parked notes out of the checklist", () => {
     renderDialog({
       notes: [

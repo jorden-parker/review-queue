@@ -3,6 +3,7 @@
 import { Coffee } from "lucide-react";
 import { AppDialog } from "@/components/common/app-dialog";
 import { Callout } from "@/components/common/callout";
+import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { plural } from "@/lib/plural";
 import type { Session } from "@/lib/session/store";
@@ -97,7 +98,9 @@ export function ResumeCard({
         {lastNote && (
           <div>
             <dt className="text-muted-foreground">Your last note</dt>
-            <dd className="italic">“{lastNote.body}”</dd>
+            <dd className="italic">
+              <InlineMarkdown text={lastNote.body} />
+            </dd>
           </div>
         )}
         {session.jumps.length > 0 && (
