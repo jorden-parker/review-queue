@@ -128,6 +128,21 @@ export async function submitReview(
   return { id: created.id, url: created.html_url };
 }
 
+export async function postReplyToReviewComment(
+  ref: PullRequestRef,
+  commentId: number,
+  body: string,
+  run: Runner = githubRun,
+): Promise<{ id: number; url: string }> {
+  const output = await run(
+    "gh",
+    ["api", "--method", "POST", `${pullPath(ref)}/comments/${commentId}/replies`, "--input", "-"],
+    { input: JSON.stringify({ body }) },
+  );
+  const created = JSON.parse(output) as { id: number; html_url: string };
+  return { id: created.id, url: created.html_url };
+}
+
 export type ReviewComment = {
   id: number;
   inReplyTo: number | null;
@@ -175,6 +190,7 @@ type RawReview = {
 };
 
 export const CONVERSATION_PAGE_SIZE = 100;
+export const CONVERSATION_MAX_PAGES = 5;
 
 function pullPath(ref: PullRequestRef): string {
   return `repos/${ref.owner}/${ref.repo}/pulls/${ref.number}`;
@@ -206,14 +222,28 @@ function toPostedReview(raw: RawReview): PostedReview {
   };
 }
 
+async function listCommentPage(
+  ref: PullRequestRef,
+  page: number,
+  cache: EtagCache,
+  run: Runner,
+): Promise<RawReviewComment[]> {
+  const path = `${pullPath(ref)}/comments?per_page=${CONVERSATION_PAGE_SIZE}&page=${page}`;
+  return JSON.parse(await conditionalGet(path, cache, run)) as RawReviewComment[];
+}
+
 export async function listReviewComments(
   ref: PullRequestRef,
   cache: EtagCache,
   run: Runner = githubRun,
 ): Promise<ReviewComment[]> {
-  const path = `${pullPath(ref)}/comments?per_page=${CONVERSATION_PAGE_SIZE}`;
-  const comments = JSON.parse(await conditionalGet(path, cache, run)) as RawReviewComment[];
-  return comments.map(toReviewComment);
+  const rows: RawReviewComment[] = [];
+  for (let page = 1; page <= CONVERSATION_MAX_PAGES; page += 1) {
+    const batch = await listCommentPage(ref, page, cache, run);
+    rows.push(...batch);
+    if (batch.length < CONVERSATION_PAGE_SIZE) break;
+  }
+  return rows.map(toReviewComment);
 }
 
 export async function listReviews(

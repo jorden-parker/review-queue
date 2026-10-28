@@ -3,6 +3,7 @@ import type { PullRequestRef } from "@/lib/types";
 import type { EtagCache } from "./conditional-get";
 import { githubRun } from "./github-guard";
 import {
+  CONVERSATION_MAX_PAGES,
   CONVERSATION_PAGE_SIZE,
   listReviewComments,
   listReviews,
@@ -25,6 +26,7 @@ export async function loadConversation(
     listReviewComments(ref, cache, run),
     listReviews(ref, cache, run),
   ]);
-  const filled = (list: unknown[]) => list.length === CONVERSATION_PAGE_SIZE;
-  return { comments, reviews, truncated: filled(comments) || filled(reviews) };
+  const commentsFilled = comments.length === CONVERSATION_PAGE_SIZE * CONVERSATION_MAX_PAGES;
+  const reviewsFilled = reviews.length === CONVERSATION_PAGE_SIZE;
+  return { comments, reviews, truncated: commentsFilled || reviewsFilled };
 }
