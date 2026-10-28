@@ -15,6 +15,8 @@ const APP = [
   "  console.log(total);",
   "}",
   "export const start = () => load;",
+  "import { missing } from '@acme/missing';",
+  "export const gone = () => missing;",
   "",
 ].join("\n");
 const STORE_TEST = "import { load } from '../src/store';\nexport const loaded = load('a');\n";
@@ -54,6 +56,7 @@ describe("LanguageClient with typescript-language-server", () => {
     const [location] = await client.definition("src/app.ts", 6, 27);
     expect(location).toMatchObject({ file: path.join(root, "src/store.ts"), line: 1 });
     expect(location.endLine).toBe(3);
+    expect(location.declarationLine).toBe(1);
   });
 
   it("finds references and hover text", async () => {
@@ -85,6 +88,16 @@ describe("LanguageClient with typescript-language-server", () => {
   it("reports library definitions with their real location", async () => {
     const [location] = await client.definition("src/app.ts", 4, 2);
     expect(location.file).not.toContain(root);
+  });
+
+  it("answers an import the project cannot resolve with the import itself", async () => {
+    const [location] = await client.definition("src/app.ts", 8, 26);
+    expect(location).toMatchObject({
+      file: path.join(root, "src/app.ts"),
+      line: 7,
+      declarationLine: 7,
+    });
+    expect(await client.hover("src/app.ts", 8, 26)).toContain("import missing");
   });
 });
 
