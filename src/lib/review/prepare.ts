@@ -5,6 +5,7 @@ import { highlightFile, type HighlightedHunk } from "@/lib/highlight";
 import { findHotspots } from "@/lib/hotspots/find-hotspots";
 import { changedSignatureNames } from "@/lib/hotspots/rules";
 import { buildChangeMap } from "@/lib/map/change-map";
+import { memoizePromise } from "@/lib/memoize-promise";
 import { buildReadingPath, estimateMinutes } from "@/lib/plan/reading-path";
 import { prKey } from "@/lib/pr-ref";
 import type { Session, SessionStore } from "@/lib/session/store";
@@ -54,6 +55,7 @@ export type ReviewPayload = ReviewData & {
 
 const globals = globalThis as { reviewQueuePrepared?: Map<string, Promise<PreparedReview>> };
 const prepared = (globals.reviewQueuePrepared ??= new Map());
+const MAX_HEADS_PER_PULL_REQUEST = 2;
 
 function warmLanguageServers(clientFor: ClientFor, files: PreparedFile[]): void {
   for (const file of files.filter(
@@ -170,14 +172,22 @@ export function findPrepared(ref: PullRequestRef, headSha: string): Promise<Prep
   return prepared.get(cacheKey(ref, headSha)) ?? null;
 }
 
-function preparedReview(pr: PullRequest, deps: ReviewDeps): Promise<PreparedReview> {
-  const key = cacheKey(pr.ref, pr.headSha);
-  if (!prepared.has(key)) {
-    const pending = build(pr, deps);
-    pending.catch(() => prepared.delete(key));
-    prepared.set(key, pending);
+function headKeysOf(ref: PullRequestRef): string[] {
+  const prefix = `${prKey(ref)}@`;
+  return [...prepared.keys()].filter((key) => key.startsWith(prefix));
+}
+
+function forgetSupersededHeads(ref: PullRequestRef): void {
+  const keys = headKeysOf(ref);
+  for (const key of keys.slice(0, Math.max(0, keys.length - MAX_HEADS_PER_PULL_REQUEST))) {
+    prepared.delete(key);
   }
-  return prepared.get(key)!;
+}
+
+function preparedReview(pr: PullRequest, deps: ReviewDeps): Promise<PreparedReview> {
+  const review = memoizePromise(prepared, cacheKey(pr.ref, pr.headSha), () => build(pr, deps));
+  forgetSupersededHeads(pr.ref);
+  return review;
 }
 
 async function reopenChangedSteps(review: PreparedReview, store: SessionStore): Promise<string[]> {
