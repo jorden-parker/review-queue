@@ -32,6 +32,13 @@ export function stepForLine(steps: Step[], files: PreparedFile[], target: LineTa
   return exact ?? withPath[0] ?? null;
 }
 
+export function locationKind(
+  prFiles: Pick<PreparedFile, "path">[],
+  target: LineTarget,
+): "diff" | "file" {
+  return prFiles.some((file) => file.path === target.path) ? "diff" : "file";
+}
+
 export function lineElementId(target: LineTarget): string {
   return `line-${target.path}-${target.line}`;
 }
