@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { DefinitionWithCode, ReferenceWithCode } from "@/lib/review/peek-code";
 import type { PullRequestRef, SymbolPosition } from "@/lib/types";
 import { fetchDefinitions, fetchReferences } from "./api";
@@ -19,63 +19,101 @@ function errorText(error: unknown): string {
 
 type OnDefinitions = (position: SymbolPosition, definitions: DefinitionWithCode[]) => void;
 
+type PeekTab = PeekState["tab"];
+
+type PeekRequest = { position: SymbolPosition };
+
 export function usePeek(ref: PullRequestRef, headSha: string | null, onDefinitions: OnDefinitions) {
   const [peek, setPeek] = useState<PeekState | null>(null);
+  const currentRequest = useRef<PeekRequest | null>(null);
 
-  const fail = useCallback(
-    (error: unknown) =>
-      setPeek((current) => (current ? { ...current, error: errorText(error) } : current)),
+  const updateIfCurrent = useCallback(
+    (request: PeekRequest, change: (current: PeekState) => PeekState) => {
+      if (currentRequest.current === request)
+        setPeek((current) => (current ? change(current) : current));
+    },
     [],
   );
 
+  const failIfCurrent = useCallback(
+    (request: PeekRequest, error: unknown) =>
+      updateIfCurrent(request, (current) => ({ ...current, error: errorText(error) })),
+    [updateIfCurrent],
+  );
+
   const loadReferences = useCallback(
-    (position: SymbolPosition) => {
+    (request: PeekRequest) => {
       if (!headSha) return;
-      fetchReferences(ref, headSha, position)
-        .then((references) =>
-          setPeek((current) =>
-            current?.position === position ? { ...current, references } : current,
-          ),
-        )
-        .catch(fail);
+      fetchReferences(ref, headSha, request.position)
+        .then((references) => updateIfCurrent(request, (current) => ({ ...current, references })))
+        .catch((error: unknown) => failIfCurrent(request, error));
     },
-    [ref, headSha, fail],
+    [ref, headSha, updateIfCurrent, failIfCurrent],
+  );
+
+  const loadDefinitions = useCallback(
+    (request: PeekRequest) => {
+      if (!headSha) return;
+      fetchDefinitions(ref, headSha, request.position)
+        .then((definitions) => {
+          onDefinitions(request.position, definitions);
+          updateIfCurrent(request, (current) => ({
+            ...current,
+            definitions,
+            tab:
+              current.tab === "definitions" && definitions.length === 0
+                ? "references"
+                : current.tab,
+          }));
+        })
+        .catch((error: unknown) => failIfCurrent(request, error));
+    },
+    [ref, headSha, onDefinitions, updateIfCurrent, failIfCurrent],
+  );
+
+  const startPeek = useCallback(
+    (position: SymbolPosition, tab: PeekTab) => {
+      const request: PeekRequest = { position };
+      currentRequest.current = request;
+      setPeek({ position, tab, definitions: null, references: null, error: null });
+      loadReferences(request);
+      if (tab === "definitions") loadDefinitions(request);
+    },
+    [loadReferences, loadDefinitions],
   );
 
   const showReferences = useCallback(
     (position: SymbolPosition) => {
       if (!headSha) return;
-      setPeek((current) => ({
-        position,
-        tab: "references",
-        definitions: current?.position === position ? current.definitions : null,
-        references: null,
-        error: null,
-      }));
-      loadReferences(position);
+      if (currentRequest.current?.position === position) {
+        setPeek((current) => (current ? { ...current, tab: "references" } : current));
+        return;
+      }
+      startPeek(position, "references");
     },
-    [headSha, loadReferences],
+    [headSha, startPeek],
   );
 
   const showDefinitions = useCallback(
     (position: SymbolPosition) => {
       if (!headSha) return;
-      setPeek({ position, tab: "definitions", definitions: null, references: null, error: null });
-      loadReferences(position);
-      fetchDefinitions(ref, headSha, position)
-        .then((definitions) => {
-          setPeek((current) =>
-            current?.position === position ? { ...current, definitions } : current,
-          );
-          onDefinitions(position, definitions);
-          if (definitions.length === 0) showReferences(position);
-        })
-        .catch(fail);
+      const request = currentRequest.current;
+      if (request?.position !== position) {
+        startPeek(position, "definitions");
+        return;
+      }
+      setPeek((current) =>
+        current ? { ...current, tab: "definitions", definitions: null } : current,
+      );
+      loadDefinitions(request);
     },
-    [ref, headSha, fail, showReferences, loadReferences, onDefinitions],
+    [headSha, startPeek, loadDefinitions],
   );
 
-  const close = useCallback(() => setPeek(null), []);
+  const close = useCallback(() => {
+    currentRequest.current = null;
+    setPeek(null);
+  }, []);
 
   return { peek, showDefinitions, showReferences, close };
 }
