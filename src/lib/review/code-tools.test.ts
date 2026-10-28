@@ -134,6 +134,10 @@ describe("codeTools", () => {
   describe("input and output contract", () => {
     it("rejects input that does not match the schema without calling git", async () => {
       await expect(run("find_references", {})).rejects.toBeInstanceOf(ZodError);
+      await expect(run("find_references", { invalid_json: '{"name":' })).rejects.toBeInstanceOf(
+        ZodError,
+      );
+      await expect(run("read_file", { invalid_json: '{"path":' })).rejects.toBeInstanceOf(ZodError);
       await expect(run("find_references", { name: "x".repeat(500) })).rejects.toBeInstanceOf(
         ZodError,
       );
