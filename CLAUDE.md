@@ -109,6 +109,11 @@ reader can pin symbols (`symbol-pin`, `m`). These are stored in the
 row re-runs the peek. The tab has view and kind toggles plus the jump-trail
 buttons. `g c` opens it.
 
+**Files pane** (`components/review/file-browser-pane.tsx`, `file-view.tsx`)
+lists every tracked file of the head worktree via the `files` route
+(`SymbolIndex.listFiles`). `openLocation` sends a target in the PR to the diff
+and anything else to the read-only `FileView` in the centre; `g f` opens it.
+
 **LLM orientation** (`lib/llm/orientation.ts`,
 `lib/review/orientation-service.ts`). This is optional and calls an
 Ollama-compatible endpoint. Results are cached in the store's cache table.
