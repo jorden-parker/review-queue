@@ -113,6 +113,8 @@ buttons. `g c` opens it.
 lists every tracked file of the head worktree via the `files` route
 (`SymbolIndex.listFiles`). `openLocation` sends a target in the PR to the diff
 and anything else to the read-only `FileView` in the centre; `g f` opens it.
+Text mode uses the `search` route (`SymbolIndex.search`, fixed-string
+`git grep`, 200 results).
 
 **LLM orientation** (`lib/llm/orientation.ts`,
 `lib/review/orientation-service.ts`). This is optional and calls an
