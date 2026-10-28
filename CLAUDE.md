@@ -24,7 +24,7 @@ root holds local overrides; it is git-ignored and should be `chmod 600`.
 - `bun run typecheck`, `bun run lint`, `bunx fallow`. Fallow reads
   `coverage/coverage-final.json`, so run `bun run test` first.
 - `.claude/verify` (also `bun run verify`): runs the full gate (tests, tsc,
-  eslint, fallow). It must pass before you finish.
+  eslint, fallow, next build). It must pass before you finish.
 
 Vitest has two projects. `*.test.ts` runs in node and `*.test.tsx` runs in jsdom
 (setup: `src/test/dom-setup.ts`). Shared test helpers live in `src/test/`:
