@@ -414,11 +414,9 @@ export class SessionStore {
     };
   }
 
-  setCurrentStep(key: string, stepId: string, headSha: string): void {
+  setCurrentStep(key: string, stepId: string): void {
     this.touch(key);
-    this.db
-      .prepare("UPDATE sessions SET current_step = ?, head_sha = ? WHERE pr_key = ?")
-      .run(stepId, headSha, key);
+    this.db.prepare("UPDATE sessions SET current_step = ? WHERE pr_key = ?").run(stepId, key);
   }
 
   markSeen(key: string, headSha: string): void {
@@ -560,9 +558,11 @@ export class SessionStore {
 
   startOver(key: string, keepNotes: boolean): void {
     const tables = keepNotes ? PROGRESS_TABLES : [...PROGRESS_TABLES, "notes", "assist_threads"];
-    for (const table of tables) {
-      this.db.prepare(`DELETE FROM ${table} WHERE pr_key = ?`).run(key);
-    }
+    this.transaction(() => {
+      for (const table of tables) {
+        this.db.prepare(`DELETE FROM ${table} WHERE pr_key = ?`).run(key);
+      }
+    });
   }
 
   getCached(key: string): string | null {
@@ -625,6 +625,17 @@ export class SessionStore {
 
   inProgress(): InProgressSession[] {
     return (this.db.prepare(IN_PROGRESS).all() as InProgressRow[]).map(toInProgress);
+  }
+
+  private transaction(work: () => void): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      work();
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   private now(): string {
