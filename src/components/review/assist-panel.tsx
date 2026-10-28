@@ -1,12 +1,12 @@
 "use client";
 
-import { Sparkles, Square, X } from "lucide-react";
+import { Search, Sparkles, Square, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Callout } from "@/components/common/callout";
-import { type CitationRenderer, Markdown } from "@/components/common/markdown-text";
+import { type CitationRenderer, InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { AssistThread, AssistTurn } from "@/lib/assist-protocol";
+import type { AssistLookup, AssistThread, AssistTurn } from "@/lib/assist-protocol";
 import { splitConventionalPrefix } from "@/lib/review/conventional-comment";
 import type { NoteTag } from "@/lib/types";
 import { actionLabel, awaitsQuestion, canFollowUp, questionPrompt } from "./assist-thread";
@@ -21,7 +21,7 @@ type AssistPanelProps = {
   thread: AssistThread;
   label: string;
   commentLine: number | null;
-  citationsOf: (text: string) => Citation[];
+  citationsOf: (turn: AssistTurn) => Citation[];
   onSaveNote: (line: number | null, tag: NoteTag, body: string) => void;
   onShowLines: () => void;
   onShowCitation: (citation: Citation) => void;
@@ -31,20 +31,30 @@ type TurnProps = {
   turn: AssistTurn;
   streaming: boolean;
   isLast: boolean;
-  citationsOf: (text: string) => Citation[];
+  citationsOf: (turn: AssistTurn) => Citation[];
   onShowCitation: (citation: Citation) => void;
 };
 
-function ModelTurn({ turn, streaming, isLast, citationsOf, onShowCitation }: TurnProps) {
-  const citations = useMemo(() => citationsOf(turn.text), [citationsOf, turn.text]);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const showCitation = (index: number) => {
-    const citation = citations[index];
-    if (!citation) return;
-    setActiveIndex(index);
-    onShowCitation(citation);
-  };
-  const renderer: CitationRenderer = {
+function LookupList({ lookups = [] }: { lookups?: AssistLookup[] }) {
+  if (lookups.length === 0) return null;
+  return (
+    <ul aria-label="Lookups" className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+      {lookups.map((lookup, index) => (
+        <li key={index} className="flex items-center gap-1.5">
+          <Search className="size-3 shrink-0" aria-hidden />
+          <InlineMarkdown text={lookup.label} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function citationRenderer(
+  citations: Citation[],
+  activeIndex: number | null,
+  showCitation: (index: number) => void,
+): CitationRenderer {
+  return {
     indexOf: (code) => {
       const index = citations.findIndex((citation) => citation.code === code);
       return index === -1 ? null : index;
@@ -61,9 +71,25 @@ function ModelTurn({ turn, streaming, isLast, citationsOf, onShowCitation }: Tur
       );
     },
   };
+}
+
+function ModelTurn({ turn, streaming, isLast, citationsOf, onShowCitation }: TurnProps) {
+  const citations = useMemo(() => citationsOf(turn), [citationsOf, turn]);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const showCitation = (index: number) => {
+    const citation = citations[index];
+    if (!citation) return;
+    setActiveIndex(index);
+    onShowCitation(citation);
+  };
   return (
     <div className="flex flex-col gap-2">
-      <Markdown text={turn.text} className="flex flex-col gap-2" citations={renderer} />
+      <LookupList lookups={turn.lookups} />
+      <Markdown
+        text={turn.text}
+        className="flex flex-col gap-2"
+        citations={citationRenderer(citations, activeIndex, showCitation)}
+      />
       {streaming && <span className="h-4 w-1.5 animate-pulse bg-primary" aria-label="Writing" />}
       {isLast && !streaming && (
         <CitationWalk citations={citations} activeIndex={activeIndex} onStep={showCitation} />
