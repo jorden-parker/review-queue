@@ -96,6 +96,17 @@ describe("explainStep", () => {
     expect(bodies[0]).toMatchObject({ system: expect.stringContaining(CODE_NAME_RULE) });
   });
 
+  it("asks for design checks, with language rules for the step's own files", async () => {
+    const tsxStep: Step = { ...STEP, files: [{ path: "src/view.tsx", hunkIndexes: [0] }] };
+    const tsxDiffs = [fileDiff("src/view.tsx", [addedHunk(["<div />"])]), ...DIFFS];
+    const { fetchImpl, bodies } = scriptedFetch([JSON.stringify(GOOD), JSON.stringify(GOOD)]);
+    await explainStep(INPUT, CONFIG, fetchImpl);
+    await explainStep({ ...INPUT, step: tsxStep, diffs: tsxDiffs }, CONFIG, fetchImpl);
+    expect(bodies[0]).toMatchObject({ system: expect.stringContaining("YAGNI") });
+    expect(bodies[0]).toMatchObject({ system: expect.not.stringContaining("React:") });
+    expect(bodies[1]).toMatchObject({ system: expect.stringContaining("React:") });
+  });
+
   it("retries once when the first reply is not valid JSON", async () => {
     const { fetchImpl, bodies } = scriptedFetch(["not json", JSON.stringify(GOOD)]);
     expect((await explainStep(INPUT, CONFIG, fetchImpl)).what).toBe("Adds a cache.");
