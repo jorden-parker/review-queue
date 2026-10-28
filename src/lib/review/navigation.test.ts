@@ -248,4 +248,19 @@ describe("referencesAt", () => {
       expect(reference.path).toBe("src/store.ts");
     }
   });
+
+  it("uses text search when the identifier's import did not resolve", async () => {
+    const references = vi.fn(async (): Promise<ServerLocation[]> => [
+      { file: `${ROOT}/src/view.ts`, line: 2, character: 21, endLine: 2, declarationLine: 2 },
+    ]);
+    const client = stubClient({
+      definition: async () => [
+        { file: `${ROOT}/src/view.ts`, line: 1, character: 9, endLine: 1, declarationLine: 1 },
+      ],
+      references,
+    });
+    const [reference] = await referencesAt(navigationWith(client), VIEW_POSITION);
+    expect(reference.path).toBe("src/store.ts");
+    expect(references).not.toHaveBeenCalled();
+  });
 });

@@ -152,10 +152,22 @@ async function serverReferences(
   return highlightReferences(inside);
 }
 
+async function unresolvedImportAt(
+  navigation: Navigation,
+  position: SymbolPosition,
+): Promise<string | null> {
+  const client = await clientAt(navigation, position);
+  if (!client) return null;
+  const locations = await client.definition(position.path, position.line, position.character);
+  return unresolvedImportIn(navigation.index, locations);
+}
+
 export async function referencesAt(
   navigation: Navigation,
   position: SymbolPosition,
 ): Promise<ReferenceWithCode[]> {
+  const unresolvedImport = await unresolvedImportAt(navigation, position).catch(() => null);
+  if (unresolvedImport !== null) return referencesWithCode(navigation.index, position.name);
   const found = await serverReferences(navigation, position).catch(() => null);
   if (found && found.length > 0) return found;
   return referencesWithCode(navigation.index, position.name);
