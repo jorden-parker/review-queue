@@ -22,6 +22,20 @@ const RICH_TEXT_ELEMENTS: Partial<Components> = {
   h1: ({ children }) => <h3 className="font-bold text-foreground">{children}</h3>,
   h2: ({ children }) => <h3 className="font-bold text-foreground">{children}</h3>,
   h3: ({ children }) => <h4 className="font-medium text-foreground">{children}</h4>,
+  h4: ({ children }) => <h4 className="font-medium text-foreground">{children}</h4>,
+  h5: ({ children }) => <h4 className="font-medium text-foreground">{children}</h4>,
+  h6: ({ children }) => <h4 className="font-medium text-foreground">{children}</h4>,
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 pl-3 text-muted-foreground">{children}</blockquote>
+  ),
+  hr: () => <hr className="border-border" />,
+  table: ({ children }) => (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-left">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => <th className="border-b px-2 py-1 font-medium">{children}</th>,
+  td: ({ children }) => <td className="border-b px-2 py-1 align-top">{children}</td>,
   ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 pl-5">{children}</ol>,
   code: ({ children }) => (
