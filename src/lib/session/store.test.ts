@@ -463,6 +463,32 @@ describe("SessionStore", () => {
     expect(store.getSession(KEY).submissions).toHaveLength(1);
   });
 
+  it("keeps reply receipts newest first with the comment they answer", () => {
+    const reply = {
+      parentCommentId: 5,
+      url: "https://github.com/acme/app/pull/7#discussion_r77",
+    };
+    store.recordReply(KEY, { replyId: 77, ...reply, body: "Thanks" });
+    now += 1000;
+    store.recordReply(KEY, { replyId: 78, ...reply, body: "Thanks again" });
+    expect(store.getSession(KEY).replyReceipts).toEqual([
+      {
+        replyId: 78,
+        parentCommentId: 5,
+        url: reply.url,
+        body: "Thanks again",
+        postedAt: "2026-10-26T10:00:01.000Z",
+      },
+      {
+        replyId: 77,
+        parentCommentId: 5,
+        url: reply.url,
+        body: "Thanks",
+        postedAt: "2026-10-26T10:00:00.000Z",
+      },
+    ]);
+  });
+
   it("lists the latest receipts across pull requests, newest first, with each session's title", () => {
     store.rememberTitle(KEY, "Add retry");
     store.rememberTitle("acme/app#8", "Fix cache");
@@ -497,6 +523,18 @@ describe("SessionStore", () => {
         postedAt: "2026-10-26T10:00:00.000Z",
       },
     ]);
+  });
+
+  it("keeps reply receipts across start over", () => {
+    store.recordReply(KEY, {
+      replyId: 77,
+      parentCommentId: 5,
+      url: "https://github.com/acme/app/pull/7#discussion_r77",
+      body: "Thanks",
+    });
+    store.setStepDone(KEY, "s1", true);
+    store.startOver(KEY, false);
+    expect(store.getSession(KEY).replyReceipts).toHaveLength(1);
   });
 
   it("keeps only the number of receipts asked for", () => {

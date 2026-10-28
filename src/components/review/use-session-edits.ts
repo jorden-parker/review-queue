@@ -5,7 +5,7 @@ import type { ReviewEvent } from "@/lib/github/gh";
 import type { SessionAction } from "@/lib/review/session-actions";
 import type { Session } from "@/lib/session/store";
 import type { Note, NoteTag, PullRequestRef } from "@/lib/types";
-import { requestSummaryDraft, submitReviewRequest } from "./api";
+import { requestSummaryDraft, sendReply, submitReviewRequest } from "./api";
 import type { LineTarget } from "./locate";
 import type { OptimisticChange } from "./session-queue";
 import { toggled } from "./use-step-navigation";
@@ -90,6 +90,15 @@ export function useSessionEdits(
     [ref, headSha, setSession],
   );
 
+  const postReply = useCallback(
+    async (commentId: number, body: string) => {
+      const updated = await sendReply(ref, { commentId, body });
+      setSession(updated);
+      return updated.replyReceipts[0].replyId;
+    },
+    [ref, setSession],
+  );
+
   const draftSummary = useCallback(
     async (event: ReviewEvent, noteIds: number[]) => {
       const result = await requestSummaryDraft(ref, headSha, { event, noteIds });
@@ -100,5 +109,15 @@ export function useSessionEdits(
     [ref, headSha],
   );
 
-  return { toggleHotspot, saveNote, deleteNote, editNote, pause, resume, submit, draftSummary };
+  return {
+    toggleHotspot,
+    saveNote,
+    deleteNote,
+    editNote,
+    pause,
+    resume,
+    submit,
+    postReply,
+    draftSummary,
+  };
 }
