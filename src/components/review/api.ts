@@ -165,6 +165,14 @@ async function readAssistStream(
   return parseAssistStream(raw);
 }
 
+async function failureMessage(response: Response): Promise<string> {
+  const fallback = `The local model request failed (HTTP ${response.status})`;
+  return response.json().then(
+    (body: { error?: unknown } | null) => (typeof body?.error === "string" ? body.error : fallback),
+    () => fallback,
+  );
+}
+
 export async function streamAssist(
   ref: PullRequestRef,
   sha: string,
@@ -178,8 +186,8 @@ export async function streamAssist(
     body: JSON.stringify(request),
     signal,
   });
-  if (!response.ok) await json(response);
-  if (!response.body) return;
+  if (!response.ok) throw new Error(await failureMessage(response));
+  if (!response.body) throw new Error(`The local model sent no answer (HTTP ${response.status})`);
   const parsed = await readAssistStream(response.body, onUpdate);
   if (parsed.failure !== null) throw new Error(parsed.failure);
 }

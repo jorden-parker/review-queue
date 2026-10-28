@@ -1,9 +1,15 @@
 import { z } from "zod";
 import { getPullRequest, submitReview } from "@/lib/github/gh";
+import { logServerError } from "@/lib/log";
 import { prKey } from "@/lib/pr-ref";
-import { jsonError, routeRef, type PrRouteContext } from "@/lib/review/route-context";
+import {
+  GITHUB_FAILURE_MESSAGE,
+  jsonError,
+  parseJsonBody,
+  withPullRequest,
+} from "@/lib/review/route-context";
 import { sessionStore } from "@/lib/review/services";
-import { buildSubmission } from "@/lib/review/submission";
+import { buildSubmission, isPostable } from "@/lib/review/submission";
 
 const STALE_HEAD_MESSAGE =
   "The author pushed new commits since you loaded this review. Reload and check the changes before posting.";
@@ -15,38 +21,33 @@ const SubmitSchema = z.object({
   headSha: z.string().min(1),
 });
 
-export async function POST(request: Request, context: PrRouteContext) {
-  const ref = await routeRef(context);
-  if (!ref) return jsonError("Bad pull request reference", 400);
-  const input = SubmitSchema.safeParse(await request.json());
-  if (!input.success) return jsonError(input.error.message, 400);
+export const POST = withPullRequest(async (request, ref) => {
+  const input = await parseJsonBody(request, SubmitSchema);
+  if (input instanceof Response) return input;
   const store = sessionStore();
   const key = prKey(ref);
-  const chosen = store.getSession(key).notes.filter((note) => input.data.noteIds.includes(note.id));
-  const submission = buildSubmission(
-    chosen,
-    input.data.event,
-    input.data.summary,
-    input.data.headSha,
-  );
+  const chosen = store.getSession(key).notes.filter((note) => input.noteIds.includes(note.id));
+  const postable = chosen.filter(isPostable);
+  const submission = buildSubmission(postable, input.event, input.summary, input.headSha);
   let posted: { id: number; url: string };
   try {
     const current = await getPullRequest(ref, sessionStore());
-    if (current.headSha !== input.data.headSha) {
+    if (current.headSha !== input.headSha) {
       return jsonError(STALE_HEAD_MESSAGE, 409);
     }
     posted = await submitReview(ref, submission);
   } catch (error) {
-    return jsonError(error instanceof Error ? error.message : String(error), 502);
+    logServerError("submit review", error);
+    return jsonError(GITHUB_FAILURE_MESSAGE, 502);
   }
   store.recordSubmission(key, {
     reviewId: posted.id,
     url: posted.url,
-    event: input.data.event,
-    headSha: input.data.headSha,
+    event: input.event,
+    headSha: input.headSha,
     body: submission.body,
   });
-  for (const note of chosen) store.deleteNote(key, note.id);
+  for (const note of postable) store.deleteNote(key, note.id);
   store.markFinished(key);
   return Response.json(store.getSession(key));
-}
+});

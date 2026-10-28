@@ -27,4 +27,12 @@ describe("POST session", () => {
     const response = await POST(request({ type: "archive" }), context("9"));
     expect(response.status).toBe(200);
   });
+
+  it("answers 400 for a body that is not JSON", async () => {
+    const response = await POST(
+      new Request("http://test/api", { method: "POST", body: "{nope" }),
+      context(),
+    );
+    expect(response.status).toBe(400);
+  });
 });
