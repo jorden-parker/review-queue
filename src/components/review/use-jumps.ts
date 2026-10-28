@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import type { Jump, Session } from "@/lib/session/store";
 import type { SymbolPosition } from "@/lib/types";
 import type { LineTarget } from "./locate";
+import type { PeekState } from "./use-peek";
 import type { Act } from "./use-step-navigation";
 
-type Peek = { showDefinitions: (position: SymbolPosition) => void };
+type Peek = {
+  peek: PeekState | null;
+  showDefinitions: (position: SymbolPosition) => void;
+};
 
 export function useJumps(
   session: Session,
@@ -14,27 +18,24 @@ export function useJumps(
   openLocation: (target: LineTarget) => void,
   peek: Peek,
 ) {
-  const origin = useRef<Jump | null>(null);
-
   const peekName = useCallback(
-    (position: SymbolPosition) => {
-      origin.current = { name: position.name, path: position.path, line: position.line };
-      peek.showDefinitions(position);
-    },
+    (position: SymbolPosition) => peek.showDefinitions(position),
     [peek],
   );
 
   const goToFromPeek = useCallback(
     (target: LineTarget) => {
-      const jump = origin.current;
-      if (jump)
+      const peeked = peek.peek?.position;
+      if (peeked) {
+        const jump: Jump = { name: peeked.name, path: peeked.path, line: peeked.line };
         act({ type: "jump-push", ...jump }, (current) => ({
           ...current,
           jumps: [...current.jumps, jump],
         }));
+      }
       openLocation(target);
     },
-    [act, openLocation],
+    [act, openLocation, peek.peek],
   );
 
   const back = useCallback(() => {
