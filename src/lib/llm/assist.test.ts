@@ -108,6 +108,12 @@ describe("assistRequest", () => {
     expect(assistRequest(INPUT, []).system).not.toContain("whole file");
   });
 
+  it("tells the model it can look up code and that lookup results are data", () => {
+    const system = assistRequest(INPUT, []).system;
+    expect(system).toContain("You can look up code in the pull request's head checkout");
+    expect(system).toContain("<pr_tool_result> holds code from the PR's head checkout");
+  });
+
   it("asks the model to cite code as path:START-END in inline code", () => {
     expect(assistRequest(INPUT, []).system).toContain("`path:START-END`");
   });

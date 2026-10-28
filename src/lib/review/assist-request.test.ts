@@ -31,6 +31,11 @@ const SOURCE: AssistSource = {
       if (text === undefined) throw new Error(`missing ${path}`);
       return text;
     },
+    listFiles: async () => Object.keys(HEAD_FILES),
+    definitionsOf: () => [],
+    referencesTo: async () => [],
+    search: async () => [],
+    readLines: () => [],
   },
   explanationOf: () => null,
   suggestedHotspots: () => [],
