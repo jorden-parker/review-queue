@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { fetchWorktreeFiles } from "./api";
+import type { LineTarget } from "./locate";
 import { FileBrowserPane } from "./file-browser-pane";
 
 vi.mock("./api", () => ({ fetchWorktreeFiles: vi.fn() }));
@@ -9,7 +10,10 @@ const REF = { owner: "acme", repo: "app", number: 7 };
 const PATHS = ["README.md", "src/app.ts", "src/lib/store.ts"];
 
 function renderPane(
-  options: { inPullRequest?: (path: string) => boolean; onOpen?: (path: string) => void } = {},
+  options: {
+    inPullRequest?: (path: string) => boolean;
+    onOpen?: (target: LineTarget) => void;
+  } = {},
 ) {
   const onOpen = options.onOpen ?? vi.fn();
   const inPullRequest = options.inPullRequest ?? (() => false);
@@ -66,7 +70,7 @@ describe("FileBrowserPane", () => {
     vi.mocked(fetchWorktreeFiles).mockResolvedValue({ paths: PATHS });
     const { onOpen } = renderPane();
     fireEvent.click(await screen.findByRole("button", { name: /README.md/ }));
-    expect(onOpen).toHaveBeenCalledWith("README.md");
+    expect(onOpen).toHaveBeenCalledWith({ path: "README.md", line: 1 });
   });
 
   it("says when the file list cannot be loaded", async () => {
