@@ -10,7 +10,7 @@ import { useContextSymbols } from "./use-context-symbols";
 import type { NoteTag, PullRequestRef, SymbolPosition } from "@/lib/types";
 import { displayHotspots } from "./display-hotspots";
 import { firstNoteLine } from "./hunk-index";
-import { nextOpenStep, type LineTarget } from "./locate";
+import { locationKind, nextOpenStep, type LineTarget } from "./locate";
 import { scrollToElement } from "./scroll-motion";
 import type { ShortcutAction } from "./shortcut-keys";
 import { type Assist, useAssist } from "./use-assist";
@@ -22,7 +22,7 @@ import { useReturnDetection } from "./use-return-detection";
 import type { OrientationState, useReview } from "./use-review";
 import { useSessionEdits } from "./use-session-edits";
 import { useShortcuts } from "./use-shortcuts";
-import { useStepNavigation } from "./use-step-navigation";
+import { type Act, useStepNavigation } from "./use-step-navigation";
 import { usePanes } from "./use-panes";
 import { useConversation } from "./use-conversation";
 import { focusCurrentStop } from "./change-map-list";
@@ -224,6 +224,67 @@ function useWorkspaceUi(review: ReviewPayload) {
   };
 }
 
+function fetchNewHead(
+  ref: PullRequestRef,
+  currentSha: string,
+  reportNewHead: (sha: string) => void,
+) {
+  fetchHead(ref)
+    .then(({ headSha }) => {
+      if (headSha !== currentSha) reportNewHead(headSha);
+    })
+    .catch(() => undefined);
+}
+
+function useOpenFile() {
+  const [openFile, setOpenFile] = useState<LineTarget | null>(null);
+  const closeFile = useCallback(() => setOpenFile(null), []);
+  return { openFile, setOpenFile, closeFile };
+}
+
+function useFileAwareNavigation(review: ReviewPayload, session: Session, act: Act) {
+  const stepNavigation = useStepNavigation(review, session, act);
+  const openFileState = useOpenFile();
+  const navigation = navigationClosingFile(stepNavigation, openFileState.closeFile);
+  const openLocation = useMemo(
+    () => locationOpener(review.files, navigation.goTo, openFileState.setOpenFile),
+    [review.files, navigation.goTo, openFileState.setOpenFile],
+  );
+  return { navigation, openFileState, openLocation };
+}
+
+function locationOpener(
+  files: Parameters<typeof locationKind>[0],
+  goTo: (target: LineTarget) => void,
+  showFile: (target: LineTarget) => void,
+): (target: LineTarget) => void {
+  return (target) => (locationKind(files, target) === "diff" ? goTo(target) : showFile(target));
+}
+
+function closingFileBefore<Args extends unknown[], Result>(
+  closeFile: () => void,
+  action: (...args: Args) => Result,
+): (...args: Args) => Result {
+  return (...args) => {
+    closeFile();
+    return action(...args);
+  };
+}
+
+function navigationClosingFile(
+  navigation: ReturnType<typeof useStepNavigation>,
+  closeFile: () => void,
+): ReturnType<typeof useStepNavigation> {
+  return {
+    ...navigation,
+    selectStep: closingFileBefore(closeFile, navigation.selectStep),
+    goTo: closingFileBefore(closeFile, navigation.goTo),
+    moveStep: closingFileBefore(closeFile, navigation.moveStep),
+    moveHunk: closingFileBefore(closeFile, navigation.moveHunk),
+    doneAndNext: closingFileBefore(closeFile, navigation.doneAndNext),
+  };
+}
+
 function resumeStepId(
   reopenedStepIds: string[],
   currentStepId: string | undefined,
@@ -244,7 +305,11 @@ export function useWorkspace(
   controls: ReturnType<typeof useReview>,
 ) {
   const ui = useWorkspaceUi(review);
-  const navigation = useStepNavigation(review, session, controls.act);
+  const { navigation, openFileState, openLocation } = useFileAwareNavigation(
+    review,
+    session,
+    controls.act,
+  );
   const savedChats = useSavedChats(controls.act);
   const assist = withChatPane(useAssist(ref, review.headSha, savedChats.save), ui);
   const remembered = useRememberedPeek(
@@ -257,7 +322,7 @@ export function useWorkspace(
   const { context, pins } = remembered;
   const peek = withContextTab(remembered.peek, () => ui.showPane("context"));
   const selection = useLineSelection();
-  const jumps = useJumps(session, controls.act, navigation.goTo, peek);
+  const jumps = useJumps(session, controls.act, openLocation, peek);
   const edits = useSessionEdits(ref, review.headSha, session, controls.act, controls.setSession);
   const hotspots = useMemo(
     () => displayHotspots(review.hotspots, orientation),
@@ -271,13 +336,10 @@ export function useWorkspace(
   const nextStep = nextOpenStep(review.steps, session.doneSteps, null);
   const { setDialog, setComposer, setNewHead } = ui;
 
-  const checkForNewHead = useCallback(() => {
-    fetchHead(ref)
-      .then(({ headSha }) => {
-        if (headSha !== review.headSha) setNewHead(headSha);
-      })
-      .catch(() => undefined);
-  }, [ref, review.headSha, setNewHead]);
+  const checkForNewHead = useCallback(
+    () => fetchNewHead(ref, review.headSha, setNewHead),
+    [ref, review.headSha, setNewHead],
+  );
 
   useReturnDetection(
     useCallback(() => {
@@ -316,6 +378,7 @@ export function useWorkspace(
     ...navigation,
     aiEnabled: orientation.status !== "disabled",
     ...jumps,
+    ...openFileState,
     ...edits,
     ...pins,
     setSymbolPinned: context.setPinned,

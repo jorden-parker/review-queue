@@ -11,7 +11,7 @@ type Peek = { showDefinitions: (position: SymbolPosition) => void };
 export function useJumps(
   session: Session,
   act: Act,
-  goTo: (target: LineTarget) => void,
+  openLocation: (target: LineTarget) => void,
   peek: Peek,
 ) {
   const origin = useRef<Jump | null>(null);
@@ -32,17 +32,17 @@ export function useJumps(
           ...current,
           jumps: [...current.jumps, jump],
         }));
-      goTo(target);
+      openLocation(target);
     },
-    [act, goTo],
+    [act, openLocation],
   );
 
   const back = useCallback(() => {
     const last = session.jumps.at(-1);
     if (!last) return;
     act({ type: "jump-pop" }, (current) => ({ ...current, jumps: current.jumps.slice(0, -1) }));
-    goTo({ path: last.path, line: last.line });
-  }, [act, goTo, session.jumps]);
+    openLocation({ path: last.path, line: last.line });
+  }, [act, openLocation, session.jumps]);
 
   const clearJumps = useCallback(
     () => act({ type: "jump-clear" }, (current) => ({ ...current, jumps: [] })),

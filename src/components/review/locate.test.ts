@@ -2,7 +2,19 @@ import { describe, expect, it } from "vitest";
 import type { PreparedFile } from "@/lib/review/prepare";
 import type { Step } from "@/lib/types";
 import { addedHunk, fileDiff } from "@/test/diff-builders";
-import { isInTarget, isSameLine, nextOpenStep, stepForLine } from "./locate";
+import { isInTarget, isSameLine, locationKind, nextOpenStep, stepForLine } from "./locate";
+
+describe("locationKind", () => {
+  const prFiles = [{ path: "src/a.ts" }, { path: "src/b.ts" }];
+
+  it("sends a file in the pull request to the diff", () => {
+    expect(locationKind(prFiles, { path: "src/b.ts", line: 3 })).toBe("diff");
+  });
+
+  it("sends any other file to the read-only file view", () => {
+    expect(locationKind(prFiles, { path: "src/store.ts", line: 1 })).toBe("file");
+  });
+});
 
 describe("isInTarget", () => {
   it("matches every line from the target's line through its endLine", () => {
