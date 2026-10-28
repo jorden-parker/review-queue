@@ -119,6 +119,7 @@ export function installFakeApi(
       ],
     ],
     [/\/assist$/, () => streamedText(ASSIST_REPLY)],
+    [/\/seen$/, () => ({ session: payload.session, reopenedStepIds: payload.reopenedStepIds })],
     [/\/session$/, (body) => sessionReply(body)],
     [
       /\/submit$/,

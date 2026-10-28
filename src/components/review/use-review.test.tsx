@@ -4,12 +4,13 @@ import type { SessionAction } from "@/lib/review/session-actions";
 import type { Session } from "@/lib/session/store";
 import type { Note } from "@/lib/types";
 import { REF, emptySession, reviewPayload } from "@/test/review-fixture";
-import { fetchOrientation, fetchReview, sendSessionAction } from "./api";
+import { fetchOrientation, fetchReview, postSeen, sendSessionAction } from "./api";
 import { useReview } from "./use-review";
 
 vi.mock("./api", () => ({
   fetchReview: vi.fn(),
   fetchOrientation: vi.fn(),
+  postSeen: vi.fn(),
   sendSessionAction: vi.fn(),
 }));
 
@@ -56,6 +57,7 @@ function deferred<T>() {
 async function renderLoadedHook() {
   vi.mocked(fetchReview).mockResolvedValue(reviewPayload());
   vi.mocked(fetchOrientation).mockResolvedValue({ status: "disabled" });
+  vi.mocked(postSeen).mockResolvedValue({ session: reviewPayload().session, reopenedStepIds: [] });
   const hook = renderHook(({ pr }) => useReview(pr), { initialProps: { pr: REF } });
   await waitFor(() => expect(hook.result.current.session).not.toBeNull());
   return hook;
@@ -184,6 +186,13 @@ describe("useReview session changes", () => {
       ),
     );
     vi.mocked(fetchOrientation).mockResolvedValue({ status: "disabled" });
+    vi.mocked(postSeen).mockImplementation(async (ref) => ({
+      session:
+        ref.number === OTHER_REF.number
+          ? emptySession({ doneSteps: ["other-pr"] })
+          : emptySession(),
+      reopenedStepIds: [],
+    }));
     const { result, rerender } = renderHook(({ pr }) => useReview(pr), {
       initialProps: { pr: REF },
     });
