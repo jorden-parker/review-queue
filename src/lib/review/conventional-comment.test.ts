@@ -5,6 +5,7 @@ import {
   hasConsistentDecorations,
   isBlocking,
   splitConventionalPrefix,
+  unwrappedDraft,
 } from "./conventional-comment";
 
 describe("conventionalLabel", () => {
@@ -102,6 +103,35 @@ describe("splitConventionalPrefix", () => {
     "leaves %j alone when it has no known label",
     (text) => {
       expect(splitConventionalPrefix(text)).toEqual({ tag: null, body: text });
+    },
+  );
+});
+
+describe("unwrappedDraft", () => {
+  const wrappedDraft =
+    "`suggestion: Add a test for an empty stream. Include a test case like: `const response = new Response(null, { status: 204 }); expect(response.body).toBeNull();` to confirm no progress is reported.`";
+
+  it("removes a single-backtick wrapper that holds a labelled comment", () => {
+    const draft = unwrappedDraft(wrappedDraft);
+    expect(draft.startsWith("suggestion: Add a test")).toBe(true);
+    expect(draft).toContain(
+      "`const response = new Response(null, { status: 204 }); expect(response.body).toBeNull();`",
+    );
+  });
+
+  it.each([
+    ["```\nnitpick: x\n```", "nitpick: x"],
+    ["```ts\nnitpick: x\n```", "nitpick: x"],
+    ["`suggestion: use `map``", "suggestion: use `map`"],
+    ["  `question: why?`  ", "question: why?"],
+  ])("unwraps %j to %j", (text, expected) => {
+    expect(unwrappedDraft(text)).toBe(expected);
+  });
+
+  it.each(["`foo` and `bar`", "`code` only", "plain text", "```ts\na()\n```\nnitpick: x"])(
+    "leaves %j unchanged",
+    (text) => {
+      expect(unwrappedDraft(text)).toBe(text);
     },
   );
 });
