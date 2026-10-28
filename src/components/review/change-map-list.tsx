@@ -4,6 +4,7 @@ import { Check, ChevronRight } from "lucide-react";
 import { cn } from "cn";
 import { type KeyboardEvent, type Ref, useState } from "react";
 import { EmptyState } from "@/components/common/empty-state";
+import { InlineMarkdown } from "@/components/common/markdown-text";
 import { PaneRow } from "@/components/common/pane-row";
 import { PathLabel } from "@/components/common/path-label";
 import { Badge } from "@/components/ui/badge";
@@ -324,7 +325,11 @@ function StopButton({
       )}
     >
       <StopHeading row={row} />
-      {part ? <span className="text-xs text-muted-foreground">{part.part}</span> : null}
+      {part ? (
+        <span className="text-xs text-muted-foreground">
+          <InlineMarkdown text={part.part} />
+        </span>
+      ) : null}
       {row.showPath ? <PathLabel path={node.path} /> : null}
     </button>
   );
