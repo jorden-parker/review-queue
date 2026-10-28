@@ -76,7 +76,9 @@ export function ResumeCard({
         {session.pause && (
           <Callout tone="muted">
             <dt className="text-xs font-medium">You said you were about to</dt>
-            <dd className="text-base">{session.pause.note || "(no note)"}</dd>
+            <dd className="text-base">
+              <InlineMarkdown text={session.pause.note || "(no note)"} />
+            </dd>
             <dd className="text-xs opacity-75">paused {sinceText(session.pause.at)}</dd>
           </Callout>
         )}
