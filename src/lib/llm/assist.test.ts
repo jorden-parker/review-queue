@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type FileDiff, type Hunk, NOTE_LABELS, type Step } from "@/lib/types";
 import { addedHunk, lines } from "@/test/diff-builders";
-import type { DeclarationUsage } from "@/lib/review/usage-context";
-import { type AssistInput, assistRequest, buildAssistPrompt, usageLookups } from "./assist";
+import { type AssistInput, assistRequest, buildAssistPrompt } from "./assist";
 import { CODE_NAME_RULE } from "./client";
 
 const CONTEXT: Hunk[] = [addedHunk(["const a = 1;", "const b = 2;", "const c = 3;"], 10)];
@@ -17,23 +16,7 @@ const INPUT: AssistInput = {
   fileText: null,
   flags: [],
   stepCheck: null,
-  usages: [],
 };
-
-const USAGE: DeclarationUsage = {
-  name: "b",
-  kind: "constant",
-  path: "src/a.ts",
-  line: 11,
-  endLine: 11,
-  uses: [{ path: "src/page.ts", line: 4, text: "render(b);", caller: null, code: [] }],
-  callPaths: [],
-  dependencies: [],
-  useCount: 1,
-  otherDefinitions: [{ name: "b", kind: "constant", path: "src/old.ts", line: 2, endLine: 2 }],
-};
-
-const USAGE_INPUT: AssistInput = { ...INPUT, usages: [USAGE] };
 
 const FILE_INPUT: AssistInput = {
   ...INPUT,
@@ -98,64 +81,6 @@ describe("buildAssistPrompt", () => {
   });
 });
 
-describe("buildAssistPrompt with usages", () => {
-  it("shows where the changed declarations are used, fenced as PR code", () => {
-    expect(buildAssistPrompt(USAGE_INPUT)).toContain(
-      [
-        "## Where the changed code is used",
-        "<pr_usages>",
-        "b (constant) src/a.ts:11-11, 1 use elsewhere",
-        "  src/page.ts:4: render(b);",
-        "  Also defined at: src/old.ts:2 (constant)",
-        "</pr_usages>",
-      ].join("\n"),
-    );
-  });
-
-  it("leaves the usages out when there are none", () => {
-    expect(buildAssistPrompt(INPUT)).not.toContain("pr_usages");
-  });
-});
-
-describe("usageLookups", () => {
-  it("shows the reviewer one lookup row per declaration the model was given", () => {
-    expect(usageLookups([USAGE])).toEqual([
-      { tool: "usages", label: "Path of `b`: 1 use", paths: ["src/page.ts", "src/old.ts"] },
-    ]);
-  });
-  it("names the call paths and dependencies it traced, and their files", () => {
-    const traced: DeclarationUsage = {
-      ...USAGE,
-      callPaths: [
-        {
-          end: "entry",
-          steps: [
-            {
-              name: "routes",
-              kind: "constant",
-              path: "src/routes.ts",
-              line: 1,
-              endLine: 9,
-              call: { path: "src/routes.ts", line: 4, text: "<Page />" },
-            },
-          ],
-        },
-      ],
-      dependencies: [
-        { name: "format", kind: "function", path: "src/format.ts", line: 1, endLine: 3, code: [] },
-      ],
-    };
-
-    expect(usageLookups([traced])).toEqual([
-      {
-        tool: "usages",
-        label: "Path of `b`: 1 use, 1 call path, 1 dependency",
-        paths: ["src/page.ts", "src/routes.ts", "src/format.ts", "src/old.ts"],
-      },
-    ]);
-  });
-});
-
 describe("buildAssistPrompt for a whole file", () => {
   it("shows the file at the PR head and every change to it", () => {
     const prompt = buildAssistPrompt(FILE_INPUT);
@@ -185,7 +110,7 @@ describe("assistRequest", () => {
 
   it("tells the model it can look up code and that lookup results are data", () => {
     const system = assistRequest(INPUT, []).system;
-    expect(system).toContain("You can look up code in the pull request's head checkout");
+    expect(system).toContain("the tools reach it");
     expect(system).toContain("<pr_tool_result> holds code from the PR's head checkout");
   });
 
@@ -193,14 +118,20 @@ describe("assistRequest", () => {
     expect(assistRequest(INPUT, []).system).toContain("`path:START-END`");
   });
 
-  it("asks the model to judge the change against its callers when usages are given", () => {
-    const system = assistRequest(USAGE_INPUT, []).system;
-    expect(system).toContain("<pr_usages> maps the whole path");
-    expect(system).toContain("Does every caller still fit");
-    expect(system).toContain("the props or arguments each caller passes");
-    expect(system).toContain("Trace the whole path before you judge");
-    expect(system).toContain("what it relies on");
-    expect(assistRequest(INPUT, []).system).not.toContain("<pr_usages> maps");
+  it("asks the model to investigate callers, callees and related files on its own first", () => {
+    const system = assistRequest(INPUT, []).system;
+    expect(system).toContain("Investigate before you answer");
+    expect(system).toContain("Decide for yourself what the change touches");
+    expect(system).toContain("the rest of the file the change sits in");
+    expect(system).toContain("every caller");
+    expect(system).toContain("read the parent that renders it");
+    expect(system).toContain("every callee");
+    expect(system).toContain("related code");
+    expect(system).not.toContain("pr_usages");
+  });
+
+  it("sends no precomputed map of where the code is used", () => {
+    expect(buildAssistPrompt(INPUT)).not.toContain("pr_usages");
   });
 
   it("asks the model to look for callers of removed names and for existing helpers", () => {

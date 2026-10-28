@@ -13,7 +13,6 @@ import type { AssistFlag, AssistInput } from "@/lib/llm/assist";
 import type { Message } from "@/lib/llm/client";
 import type { SuggestedHotspot } from "@/lib/llm/orientation";
 import type { CodeLookupIndex } from "./code-tools";
-import type { UsageIndex } from "./usage-context";
 import { type StepExplanation, stepDiffs } from "@/lib/llm/step-explanation";
 import type { SymbolIndex } from "@/lib/symbols/symbol-index";
 import type { DiffLine, Hotspot, Hunk } from "@/lib/types";
@@ -68,7 +67,7 @@ export type AssistRequest = z.infer<typeof AssistRequestSchema>;
 
 export type AssistSource = {
   data: ReviewData;
-  index: Pick<SymbolIndex, "readFile"> & CodeLookupIndex & UsageIndex;
+  index: Pick<SymbolIndex, "readFile"> & CodeLookupIndex;
   explanationOf: (stepId: string) => StepExplanation | null;
   suggestedHotspots: () => SuggestedHotspot[];
 };
@@ -201,7 +200,6 @@ export function assistInputFrom(source: AssistSource, request: AssistRequest): A
       action: request.action,
       question: request.question,
       flags,
-      usages: [],
       ...result.content,
     },
   };

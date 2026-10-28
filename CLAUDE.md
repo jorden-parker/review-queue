@@ -82,14 +82,12 @@ and `read_file`, limited to tracked files of the head worktree, with results
 fenced as `<pr_tool_result>`, no limit on rounds (the reader's stop ends it),
 and no tools when the model has none. Each lookup streams as a
 `\u0001{json}\u0001` record (`ASSIST_LOOKUP_MARKER`) that
-`components/review/assist-stream.ts` parses apart from the answer text. Before
-the loop, `lib/review/usage-context.ts` maps the whole path of each declaration
-on or enclosing the selected (or, for a file, added) lines: its uses in code
-files (production before tests) with the calling code, call paths up from it
-through production code (`call-paths.ts`, 3 levels, to an entry point), what it
-relies on (`dependencies.ts`, names the file imports or declares) and same-named
-definitions. It sends them as `<pr_usages>`, and the first turn also streams
-them as `usages` lookup records.
+`components/review/assist-stream.ts` parses apart from the answer text. The
+server gives the model no precomputed map of callers: the system prompt
+(`INVESTIGATE_RULE` in `lib/llm/assist.ts`) tells it to find and read the rest
+of the changed file, every caller (up to an entry point), every callee and
+related code itself. `read_file` with no range reads the whole file (400 lines,
+16 000 characters).
 
 **Singletons** (`lib/review/services.ts`). The SQLite `SessionStore`
 (`lib/session/store.ts`) is stored on `globalThis` so it survives HMR. It
