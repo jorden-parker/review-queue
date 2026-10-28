@@ -218,6 +218,14 @@ function appendToolJson(event: StreamEvent, toolBlocks: Map<number, PendingToolU
   if (block) block.json += event.delta?.partial_json ?? "";
 }
 
+function parsedToolInput(json: string): unknown {
+  try {
+    return JSON.parse(json || "{}");
+  } catch {
+    return { invalid_json: json };
+  }
+}
+
 function finishToolBlock(
   event: StreamEvent,
   toolBlocks: Map<number, PendingToolUse>,
@@ -230,7 +238,7 @@ function finishToolBlock(
     type: "tool_use",
     id: block.id,
     name: block.name,
-    input: JSON.parse(block.json || "{}"),
+    input: parsedToolInput(block.json),
   };
 }
 

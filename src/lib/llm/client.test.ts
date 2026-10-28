@@ -248,4 +248,27 @@ describe("streamTurn", () => {
     await collect(streamTurn({ config: CONFIG, fetchImpl: withoutTools.fetchImpl }, REQUEST));
     expect(withoutTools.bodies[0]).not.toHaveProperty("tools");
   });
+
+  it("yields a tool_use with the unparseable input kept aside instead of throwing", async () => {
+    const events =
+      sseEvent("content_block_start", {
+        index: 0,
+        content_block: { type: "tool_use", id: "t3", name: "find_references", input: {} },
+      }) +
+      sseEvent("content_block_delta", {
+        index: 0,
+        delta: { type: "input_json_delta", partial_json: '{"name":' },
+      }) +
+      sseEvent("content_block_stop", { index: 0 });
+    const { fetchImpl } = streamingFetch([events]);
+    const turn = await collect(streamTurn({ config: CONFIG, fetchImpl }, REQUEST));
+    expect(turn).toEqual([
+      {
+        type: "tool_use",
+        id: "t3",
+        name: "find_references",
+        input: { invalid_json: '{"name":' },
+      },
+    ]);
+  });
 });
