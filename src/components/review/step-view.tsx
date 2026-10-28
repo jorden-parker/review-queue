@@ -12,7 +12,7 @@ import type { PreparedFile } from "@/lib/review/prepare";
 import type { Note, NoteTag, ReferenceCount, Step, StepFile, SymbolPosition } from "@/lib/types";
 import { CodeLine, type LineHandlers } from "./code-line";
 import { ContextGapView } from "./context-gap-view";
-import { fileLayout, type LayoutItem } from "./context-gaps";
+import { fileLayout, gapContaining, type LayoutItem } from "./context-gaps";
 import { FileAskButton } from "./file-ask-button";
 import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
@@ -212,6 +212,14 @@ function layoutOf(
   return fileLayout(file.hunks, shown, load.lines?.tokens.length ?? null);
 }
 
+function landedGapIn(
+  layout: LayoutItem[],
+  file: PreparedFile,
+  landed: LineTarget | null,
+): number | null {
+  return landed?.path === file.path ? gapContaining(layout, landed.line) : null;
+}
+
 function FileBody({
   file,
   stepFile,
@@ -225,17 +233,20 @@ function FileBody({
 }) {
   const { load, request } = useFileLines(context.loadFile, file.path);
   const [openGaps, setOpenGaps] = useState<ReadonlySet<number>>(new Set());
-  const anyOpen = wholeFile || openGaps.size > 0;
+  const layout = layoutOf(file, stepFile, wholeFile, load);
+  const landedGap = landedGapIn(layout, file, context.landed);
+  const isOpen = (from: number) => wholeFile || openGaps.has(from) || from === landedGap;
+  const anyOpen = wholeFile || openGaps.size > 0 || landedGap !== null;
   useEffect(() => {
-    if (wholeFile) request();
-  }, [wholeFile, request]);
+    if (wholeFile || landedGap !== null) request();
+  }, [wholeFile, landedGap, request]);
   const expand = (from: number) => {
     setOpenGaps((current) => new Set(current).add(from));
     request();
   };
   return (
     <div className="animate-step-enter font-mono text-code">
-      {layoutOf(file, stepFile, wholeFile, load).map((item) =>
+      {layout.map((item) =>
         item.kind === "hunk" ? (
           <HunkBlock
             key={`hunk:${item.index}`}
@@ -248,10 +259,11 @@ function FileBody({
           <ContextGapView
             key={`gap:${item.gap.from}`}
             gap={item.gap}
-            open={wholeFile || openGaps.has(item.gap.from)}
+            open={isOpen(item.gap.from)}
             load={load}
             onExpand={() => expand(item.gap.from)}
             path={file.path}
+            landed={context.landed}
             linked={file.navigable}
             handlers={context.handlers}
           />

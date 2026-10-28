@@ -117,11 +117,7 @@ function ThreadButton({ count, onOpen }: { count: number; onOpen: () => void }) 
 }
 
 function rowClassName(kind: DiffLine["kind"], landed: LineTarget | null) {
-  return cn(
-    "flex scroll-mt-32 transition-colors duration-calm",
-    ROW_STYLES[kind],
-    landed && LANDED_LINE,
-  );
+  return cn("flex transition-colors duration-calm", ROW_STYLES[kind], landed && LANDED_LINE);
 }
 
 function noteActionOf(path: string, lineNumber: number | null, handlers: LineHandlers) {
@@ -316,12 +312,21 @@ export function ContextLine({
   path,
   line,
   tokens,
+  elementId,
+  landed,
   linked,
   handlers,
-}: Pick<CodeLineProps, "path" | "line" | "tokens" | "linked" | "handlers">) {
+}: Pick<
+  CodeLineProps,
+  "path" | "line" | "tokens" | "elementId" | "landed" | "linked" | "handlers"
+>) {
   return (
     <div className="group">
-      <div className={rowClassName("context", null)}>
+      <div
+        id={elementId}
+        aria-current={landed ? "location" : undefined}
+        className={rowClassName("context", landed)}
+      >
         <LineNumber value={line.oldLine} />
         <LineNumber value={line.newLine} />
         <span className={NOTE_BUTTON_WIDTH} />
@@ -331,7 +336,7 @@ export function ContextLine({
           line={line}
           tokens={tokens}
           linked={linked}
-          landed={null}
+          landed={landed}
           handlers={handlers}
         />
       </div>

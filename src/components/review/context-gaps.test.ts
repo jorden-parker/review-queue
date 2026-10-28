@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DiffLine, DiffLineKind, Hunk } from "@/lib/types";
-import { fileLayout } from "./context-gaps";
+import { fileLayout, gapContaining } from "./context-gaps";
 
 const KINDS: Record<string, DiffLineKind> = { " ": "context", "+": "add", "-": "del" };
 
@@ -62,5 +62,21 @@ describe("fileLayout", () => {
       { kind: "hunk", index: 0 },
       { kind: "gap", gap: { from: 5, to: 8, oldOffset: 2 } },
     ]);
+  });
+});
+
+describe("gapContaining", () => {
+  const hunks = [hunk(10, 10, " + "), hunk(30, 31, " - ")];
+
+  it("names the gap a line falls in by its first line", () => {
+    expect(gapContaining(fileLayout(hunks, [0], 50), 20)).toBe(13);
+  });
+
+  it("finds a line in the open-ended gap at the end of the file", () => {
+    expect(gapContaining(fileLayout(hunks, [1], null), 40)).toBe(33);
+  });
+
+  it("finds nothing for a line inside a shown hunk", () => {
+    expect(gapContaining(fileLayout(hunks, [0], 50), 11)).toBeNull();
   });
 });

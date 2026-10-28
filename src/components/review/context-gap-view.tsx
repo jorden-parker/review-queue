@@ -6,6 +6,7 @@ import type { Token } from "@/lib/highlight";
 import type { DiffLine } from "@/lib/types";
 import { ContextLine, type LineHandlers } from "./code-line";
 import type { ContextGap } from "./context-gaps";
+import { isInTarget, lineElementId, type LineTarget } from "./locate";
 import type { FileLoad } from "./use-file-lines";
 
 type ContextGapViewProps = {
@@ -14,6 +15,7 @@ type ContextGapViewProps = {
   load: FileLoad;
   onExpand: () => void;
   path: string;
+  landed: LineTarget | null;
   linked: boolean;
   handlers: LineHandlers;
 };
@@ -41,6 +43,7 @@ export function ContextGapView({
   load,
   onExpand,
   path,
+  landed,
   linked,
   handlers,
 }: ContextGapViewProps) {
@@ -54,6 +57,8 @@ export function ContextGapView({
         path={path}
         line={contextLine(newLine, gap.oldOffset, tokens[newLine - 1] ?? [])}
         tokens={tokens[newLine - 1] ?? []}
+        elementId={lineElementId({ path, line: newLine })}
+        landed={isInTarget(landed, path, newLine) ? landed : null}
         linked={linked}
         handlers={handlers}
       />
