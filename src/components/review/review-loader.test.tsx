@@ -804,14 +804,25 @@ describe("ReviewLoader", () => {
 
   it("asks about a whole file from its header", async () => {
     const { api, user } = await renderReview(reviewPayload(), MODEL_ON);
-    await user.click(screen.getAllByRole("button", { name: /Ask about file/ })[0]);
-    const toolbar = screen.getByRole("toolbar", { name: "Ask the model about this file" });
+    await user.click(screen.getAllByRole("button", { name: /Actions/ })[0]);
+    const toolbar = screen.getByRole("toolbar", { name: "File actions" });
     await user.click(within(toolbar).getByRole("button", { name: /Simplify/ }));
     const panel = await screen.findByRole("region", { name: "Ask the model" });
     expect(within(panel).getAllByText("Simplify this file")).toHaveLength(2);
     expect(await within(panel).findByText(ASSIST_REPLY.join(""))).toBeTruthy();
     const request = api.calls.filter((call) => call.url.includes("/assist")).at(-1)?.body;
     expect(request).toMatchObject({ action: "simplify", target: { kind: "file" } });
+  });
+
+  it("reviews a whole file from its actions", async () => {
+    const { api, user } = await renderReview(reviewPayload(), MODEL_ON);
+    await user.click(screen.getAllByRole("button", { name: /Actions/ })[0]);
+    const toolbar = screen.getByRole("toolbar", { name: "File actions" });
+    await user.click(within(toolbar).getByRole("button", { name: /Review/ }));
+    const panel = await screen.findByRole("region", { name: "Ask the model" });
+    expect(within(panel).getAllByText("Review this file")).toHaveLength(2);
+    const request = api.calls.filter((call) => call.url.includes("/assist")).at(-1)?.body;
+    expect(request).toMatchObject({ action: "review", target: { kind: "file" } });
   });
 
   it("keeps each chat so it can be reopened and continued later", async () => {

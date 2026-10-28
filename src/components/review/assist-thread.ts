@@ -27,6 +27,7 @@ export function actionLabel(action: AssistAction, target: AssistTarget): string 
     comment: "Draft a review comment",
     ask: `Ask about ${subject(target)}`,
     check: `Check the flag on ${subject(target)}`,
+    review: `Review ${subject(target)}`,
   };
   return labels[action];
 }
@@ -38,6 +39,7 @@ export function questionPrompt(action: AssistAction, target: AssistTarget): stri
     comment: `What worries you about ${subject(target)}?`,
     ask: "What do you want to know?",
     check: null,
+    review: null,
   };
   return prompts[action];
 }
