@@ -26,6 +26,7 @@ describe("SymbolIndex", () => {
         "src/store.ts": "export function load(id: string) {\n  return id;\n}\n",
         "lib/other/store.ts": "export function load() {}\n",
         "node_modules/x/index.js": "function load() {}\n",
+        "docs/errors.md": "Request failed: E_PAYLOAD_TOO_LARGE\nRun with -v for logs\n",
       },
       { "src/app.ts": "import { load } from './store';\nexport const run = () => load('1');\n" },
       REF.number,
@@ -67,6 +68,24 @@ describe("SymbolIndex", () => {
       "src/store.ts:1",
     ]);
     expect(references[2].text).toContain("load('1')");
+  });
+
+  it("searches file contents as text, including non-code files", async () => {
+    const matches = await index.search("E_PAYLOAD_TOO_LARGE");
+    expect(matches.map((match) => `${match.path}:${match.line}`)).toEqual(["docs/errors.md:1"]);
+  });
+
+  it("matches a search case-insensitively", async () => {
+    expect(await index.search("e_payload_too_large")).toHaveLength(1);
+  });
+
+  it("searches a query that starts with a dash as literal text", async () => {
+    const matches = await index.search("-v");
+    expect(matches.map((match) => match.path)).toEqual(["docs/errors.md"]);
+  });
+
+  it("returns nothing for a one-character query", async () => {
+    expect(await index.search("l")).toEqual([]);
   });
 
   it("lists every file that mentions a name", async () => {
