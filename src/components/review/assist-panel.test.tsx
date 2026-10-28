@@ -93,6 +93,19 @@ describe("AssistPanel lookups", () => {
     const list = screen.getByRole("list", { name: "Lookups" });
     expect(within(list).getByText("loadReview").tagName).toBe("CODE");
   });
+
+  it("keeps a lookup label as one run of text so its file path flows after the verb", () => {
+    const lookup = { tool: "read_file", label: "Read `src/a.ts` L1–L9", paths: ["src/a.ts"] };
+    const { thread, assist } = chat([
+      QUESTION,
+      { role: "model", text: "Read it.", lookups: [lookup] },
+    ]);
+    render(panel({ thread, assist }));
+    const list = screen.getByRole("list", { name: "Lookups" });
+    const label = within(list).getByText("src/a.ts").parentElement;
+    expect(label?.tagName).toBe("SPAN");
+    expect(label?.textContent).toBe("Read src/a.ts L1–L9");
+  });
 });
 
 describe("AssistPanel scrolling", () => {

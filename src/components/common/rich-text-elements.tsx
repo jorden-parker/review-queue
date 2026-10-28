@@ -39,12 +39,12 @@ const RICH_TEXT_ELEMENTS: Partial<Components> = {
   ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 pl-5">{children}</ol>,
   code: ({ children }) => (
-    <code className="rounded bg-muted px-1 py-0.5 font-mono text-code leading-none text-foreground">
+    <code className="rounded bg-muted box-decoration-clone px-1 py-px font-mono text-code-inline text-foreground wrap-anywhere">
       {children}
     </code>
   ),
   pre: ({ children }) => (
-    <pre className="rounded-lg bg-muted p-3 tab-2 break-words whitespace-pre-wrap wrap-anywhere [&_code]:p-0 [&_code]:leading-normal">
+    <pre className="rounded-lg bg-muted p-3 tab-2 break-words whitespace-pre-wrap wrap-anywhere [&_code]:p-0 [&_code]:text-code [&_code]:leading-normal">
       {children}
     </pre>
   ),
