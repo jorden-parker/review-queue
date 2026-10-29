@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Conversation } from "@/lib/github/conversation";
+import type { ConversationView } from "@/lib/github/conversation";
 import type { PostedReview, ReviewComment } from "@/lib/github/gh";
 import type { Session } from "@/lib/session/store";
 import { ConversationPanel } from "./conversation-panel";
@@ -41,6 +41,7 @@ type PanelProps = {
   receipts?: Session["submissions"];
   replyReceipts?: Session["replyReceipts"];
   error?: string | null;
+  viewer?: string | null;
   onReply?: (commentId: number, body: string) => Promise<number>;
   onOpen?: (target: LineTarget) => void;
 };
@@ -56,10 +57,11 @@ function panelElement({
   receipts = [],
   replyReceipts = [],
   error = null,
+  viewer = null,
   onReply = acceptingReply(),
   onOpen = vi.fn(),
 }: PanelProps) {
-  const conversation: Conversation = { comments, reviews, truncated };
+  const conversation: ConversationView = { comments, reviews, truncated, viewer };
   return (
     <ConversationPanel
       conversation={conversation}
@@ -325,5 +327,42 @@ describe("ConversationPanel", () => {
       await user.click(screen.getByRole("button", { name: "Not yet" }));
       expect(replyTextbox().value).toBe("Thanks");
     });
+  });
+});
+
+describe("ConversationPanel your threads", () => {
+  const repliedToMe = [
+    comment({ id: 1, author: "me", body: "Why?" }),
+    comment({
+      id: 2,
+      author: "you",
+      inReplyTo: 1,
+      body: "Because",
+      createdAt: "2026-10-02T10:00:00Z",
+    }),
+  ];
+
+  it("lists the threads you are in first, marked with a new reply", () => {
+    render(panelElement({ comments: repliedToMe, viewer: "me" }));
+    expect(screen.getByRole("heading", { name: "Your threads" })).toBeTruthy();
+    expect(screen.getByText("New reply")).toBeTruthy();
+  });
+
+  it("omits the section when the viewer is unknown", () => {
+    render(panelElement({ comments: repliedToMe, viewer: null }));
+    expect(screen.queryByRole("heading", { name: "Your threads" })).toBeNull();
+  });
+
+  it("shows each reply once even when its thread is in two sections", () => {
+    const { container } = render(panelElement({ comments: repliedToMe, viewer: "me" }));
+    expect(container.querySelectorAll("#comment-2")).toHaveLength(1);
+  });
+
+  it("opens the thread's line from the compact row", async () => {
+    const onOpen = vi.fn();
+    const user = userEvent.setup();
+    render(panelElement({ comments: repliedToMe, viewer: "me", onOpen }));
+    await user.click(screen.getByRole("button", { name: "a.ts:3" }));
+    expect(onOpen).toHaveBeenCalledWith({ path: "a.ts", line: 3 });
   });
 });

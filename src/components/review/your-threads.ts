@@ -14,7 +14,7 @@ function commentsOf(thread: Thread): ReviewComment[] {
   return [thread.root, ...thread.replies];
 }
 
-function latestComment(thread: Thread): ReviewComment {
+export function latestComment(thread: Thread): ReviewComment {
   return commentsOf(thread).reduce((latest, comment) =>
     comment.createdAt > latest.createdAt ? comment : latest,
   );
