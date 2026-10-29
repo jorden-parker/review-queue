@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { SymbolPosition } from "@/lib/types";
 import type { PreparedFile, PreparedReview } from "./prepare";
-import { jsonError, withPreparedReview } from "./route-context";
+import { withPreparedReview } from "./route-context";
+import { jsonError, searchParam } from "@/lib/http";
 
 const POSITION = z.object({
   name: z.string().min(1),
@@ -30,7 +31,7 @@ type FileLookup = (prepared: PreparedReview, file: PreparedFile) => Promise<unkn
 
 export function fileLookupRoute(lookup: FileLookup) {
   return withPreparedReview(async (request, prepared) => {
-    const path = new URL(request.url).searchParams.get("path");
+    const path = searchParam(request, "path");
     const file = prepared.data.files.find((candidate) => candidate.path === path);
     if (!file) return jsonError("That file is not part of this review", 400);
     return Response.json(await lookup(prepared, file));

@@ -1,6 +1,7 @@
 import { prKey } from "@/lib/pr-ref";
 import { interdiffFor } from "@/lib/review/interdiff";
-import { jsonError, withPreparedReview } from "@/lib/review/route-context";
+import { withPreparedReview } from "@/lib/review/route-context";
+import { jsonError } from "@/lib/http";
 import { sessionStore } from "@/lib/review/services";
 
 export const GET = withPreparedReview(async (_request, prepared) => {

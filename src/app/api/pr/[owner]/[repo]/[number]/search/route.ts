@@ -1,4 +1,5 @@
-import { jsonError, withPreparedReview } from "@/lib/review/route-context";
+import { withPreparedReview } from "@/lib/review/route-context";
+import { jsonError } from "@/lib/http";
 
 const MAX_QUERY_LENGTH = 200;
 

@@ -2,12 +2,8 @@ import { z } from "zod";
 import { getPullRequest, submitReview } from "@/lib/github/gh";
 import { logServerError } from "@/lib/log";
 import { prKey } from "@/lib/pr-ref";
-import {
-  GITHUB_FAILURE_MESSAGE,
-  jsonError,
-  parseJsonBody,
-  withPullRequest,
-} from "@/lib/review/route-context";
+import { GITHUB_FAILURE_MESSAGE, withPullRequest } from "@/lib/review/route-context";
+import { jsonError, parseJsonBody } from "@/lib/http";
 import { sessionStore } from "@/lib/review/services";
 import { buildSubmission, isPostable } from "@/lib/review/submission";
 

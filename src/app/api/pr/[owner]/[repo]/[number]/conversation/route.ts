@@ -1,5 +1,6 @@
 import { logServerError } from "@/lib/log";
-import { GITHUB_FAILURE_MESSAGE, jsonError, withPullRequest } from "@/lib/review/route-context";
+import { GITHUB_FAILURE_MESSAGE, withPullRequest } from "@/lib/review/route-context";
+import { jsonError } from "@/lib/http";
 import { conversation } from "@/lib/review/services";
 
 export const GET = withPullRequest(async (_request, ref) => {

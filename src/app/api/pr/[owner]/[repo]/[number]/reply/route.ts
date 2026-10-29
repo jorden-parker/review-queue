@@ -2,7 +2,8 @@ import { z } from "zod";
 import { postReplyToReviewComment } from "@/lib/github/gh";
 import { logServerError } from "@/lib/log";
 import { prKey } from "@/lib/pr-ref";
-import { jsonError, readJson, withPullRequest } from "@/lib/review/route-context";
+import { withPullRequest } from "@/lib/review/route-context";
+import { jsonError, readJson } from "@/lib/http";
 import { forgetConversation, sessionStore } from "@/lib/review/services";
 import { REPLY_MAX_LENGTH } from "@/lib/types";
 
