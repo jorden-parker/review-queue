@@ -6,6 +6,7 @@ import { dataDirectory } from "@/lib/data-directory";
 import type { ReviewEvent } from "@/lib/github/gh";
 import type {
   DefinitionScope,
+  DiffSide,
   Note,
   NoteDecoration,
   NoteKind,
@@ -70,6 +71,8 @@ export type Session = {
 export type NewNote = {
   path: string | null;
   line: number | null;
+  side: DiffSide;
+  startLine: number | null;
   kind: NoteKind;
   decorations: NoteDecoration[];
   body: string;
@@ -133,6 +136,8 @@ type NoteRow = {
   id: number;
   path: string | null;
   line: number | null;
+  side: DiffSide;
+  start_line: number | null;
   kind: NoteKind;
   decorations: string;
   body: string;
@@ -170,6 +175,8 @@ CREATE TABLE IF NOT EXISTS notes (
   pr_key TEXT NOT NULL,
   path TEXT,
   line INTEGER,
+  side TEXT NOT NULL DEFAULT 'new',
+  start_line INTEGER,
   kind TEXT NOT NULL,
   decorations TEXT NOT NULL DEFAULT '[]',
   body TEXT NOT NULL,
@@ -391,6 +398,8 @@ function openDatabase(file: string): DatabaseSync {
   if (isFile) restrictToOwner(file);
   db.exec(SCHEMA);
   migrateNotes(db);
+  ensureColumn(db, "notes", "side", "TEXT NOT NULL DEFAULT 'new'");
+  ensureColumn(db, "notes", "start_line", "INTEGER");
   ensureColumn(db, "sessions", "title", "TEXT");
   ensureColumn(db, "sessions", "finished_at", "TEXT");
   ensureColumn(db, "sessions", "archived_at", "TEXT");
@@ -455,6 +464,8 @@ function toNote(row: NoteRow): Note {
     id: row.id,
     path: row.path,
     line: row.line,
+    side: row.side,
+    startLine: row.start_line,
     kind: row.kind,
     decorations: JSON.parse(row.decorations) as NoteDecoration[],
     body: row.body,
@@ -529,12 +540,14 @@ export class SessionStore {
     const createdAt = this.now();
     const result = this.db
       .prepare(
-        "INSERT INTO notes (pr_key, path, line, kind, decorations, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO notes (pr_key, path, line, side, start_line, kind, decorations, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       )
       .run(
         key,
         note.path,
         note.line,
+        note.side,
+        note.startLine,
         note.kind,
         JSON.stringify(note.decorations),
         note.body,
@@ -544,6 +557,8 @@ export class SessionStore {
       id: Number(result.lastInsertRowid),
       path: note.path,
       line: note.line,
+      side: note.side,
+      startLine: note.startLine,
       kind: note.kind,
       decorations: note.decorations,
       body: note.body,

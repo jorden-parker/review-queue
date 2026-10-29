@@ -7,6 +7,8 @@ function note(overrides: Partial<Note>): Note {
     id: 1,
     path: null,
     line: null,
+    side: "new",
+    startLine: null,
     kind: "nitpick",
     decorations: [],
     body: "x",
@@ -16,6 +18,28 @@ function note(overrides: Partial<Note>): Note {
 }
 
 describe("buildSubmission", () => {
+  it("posts an old-side note on the LEFT side and a range with its start line", () => {
+    const submission = buildSubmission(
+      [
+        note({ path: "a.ts", line: 6, side: "old", body: "why removed?" }),
+        note({ path: "a.ts", line: 9, startLine: 4, body: "one helper" }),
+      ],
+      "COMMENT",
+      "",
+      "abc",
+    );
+    expect(submission.comments).toEqual([
+      { path: "a.ts", line: 6, side: "LEFT", body: expect.stringContaining("why removed?") },
+      {
+        path: "a.ts",
+        line: 9,
+        side: "RIGHT",
+        startLine: 4,
+        body: expect.stringContaining("one helper"),
+      },
+    ]);
+  });
+
   it("turns line notes into comments and the rest into the body", () => {
     const submission = buildSubmission(
       [
@@ -36,7 +60,9 @@ describe("buildSubmission", () => {
       event: "REQUEST_CHANGES",
       commitId: "abc",
       body: "Close, a couple of things.\n\n- **question:** why a new cache?",
-      comments: [{ path: "a.ts", line: 4, body: "**issue (blocking):** this leaks" }],
+      comments: [
+        { path: "a.ts", line: 4, side: "RIGHT", body: "**issue (blocking):** this leaks" },
+      ],
     });
   });
 
@@ -84,7 +110,7 @@ describe("buildSubmission posts well-formed Conventional Comments", () => {
       "abc",
     );
     expect(submission.comments).toEqual([
-      { path: "a.ts", line: 1, body: `**suggestion:**\n\n${body}` },
+      { path: "a.ts", line: 1, side: "RIGHT", body: `**suggestion:**\n\n${body}` },
     ]);
   });
 

@@ -11,14 +11,14 @@ import type { DiffLine, Note, SymbolPosition } from "@/lib/types";
 import { CodeTokens, type IdentifierTarget } from "./code-tokens";
 import { flagLineTint, HotspotFlag } from "./hotspot-flag";
 import type { DisplayHotspot } from "./hotspot-list";
-import type { LineTarget } from "./locate";
+import { noteTargetOf, type LineTarget } from "./locate";
 import { NoteKindBadge } from "./note-kind-badge";
 import type { OccurrenceKind } from "./occurrences";
 
 export type LineHandlers = {
   onIdentifier: (position: SymbolPosition) => void;
   onHoverIdentifier: (position: SymbolPosition | null) => void;
-  onAddNote: (path: string, line: number) => void;
+  onAddNote: (target: LineTarget) => void;
   onDeleteNote: (id: number) => void;
   onToggleHotspot: (id: string) => void;
   onCheckFlag: ((range: LineRange) => void) | null;
@@ -121,8 +121,9 @@ function rowClassName(kind: DiffLine["kind"], landed: LineTarget | null) {
   return cn("flex transition-colors duration-calm", ROW_STYLES[kind], landed && LANDED_LINE);
 }
 
-function noteActionOf(path: string, lineNumber: number | null, handlers: LineHandlers) {
-  return lineNumber === null ? null : () => handlers.onAddNote(path, lineNumber);
+function noteActionOf(path: string, line: DiffLine, handlers: LineHandlers) {
+  const target = noteTargetOf(path, line);
+  return target === null ? null : () => handlers.onAddNote(target);
 }
 
 function emphasisOf(
@@ -263,7 +264,7 @@ export function CodeLineComponent({
   handlers,
 }: CodeLineProps) {
   const lineNumber = line.newLine;
-  const addNote = noteActionOf(path, lineNumber, handlers);
+  const addNote = noteActionOf(path, line, handlers);
   const here = { hunk: hunkIndex, line: lineIndex };
   return (
     <>

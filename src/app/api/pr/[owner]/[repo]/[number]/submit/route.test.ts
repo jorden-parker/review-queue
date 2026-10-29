@@ -84,6 +84,8 @@ describe("POST submit", () => {
 
   it("posts the chosen notes and removes them afterwards", async () => {
     const note = sessionStore().addNote(KEY, {
+      side: "new",
+      startLine: null,
       path: "a.ts",
       line: 2,
       kind: "nitpick",
@@ -93,13 +95,15 @@ describe("POST submit", () => {
     const response = await POST(request({ ...VALID, noteIds: [note.id] }), context());
     expect(response.status).toBe(200);
     expect(github.sent[0].comments).toEqual([
-      { path: "a.ts", line: 2, body: "**nitpick:** rename" },
+      { path: "a.ts", line: 2, side: "RIGHT", body: "**nitpick:** rename" },
     ]);
     expect(sessionStore().getSession(KEY).notes).toEqual([]);
   });
 
   it("posts only the postable notes and keeps a parked note that was chosen with them", async () => {
     const posted = sessionStore().addNote(KEY, {
+      side: "new",
+      startLine: null,
       path: "a.ts",
       line: 2,
       kind: "nitpick",
@@ -107,6 +111,8 @@ describe("POST submit", () => {
       body: "rename",
     });
     const parked = sessionStore().addNote(KEY, {
+      side: "new",
+      startLine: null,
       path: "b.ts",
       line: 5,
       kind: "parked",
@@ -116,7 +122,7 @@ describe("POST submit", () => {
     const response = await POST(request({ ...VALID, noteIds: [posted.id, parked.id] }), context());
     expect(response.status).toBe(200);
     expect(github.sent[0].comments).toEqual([
-      { path: "a.ts", line: 2, body: "**nitpick:** rename" },
+      { path: "a.ts", line: 2, side: "RIGHT", body: "**nitpick:** rename" },
     ]);
     const remaining = sessionStore().getSession(KEY).notes;
     expect(remaining.map((note) => note.id)).toEqual([parked.id]);
@@ -154,6 +160,8 @@ describe("POST submit", () => {
 
   it("refuses a note whose line is no longer in the diff and names it, without posting", async () => {
     const stale = sessionStore().addNote(KEY, {
+      side: "new",
+      startLine: null,
       path: "a.ts",
       line: 99,
       kind: "issue",
@@ -173,6 +181,8 @@ describe("POST submit", () => {
 
   it("keeps notes and answers a fixed message when GitHub fails", async () => {
     sessionStore().addNote(KEY, {
+      side: "new",
+      startLine: null,
       path: null,
       line: null,
       kind: "question",
@@ -191,6 +201,8 @@ describe("POST submit", () => {
 
   it("answers GitHub's 422 as 422 with advice, and keeps the notes", async () => {
     const kept = sessionStore().addNote(KEY, {
+      side: "new",
+      startLine: null,
       path: null,
       line: null,
       kind: "question",

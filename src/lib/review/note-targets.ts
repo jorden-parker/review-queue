@@ -1,4 +1,4 @@
-import type { FileDiff, Note } from "@/lib/types";
+import type { DiffLine, DiffSide, FileDiff, Note } from "@/lib/types";
 
 type LineNote = Note & { path: string; line: number };
 
@@ -6,21 +6,27 @@ function isLineNote(note: Note): note is LineNote {
   return note.path !== null && note.line !== null;
 }
 
-function newSideLines(files: readonly FileDiff[]): Map<string, Set<number>> {
-  const lines = new Map<string, Set<number>>();
-  for (const file of files) {
-    const numbers = new Set<number>();
-    for (const hunk of file.hunks) {
-      for (const line of hunk.lines) if (line.newLine !== null) numbers.add(line.newLine);
-    }
-    lines.set(file.path, numbers);
-  }
-  return lines;
+function numberOn(line: DiffLine, side: DiffSide): number | null {
+  return side === "old" ? line.oldLine : line.newLine;
+}
+
+function hunkOf(file: FileDiff, side: DiffSide, lineNumber: number): number | null {
+  const index = file.hunks.findIndex((hunk) =>
+    hunk.lines.some((line) => numberOn(line, side) === lineNumber),
+  );
+  return index === -1 ? null : index;
+}
+
+function isOnDiff(note: LineNote, files: readonly FileDiff[]): boolean {
+  const file = files.find((candidate) => candidate.path === note.path);
+  if (!file) return false;
+  const hunk = hunkOf(file, note.side, note.line);
+  if (hunk === null) return false;
+  return note.startLine === null || hunkOf(file, note.side, note.startLine) === hunk;
 }
 
 export function notesOffTheDiff(notes: readonly Note[], files: readonly FileDiff[]): Note[] {
-  const lines = newSideLines(files);
-  return notes.filter(isLineNote).filter((note) => !lines.get(note.path)?.has(note.line));
+  return notes.filter(isLineNote).filter((note) => !isOnDiff(note, files));
 }
 
 export function offTheDiffMessage(notes: readonly Note[]): string {

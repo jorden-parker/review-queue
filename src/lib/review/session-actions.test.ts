@@ -110,6 +110,56 @@ describe("applySessionAction", () => {
     ).toThrow();
   });
 
+  it("gives a note the new side and no range when the action omits them", () => {
+    const action = SessionActionSchema.parse({
+      type: "note-add",
+      path: "a.ts",
+      line: 2,
+      kind: "nitpick",
+      decorations: [],
+      body: "rename",
+    });
+    expect(action).toMatchObject({ side: "new", startLine: null });
+  });
+
+  it("accepts a note on a deleted line and a range that ends on its line", () => {
+    const deleted = SessionActionSchema.parse({
+      type: "note-add",
+      path: "a.ts",
+      line: 6,
+      side: "old",
+      kind: "question",
+      decorations: [],
+      body: "why?",
+    });
+    const range = SessionActionSchema.parse({
+      type: "note-add",
+      path: "a.ts",
+      line: 9,
+      startLine: 4,
+      kind: "nitpick",
+      decorations: [],
+      body: "one helper",
+    });
+    expect(deleted).toMatchObject({ side: "old", startLine: null });
+    expect(range).toMatchObject({ side: "new", startLine: 4 });
+  });
+
+  it("refuses a range whose start is not before its line", () => {
+    const rangeNote = (line: number | null, startLine: number) => ({
+      type: "note-add",
+      path: "a.ts",
+      line,
+      startLine,
+      kind: "nitpick",
+      decorations: [],
+      body: "range",
+    });
+    expect(() => SessionActionSchema.parse(rangeNote(5, 5))).toThrow();
+    expect(() => SessionActionSchema.parse(rangeNote(5, 6))).toThrow();
+    expect(() => SessionActionSchema.parse(rangeNote(null, 4))).toThrow();
+  });
+
   it("offers the twelve Conventional Comments labels in order", () => {
     expect(NOTE_LABELS).toEqual([
       "praise",

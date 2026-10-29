@@ -6,6 +6,8 @@ import { modelReply } from "@/test/fake-llm";
 
 const NOTES: Note[] = [
   {
+    side: "new",
+    startLine: null,
     id: 1,
     path: "src/a.ts",
     line: 12,
@@ -15,6 +17,8 @@ const NOTES: Note[] = [
     createdAt: "2026-10-26T10:00:00Z",
   },
   {
+    side: "new",
+    startLine: null,
     id: 2,
     path: null,
     line: null,

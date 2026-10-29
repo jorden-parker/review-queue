@@ -1,15 +1,42 @@
 import type { PreparedFile } from "@/lib/review/prepare";
-import type { Step } from "@/lib/types";
+import type { DiffLine, DiffSide, Step } from "@/lib/types";
 
-export type LineTarget = { path: string; line: number; endLine?: number; name?: string };
+export type LineTarget = {
+  path: string;
+  line: number;
+  side?: DiffSide;
+  startLine?: number;
+  endLine?: number;
+  name?: string;
+};
 
-export function isSameLine(target: LineTarget | null, path: string, line: number): boolean {
-  return target?.path === path && target.line === line;
+function isOnSide(target: LineTarget, side: DiffSide): boolean {
+  return (target.side ?? "new") === side;
 }
 
-export function isInTarget(target: LineTarget | null, path: string, line: number): boolean {
-  if (target?.path !== path) return false;
+export function isSameLine(
+  target: LineTarget | null,
+  path: string,
+  line: number,
+  side: DiffSide = "new",
+): boolean {
+  return target?.path === path && target.line === line && isOnSide(target, side);
+}
+
+export function isInTarget(
+  target: LineTarget | null,
+  path: string,
+  line: number,
+  side: DiffSide = "new",
+): boolean {
+  if (target?.path !== path || !isOnSide(target, side)) return false;
   return line >= target.line && line <= (target.endLine ?? target.line);
+}
+
+export function noteTargetOf(path: string, line: DiffLine): LineTarget | null {
+  if (line.newLine !== null) return { path, line: line.newLine };
+  if (line.oldLine !== null) return { path, line: line.oldLine, side: "old" };
+  return null;
 }
 
 function hunkContains(file: PreparedFile, hunkIndex: number, line: number): boolean {
@@ -40,6 +67,7 @@ export function locationKind(
 }
 
 export function lineElementId(target: LineTarget): string {
+  if (target.side === "old") return `line-old-${target.path}-${target.line}`;
   return `line-${target.path}-${target.line}`;
 }
 

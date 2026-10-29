@@ -165,6 +165,8 @@ export type Note = {
   id: number;
   path: string | null;
   line: number | null;
+  side: DiffSide;
+  startLine: number | null;
   kind: NoteKind;
   decorations: NoteDecoration[];
   body: string;

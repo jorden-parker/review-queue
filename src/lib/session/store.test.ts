@@ -118,7 +118,15 @@ describe("SessionStore", () => {
   it("reopens a finished review when the head moves", () => {
     store.rememberTitle(KEY, "Add retry");
     store.markSeen(KEY, "sha1");
-    store.addNote(KEY, { path: null, line: null, kind: "nitpick", decorations: [], body: "x" });
+    store.addNote(KEY, {
+      path: null,
+      line: null,
+      side: "new",
+      startLine: null,
+      kind: "nitpick",
+      decorations: [],
+      body: "x",
+    });
     store.markFinished(KEY);
     store.markSeen(KEY, "sha1");
     expect(store.inProgress()).toEqual([]);
@@ -137,6 +145,8 @@ describe("SessionStore", () => {
     const first = store.addNote(KEY, {
       path: "a.ts",
       line: 3,
+      side: "new",
+      startLine: null,
       kind: "question",
       decorations: [],
       body: "why?",
@@ -144,6 +154,8 @@ describe("SessionStore", () => {
     store.addNote(KEY, {
       path: null,
       line: null,
+      side: "new",
+      startLine: null,
       kind: "parked",
       decorations: [],
       body: "look at logging later",
@@ -160,6 +172,8 @@ describe("SessionStore", () => {
     const note = store.addNote(KEY, {
       path: "a.ts",
       line: 3,
+      side: "new",
+      startLine: null,
       kind: "nitpick",
       decorations: [],
       body: "rename",
@@ -180,6 +194,8 @@ describe("SessionStore", () => {
     const note = store.addNote(KEY, {
       path: "a.ts",
       line: 3,
+      side: "new",
+      startLine: null,
       kind: "issue",
       decorations: ["blocking"],
       body: "leaks",
@@ -192,8 +208,51 @@ describe("SessionStore", () => {
       "kind",
       "line",
       "path",
+      "side",
+      "startLine",
     ]);
     expect(store.getSession(KEY).notes[0]).toMatchObject({ decorations: ["blocking"] });
+  });
+
+  it("stores a note's side and start line and reads them back", () => {
+    store.addNote(KEY, {
+      path: "a.ts",
+      line: 6,
+      side: "old",
+      startLine: 4,
+      kind: "issue",
+      decorations: [],
+      body: "why was this removed?",
+    });
+    expect(store.getSession(KEY).notes[0]).toMatchObject({ side: "old", startLine: 4, line: 6 });
+  });
+
+  it("reads a note from a database created before side and start line as a new-side line", () => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "review-queue-")), "old.db");
+    const legacy = new DatabaseSync(file);
+    legacy.exec(`CREATE TABLE notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pr_key TEXT NOT NULL,
+      path TEXT,
+      line INTEGER,
+      kind TEXT NOT NULL,
+      decorations TEXT NOT NULL DEFAULT '[]',
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )`);
+    legacy
+      .prepare(
+        "INSERT INTO notes (pr_key, path, line, kind, body, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+      .run(KEY, "a.ts", 2, "question", "why?", "2026-10-26T10:00:00Z");
+    legacy.close();
+
+    const upgraded = new SessionStore(file);
+    expect(upgraded.getSession(KEY).notes[0]).toMatchObject({
+      side: "new",
+      startLine: null,
+      line: 2,
+    });
   });
 
   it("migrates old blocker and nit notes in a file database and leaves them alone afterwards", () => {
@@ -298,7 +357,15 @@ describe("SessionStore", () => {
     store.pushJump(KEY, { name: "f", path: "a.ts", line: 1 });
     store.recordSymbolSeen(KEY, symbol("f"));
     store.pause(KEY, "next: tests");
-    store.addNote(KEY, { path: null, line: null, kind: "parked", decorations: [], body: "later" });
+    store.addNote(KEY, {
+      path: null,
+      line: null,
+      side: "new",
+      startLine: null,
+      kind: "parked",
+      decorations: [],
+      body: "later",
+    });
     store.saveAssistThread(KEY, thread("t1"));
     store.setStepDone("other#1", "s1", true);
     store.startOver(KEY, true);
@@ -402,6 +469,8 @@ describe("SessionStore", () => {
     store.addNote("acme/app#9", {
       path: null,
       line: null,
+      side: "new",
+      startLine: null,
       kind: "nitpick",
       decorations: [],
       body: "x",
@@ -614,6 +683,8 @@ describe("SessionStore", () => {
       fileStore.addNote(KEY, {
         path: null,
         line: null,
+        side: "new",
+        startLine: null,
         kind: "parked",
         decorations: [],
         body: "later",
@@ -649,7 +720,15 @@ describe("SessionStore", () => {
 
   it("keeps an archived session's steps, notes and updated time", () => {
     store.setStepDone(KEY, "s1", true);
-    store.addNote(KEY, { path: null, line: null, kind: "nitpick", decorations: [], body: "x" });
+    store.addNote(KEY, {
+      path: null,
+      line: null,
+      side: "new",
+      startLine: null,
+      kind: "nitpick",
+      decorations: [],
+      body: "x",
+    });
     now = Date.parse("2026-10-26T11:00:00Z");
     store.archive(KEY);
     expect(store.archived()[0].updatedAt).toBe("2026-10-26T10:00:00.000Z");
