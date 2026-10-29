@@ -2,18 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { threadsFor } from "./conversation-threads";
-import type { Conversation } from "@/lib/github/conversation";
+import type { ConversationView } from "@/lib/github/conversation";
 import type { PullRequestRef } from "@/lib/types";
 import { fetchConversation } from "./api";
 
-const NO_CONVERSATION: Conversation = { comments: [], reviews: [], truncated: false };
+const NO_CONVERSATION: ConversationView = {
+  comments: [],
+  reviews: [],
+  truncated: false,
+  viewer: null,
+};
 
 function messageOf(failure: unknown): string {
   return failure instanceof Error ? failure.message : String(failure);
 }
 
 export function useConversation(ref: PullRequestRef) {
-  const [conversation, setConversation] = useState<Conversation>(NO_CONVERSATION);
+  const [conversation, setConversation] = useState<ConversationView>(NO_CONVERSATION);
   const [error, setError] = useState<string | null>(null);
   const threads = useMemo(() => threadsFor(conversation.comments), [conversation]);
 
