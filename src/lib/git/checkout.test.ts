@@ -59,6 +59,19 @@ describe("checkout", () => {
     ]);
   });
 
+  it("creates the cache tree so only the owner can enter it", async () => {
+    const options = { cacheRoot: fixture.cacheRoot, remoteUrl: fixture.origin };
+    await ensureCheckout(REF, currentCommits(fixture), options);
+    for (const directory of [
+      fixture.cacheRoot,
+      path.join(fixture.cacheRoot, "repos"),
+      path.join(fixture.cacheRoot, "repos", REF.owner),
+      path.join(fixture.cacheRoot, "worktrees", REF.owner, REF.repo),
+    ]) {
+      expect(fs.statSync(directory).mode & 0o777).toBe(0o700);
+    }
+  });
+
   it("links workspace packages so imports by package name resolve in the checkout", async () => {
     pushFeatureCommit(fixture, REF.number, {
       "packages/ui/package.json": JSON.stringify({ name: "@acme/ui" }),
