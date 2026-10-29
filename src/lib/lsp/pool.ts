@@ -33,6 +33,16 @@ function idleTimer(key: string): NodeJS.Timeout {
   return timer;
 }
 
+function forget(key: string, entry: Entry): void {
+  if (entries.get(key) !== entry) return;
+  entries.delete(key);
+  clearTimeout(entry.timer);
+}
+
+function forgetOnClose(key: string, entry: Entry, client: LanguageClient): void {
+  client.onClose(() => forget(key, entry));
+}
+
 function touch(key: string, entry: Entry): void {
   clearTimeout(entry.timer);
   entry.timer = idleTimer(key);
@@ -52,8 +62,13 @@ export function languageClients(
       touch(key, existing);
       return existing.client;
     }
-    const client = start(server, root, readSource).catch(() => null);
-    entries.set(key, { client, timer: idleTimer(key) });
+    const client = start(server, root, readSource).catch(() => {
+      void stopEntry(key);
+      return null;
+    });
+    const entry: Entry = { client, timer: idleTimer(key) };
+    entries.set(key, entry);
+    void client.then((started) => started && forgetOnClose(key, entry, started));
     return client;
   };
 }
