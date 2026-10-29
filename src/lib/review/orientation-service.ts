@@ -5,6 +5,7 @@ import {
   type Orientation,
   type OrientationInput,
 } from "@/lib/llm/orientation";
+import { logServerError } from "@/lib/log";
 import { prKey } from "@/lib/pr-ref";
 import type { SessionStore } from "@/lib/session/store";
 import { cachedModelResult, storedModelResult } from "./model-cache";
@@ -56,6 +57,7 @@ export async function orientationFor(
     );
     return { status: "ready", orientation };
   } catch (error) {
+    logServerError(`orientation ${prKey(data.pr.ref)}`, error);
     return { status: "error", message: error instanceof Error ? error.message : String(error) };
   }
 }

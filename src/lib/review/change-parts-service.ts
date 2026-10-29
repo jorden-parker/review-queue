@@ -1,5 +1,6 @@
 import type { LlmConfig } from "@/lib/llm/client";
 import { ChangePartsRecordSchema, describeChanges, type ChangeParts } from "@/lib/llm/change-parts";
+import { logServerError } from "@/lib/log";
 import { prKey } from "@/lib/pr-ref";
 import type { SessionStore } from "@/lib/session/store";
 import { cachedModelResult } from "./model-cache";
@@ -39,6 +40,7 @@ export async function changePartsFor(
     );
     return { status: "ready", parts };
   } catch (error) {
+    logServerError(`change parts ${prKey(data.pr.ref)}`, error);
     return { status: "error", message: error instanceof Error ? error.message : String(error) };
   }
 }

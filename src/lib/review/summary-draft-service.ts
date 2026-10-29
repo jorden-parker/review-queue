@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/log";
 import type { ReviewEvent } from "@/lib/github/gh";
 import { draftSummary } from "@/lib/llm/summary-draft";
 import type { LlmConfig } from "@/lib/llm/client";
@@ -21,6 +22,7 @@ export async function summaryDraftFor(
     const summary = await draftSummary({ title, event, notes }, config, fetchImpl, signal);
     return { status: "ready", summary };
   } catch (error) {
+    logServerError("summary draft", error);
     return { status: "error", message: error instanceof Error ? error.message : String(error) };
   }
 }
