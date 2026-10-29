@@ -141,6 +141,8 @@ function FileHeader({
   );
 }
 
+const NO_IDS: string[] = [];
+
 function HunkBlock({
   file,
   hunkIndex,
@@ -157,7 +159,10 @@ function HunkBlock({
   annotations: LineAnnotations;
 }) {
   const hunk = file.hunks[hunkIndex];
-  const highlighted = file.highlighted[hunkIndex] ?? [];
+  const tokensByLine = useMemo(() => {
+    const highlighted = file.highlighted[hunkIndex] ?? [];
+    return hunk.lines.map((line, lineIndex) => highlighted[lineIndex] ?? [{ text: line.text }]);
+  }, [file.highlighted, hunk, hunkIndex]);
   const id = hunkElementId(file.path, hunkIndex);
   const active = anchored && context.activeHunkId === id;
   const showReferences = ({ name, line, character }: ReferenceCount) =>
@@ -179,6 +184,7 @@ function HunkBlock({
         const composing = isComposingAt(context.composer, target);
         const landed = isLandedAt(context.landed, target);
         const lens = lensAt(lenses, lineNumber);
+        const hotspots = linesAt(annotations.hotspots, file.path, lineNumber);
         return (
           <div key={lineIndex}>
             {lens && (
@@ -189,10 +195,10 @@ function HunkBlock({
               hunkIndex={hunkIndex}
               lineIndex={lineIndex}
               line={line}
-              tokens={highlighted[lineIndex] ?? [{ text: line.text }]}
+              tokens={tokensByLine[lineIndex]}
               linked={file.navigable}
-              hotspots={linesAt(annotations.hotspots, file.path, lineNumber)}
-              checkedHotspots={context.checkedHotspots}
+              hotspots={hotspots}
+              checkedHotspots={hotspots.length > 0 ? context.checkedHotspots : NO_IDS}
               notes={linesAt(annotations.notes, file.path, lineNumber)}
               threadCount={linesAt(annotations.threads, file.path, lineNumber).length}
               onOpenThreads={context.handlers.onOpenConversation}
