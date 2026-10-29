@@ -17,6 +17,7 @@ export function SelectionToolbar({
   onNote: (() => void) | null;
   onAction: (action: AssistAction) => void;
 }) {
+  if (!aiEnabled && !onNote) return null;
   return (
     <div
       role="toolbar"

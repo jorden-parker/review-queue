@@ -34,6 +34,13 @@ describe("SelectionToolbar", () => {
     expect(screen.queryByRole("button", { name: "Note" })).toBeNull();
   });
 
+  it("renders nothing when the model is off and there is no note to offer", () => {
+    const { container } = render(
+      <SelectionToolbar selection={SELECTION} aiEnabled={false} onNote={null} onAction={vi.fn()} />,
+    );
+    expect(container.innerHTML).toBe("");
+  });
+
   it("runs onNote when Note is clicked", async () => {
     const onNote = vi.fn();
     render(
