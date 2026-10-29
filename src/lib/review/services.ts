@@ -1,5 +1,11 @@
 import { type Conversation, loadConversation } from "@/lib/github/conversation";
-import { getPullRequest, listReviewRequests, type ReviewRequest } from "@/lib/github/gh";
+import {
+  getPullRequest,
+  type LinkedIssue,
+  listLinkedIssues,
+  listReviewRequests,
+  type ReviewRequest,
+} from "@/lib/github/gh";
 import { TtlCache } from "@/lib/github/ttl-cache";
 import type { LlmConfig } from "@/lib/llm/client";
 import { llmConfig } from "@/lib/llm/model-choice";
@@ -11,6 +17,7 @@ import type { ReviewDeps } from "./prepare";
 
 const REVIEW_REQUESTS_TTL_MS = 60_000;
 const PULL_REQUEST_TTL_MS = 30_000;
+const LINKED_ISSUES_TTL_MS = 5 * 60_000;
 
 const globals = globalThis as {
   reviewQueueStore?: SessionStore;
@@ -40,6 +47,12 @@ function conversationKey(ref: PullRequestRef): string {
 export function conversation(ref: PullRequestRef): Promise<Conversation> {
   return githubCache().get(conversationKey(ref), PULL_REQUEST_TTL_MS, () =>
     loadConversation(ref, sessionStore()),
+  );
+}
+
+export function linkedIssues(ref: PullRequestRef): Promise<LinkedIssue[]> {
+  return githubCache().get(`linked-issues:${prKey(ref)}`, LINKED_ISSUES_TTL_MS, () =>
+    listLinkedIssues(ref, sessionStore()),
   );
 }
 
