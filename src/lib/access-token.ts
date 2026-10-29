@@ -17,9 +17,16 @@ function createAccessToken(file: string): string {
   return token;
 }
 
+const GROUP_OR_OTHER_BITS = 0o077;
+
+function keepPrivate(file: string): void {
+  if ((fs.statSync(file).mode & GROUP_OR_OTHER_BITS) !== 0) fs.chmodSync(file, 0o600);
+}
+
 export function loadAccessToken(file = accessTokenPath()): string {
-  if (fs.existsSync(file)) return fs.readFileSync(file, "utf8").trim();
-  return createAccessToken(file);
+  if (!fs.existsSync(file)) return createAccessToken(file);
+  keepPrivate(file);
+  return fs.readFileSync(file, "utf8").trim();
 }
 
 export function matchesAccessToken(candidate: string | null | undefined, token: string): boolean {
