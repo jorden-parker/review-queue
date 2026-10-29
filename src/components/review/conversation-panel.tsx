@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { relativeTime } from "@/components/inbox/in-progress-list";
 import { EmptyState } from "@/components/common/empty-state";
 import { Markdown } from "@/components/common/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { Conversation } from "@/lib/github/conversation";
+import type { ConversationView } from "@/lib/github/conversation";
 import type { PostedReview, ReviewComment } from "@/lib/github/gh";
 import { VERDICT_LABELS } from "@/lib/review/verdict-labels";
 import type { Session } from "@/lib/session/store";
 import type { Thread } from "./conversation-threads";
 import type { LineTarget } from "./locate";
 import { ThreadReplyComposer } from "./thread-reply";
+import { latestComment, type YourThread, type YourThreadState, yourThreads } from "./your-threads";
 
 const REVIEW_STATE_LABELS: Record<PostedReview["state"], string> = {
   APPROVED: "Approved",
@@ -35,7 +36,7 @@ type ReplyControls = {
 };
 
 type ConversationPanelProps = {
-  conversation: Conversation;
+  conversation: ConversationView;
   error: string | null;
   threads: Thread[];
   receipts: Receipt[];
@@ -55,6 +56,10 @@ export function ConversationPanel({
 }: ConversationPanelProps) {
   const [activeRootId, setActiveRootId] = useState<number | null>(null);
   const [arrivedReplyId, setArrivedReplyId] = useState<number | null>(null);
+  const mine = useMemo(
+    () => yourThreads(threads, conversation.viewer),
+    [threads, conversation.viewer],
+  );
 
   const reply: ReplyControls = {
     activeRootId,
@@ -78,6 +83,7 @@ export function ConversationPanel({
         receipts={receipts}
         replyReceipts={replyReceipts}
       />
+      <YourThreadsSection mine={mine} onOpen={onOpen} />
       <ReviewsSection reviews={conversation.reviews} />
       <ThreadsSection threads={threads} onOpen={onOpen} reply={reply} />
       {conversation.truncated && (
@@ -90,13 +96,68 @@ export function ConversationPanel({
   );
 }
 
+const THREAD_STATE_BADGES: Record<
+  YourThreadState,
+  { label: string; variant: "default" | "outline" }
+> = {
+  "new-reply": { label: "New reply", variant: "default" },
+  waiting: { label: "Waiting on others", variant: "outline" },
+};
+
+function YourThreadsSection({
+  mine,
+  onOpen,
+}: {
+  mine: YourThread[];
+  onOpen: (target: LineTarget) => void;
+}) {
+  if (mine.length === 0) return null;
+  return (
+    <Section title="Your threads">
+      {mine.map(({ thread, state }) => (
+        <YourThreadRow key={thread.root.id} thread={thread} state={state} onOpen={onOpen} />
+      ))}
+    </Section>
+  );
+}
+
+function YourThreadRow({
+  thread,
+  state,
+  onOpen,
+}: {
+  thread: Thread;
+  state: YourThreadState;
+  onOpen: (target: LineTarget) => void;
+}) {
+  const { path, line, side } = thread.root;
+  const target = line !== null && side === "RIGHT" ? { path, line } : null;
+  const latest = latestComment(thread);
+  const { label, variant } = THREAD_STATE_BADGES[state];
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-xs text-muted-foreground">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={target === null}
+        onClick={() => target && onOpen(target)}
+      >
+        {line === null ? "outdated" : `${path}:${line}`}
+      </Button>
+      <Badge variant={variant}>{label}</Badge>
+      {thread.outdated && <Badge variant="outline">Outdated</Badge>}
+      <span>{`${latest.author} · ${relativeTime(latest.createdAt)}`}</span>
+    </div>
+  );
+}
+
 function ConversationEmpty({
   conversation,
   threads,
   receipts,
   replyReceipts,
 }: {
-  conversation: Conversation;
+  conversation: ConversationView;
   threads: Thread[];
   receipts: Receipt[];
   replyReceipts: ReplyReceipt[];
