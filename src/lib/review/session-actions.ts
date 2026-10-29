@@ -39,6 +39,7 @@ const AssistTurnSchema = z.object({
   role: z.enum(["reviewer", "model"]),
   text: z.string().max(16_000),
   lookups: z.array(AssistLookupSchema).max(MAX_STORED_LOOKUPS).optional(),
+  ended: z.enum(["stopped", "failed"]).optional(),
 });
 
 const AssistThreadSchema = z.object({

@@ -14,6 +14,7 @@ import {
   openThread,
   threadRequest,
   withFollowUp,
+  withEnding,
   withModelText,
 } from "./assist-thread";
 
@@ -51,11 +52,15 @@ export function useAssist(
       };
       streamAssist(ref, headSha, threadRequest(next), onUpdate, abort.signal)
         .catch((failure: Error) => {
+          latest = withEnding(latest, abort.signal.aborted ? "stopped" : "failed");
           if (!abort.signal.aborted) setError(failure.message);
         })
         .finally(() => {
           if (controller.current === abort) setStreaming(false);
-          if (hasModelReply(latest)) onSave(latest);
+          if (hasModelReply(latest)) {
+            setThread((current) => (current?.id === latest.id ? latest : current));
+            onSave(latest);
+          }
         });
     },
     [ref, headSha, onSave],

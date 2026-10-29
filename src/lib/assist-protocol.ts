@@ -21,7 +21,12 @@ type StepCheckTarget = { kind: "check"; stepId: string; check: number; path: str
 export type AssistTarget =
   { kind: "lines"; range: LineRange } | { kind: "file"; path: string } | StepCheckTarget;
 
-export type AssistTurn = { role: "reviewer" | "model"; text: string; lookups?: AssistLookup[] };
+export type AssistTurn = {
+  role: "reviewer" | "model";
+  text: string;
+  lookups?: AssistLookup[];
+  ended?: "stopped" | "failed";
+};
 
 export type AssistThread = {
   id: string;
