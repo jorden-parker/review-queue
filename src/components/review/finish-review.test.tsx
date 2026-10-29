@@ -132,4 +132,16 @@ describe("FinishReview", () => {
     await user.click(screen.getByRole("button", { name: /Post comment to GitHub/ }));
     expect(onSubmit).toHaveBeenCalledWith("COMMENT", "", [8]);
   });
+
+  it("shows the server's refusal when a post is rejected", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderDialog({
+      notes: [note({ id: 2, kind: "nitpick", body: "rename" })],
+    });
+    onSubmit.mockRejectedValueOnce(
+      new Error("These notes point at a line the diff no longer has: a.ts:99. Deselect them."),
+    );
+    await user.click(screen.getByRole("button", { name: "Approve on GitHub" }));
+    expect(await screen.findByText(/a\.ts:99/)).toBeTruthy();
+  });
 });
