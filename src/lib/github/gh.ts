@@ -101,6 +101,14 @@ export async function getPullRequest(
   };
 }
 
+export async function viewerLogin(run: Runner = githubRun): Promise<string> {
+  const user = JSON.parse(await run("gh", ["api", "user"]));
+  if (typeof user.login !== "string" || user.login === "") {
+    throw new Error("GitHub user response has no login");
+  }
+  return user.login;
+}
+
 export async function submitReview(
   ref: PullRequestRef,
   review: ReviewSubmission,

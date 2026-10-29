@@ -7,6 +7,7 @@ import {
   listReviews,
   postReplyToReviewComment,
   submitReview,
+  viewerLogin,
 } from "./gh";
 
 type Call = { command: string; args: string[]; options?: RunOptions };
@@ -135,6 +136,17 @@ describe("github", () => {
       "-",
     ]);
     expect(JSON.parse(calls[0].options?.input ?? "")).toEqual({ body: "Thanks" });
+  });
+
+  it("reads the signed-in login from the user endpoint", async () => {
+    const { run, calls } = fakeRunner(JSON.stringify({ login: "jorden", id: 1 }));
+    expect(await viewerLogin(run)).toBe("jorden");
+    expect(calls[0].args).toEqual(["api", "user"]);
+  });
+
+  it("refuses a user response without a login", async () => {
+    const { run } = fakeRunner(JSON.stringify({ id: 1 }));
+    await expect(viewerLogin(run)).rejects.toThrow("no login");
   });
 
   it("passes a failed reply call on to the caller", async () => {
