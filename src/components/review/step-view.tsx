@@ -9,7 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { AssistAction } from "@/lib/assist-protocol";
 import type { PreparedFile } from "@/lib/review/prepare";
-import type { Note, NoteTag, ReferenceCount, Step, StepFile, SymbolPosition } from "@/lib/types";
+import type {
+  DiffLine,
+  DiffSide,
+  Note,
+  NoteTag,
+  ReferenceCount,
+  Step,
+  StepFile,
+  SymbolPosition,
+} from "@/lib/types";
 import { CodeLine, type LineHandlers } from "./code-line";
 import { ContextGapView } from "./context-gap-view";
 import { fileLayout, gapContaining, type LayoutItem } from "./context-gaps";
@@ -17,8 +26,8 @@ import { FileActionsButton } from "./file-actions-button";
 import type { DisplayHotspot } from "./hotspot-list";
 import { hunkElementId } from "./hunk-index";
 import type { Thread } from "./conversation-threads";
-import { indexByLine, linesAt } from "./line-index";
-import { isInTarget, isSameLine, lineElementId, type LineTarget } from "./locate";
+import { indexByLine, linesAt, type FileLine } from "./line-index";
+import { isInTarget, isSameLine, lineElementId, noteTargetOf, type LineTarget } from "./locate";
 import { NoteComposer } from "./note-composer";
 import { occurrenceAt, type Occurrences } from "./occurrences";
 import { ReferenceLens } from "./reference-lens";
@@ -45,16 +54,12 @@ export type StepViewContext = {
   };
 };
 
-function targetOn(path: string, lineNumber: number | null): LineTarget | null {
-  return lineNumber !== null ? { path, line: lineNumber } : null;
-}
-
 function isComposingAt(composer: LineTarget | null, target: LineTarget | null): boolean {
-  return target !== null && isSameLine(composer, target.path, target.line);
+  return target !== null && isSameLine(composer, target.path, target.line, target.side);
 }
 
 function isLandedAt(landed: LineTarget | null, target: LineTarget | null): boolean {
-  return target !== null && isInTarget(landed, target.path, target.line);
+  return target !== null && isInTarget(landed, target.path, target.line, target.side);
 }
 
 function lensAt(
@@ -67,23 +72,36 @@ function lensAt(
 type LineAnnotations = {
   hotspots: ReadonlyMap<string, DisplayHotspot[]>;
   notes: ReadonlyMap<string, Note[]>;
+  removedNotes: ReadonlyMap<string, Note[]>;
   threads: ReadonlyMap<string, Thread[]>;
 };
+
+function notePosition(note: Note): FileLine | null {
+  return note.path === null || note.line === null ? null : { path: note.path, line: note.line };
+}
+
+function notesOnSide(notes: Note[], side: DiffSide): Note[] {
+  return notes.filter((note) => note.side === side);
+}
 
 function annotationsOf(context: StepViewContext): LineAnnotations {
   return {
     hotspots: indexByLine(context.hotspots, (hotspot) =>
       hotspot.line === null ? null : { path: hotspot.path, line: hotspot.line },
     ),
-    notes: indexByLine(context.notes, (note) =>
-      note.path === null || note.line === null ? null : { path: note.path, line: note.line },
-    ),
+    notes: indexByLine(notesOnSide(context.notes, "new"), notePosition),
+    removedNotes: indexByLine(notesOnSide(context.notes, "old"), notePosition),
     threads: indexByLine(
       context.threads.filter((thread) => thread.root.side === "RIGHT"),
       (thread) =>
         thread.root.line === null ? null : { path: thread.root.path, line: thread.root.line },
     ),
   };
+}
+
+function notesOn(annotations: LineAnnotations, path: string, line: DiffLine): Note[] {
+  if (line.newLine !== null) return linesAt(annotations.notes, path, line.newLine);
+  return linesAt(annotations.removedNotes, path, line.oldLine);
 }
 
 function lensesOf(
@@ -179,12 +197,11 @@ function HunkBlock({
         @@ {hunk.oldStart} → {hunk.newStart} {hunk.header}
       </div>
       {hunk.lines.map((line, lineIndex) => {
-        const lineNumber = line.newLine;
-        const target = targetOn(file.path, lineNumber);
-        const composing = isComposingAt(context.composer, target);
+        const target = noteTargetOf(file.path, line);
+        const composer = isComposingAt(context.composer, target) ? context.composer : null;
         const landed = isLandedAt(context.landed, target);
-        const lens = lensAt(lenses, lineNumber);
-        const hotspots = linesAt(annotations.hotspots, file.path, lineNumber);
+        const lens = lensAt(lenses, line.newLine);
+        const hotspots = linesAt(annotations.hotspots, file.path, line.newLine);
         return (
           <div key={lineIndex}>
             {lens && (
@@ -199,18 +216,18 @@ function HunkBlock({
               linked={file.navigable}
               hotspots={hotspots}
               checkedHotspots={hotspots.length > 0 ? context.checkedHotspots : NO_IDS}
-              notes={linesAt(annotations.notes, file.path, lineNumber)}
-              threadCount={linesAt(annotations.threads, file.path, lineNumber).length}
+              notes={notesOn(annotations, file.path, line)}
+              threadCount={linesAt(annotations.threads, file.path, line.newLine).length}
               onOpenThreads={context.handlers.onOpenConversation}
               elementId={anchored && target ? lineElementId(target) : undefined}
               landed={landed ? context.landed : null}
-              occurrence={occurrenceAt(context.occurrences, file.path, lineNumber)}
+              occurrence={occurrenceAt(context.occurrences, file.path, line.newLine)}
               occurrenceName={context.occurrences?.name ?? null}
               handlers={context.handlers}
             />
-            {composing && target && (
+            {composer && (
               <NoteComposer
-                onSave={(tag, body) => context.handlers.onSaveNote(target, tag, body)}
+                onSave={(tag, body) => context.handlers.onSaveNote(composer, tag, body)}
                 onCancel={context.handlers.onCancelNote}
               />
             )}

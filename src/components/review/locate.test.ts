@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { PreparedFile } from "@/lib/review/prepare";
 import type { Step } from "@/lib/types";
 import { addedHunk, fileDiff } from "@/test/diff-builders";
-import { isInTarget, isSameLine, locationKind, nextOpenStep, stepForLine } from "./locate";
+import {
+  isInTarget,
+  isSameLine,
+  lineElementId,
+  locationKind,
+  nextOpenStep,
+  noteTargetOf,
+  stepForLine,
+} from "./locate";
 
 describe("locationKind", () => {
   const prFiles = [{ path: "src/a.ts" }, { path: "src/b.ts" }];
@@ -35,6 +43,53 @@ describe("isInTarget", () => {
   it("never matches another path or a missing target", () => {
     expect(isInTarget({ path: "src/a.ts", line: 4, endLine: 6 }, "src/b.ts", 5)).toBe(false);
     expect(isInTarget(null, "src/a.ts", 5)).toBe(false);
+  });
+});
+
+describe("noteTargetOf", () => {
+  it("targets the new side of an added or context line", () => {
+    expect(noteTargetOf("src/a.ts", { kind: "add", text: "", oldLine: null, newLine: 7 })).toEqual({
+      path: "src/a.ts",
+      line: 7,
+    });
+    expect(noteTargetOf("src/a.ts", { kind: "context", text: "", oldLine: 6, newLine: 7 })).toEqual(
+      {
+        path: "src/a.ts",
+        line: 7,
+      },
+    );
+  });
+
+  it("targets the old side of a deleted line", () => {
+    expect(noteTargetOf("src/a.ts", { kind: "del", text: "", oldLine: 5, newLine: null })).toEqual({
+      path: "src/a.ts",
+      line: 5,
+      side: "old",
+    });
+  });
+});
+
+describe("lineElementId", () => {
+  it("gives a deleted line an id apart from the added line with its number", () => {
+    expect(lineElementId({ path: "src/a.ts", line: 4, side: "old" })).not.toBe(
+      lineElementId({ path: "src/a.ts", line: 4 }),
+    );
+    expect(lineElementId({ path: "src/a.ts", line: 4 })).toBe("line-src/a.ts-4");
+  });
+});
+
+describe("side-aware matching", () => {
+  it("keeps a deleted line apart from an added line with the same number", () => {
+    const deleted = { path: "src/a.ts", line: 4, side: "old" as const };
+    expect(isSameLine(deleted, "src/a.ts", 4)).toBe(false);
+    expect(isSameLine(deleted, "src/a.ts", 4, "old")).toBe(true);
+    expect(isInTarget(deleted, "src/a.ts", 4)).toBe(false);
+    expect(isInTarget(deleted, "src/a.ts", 4, "old")).toBe(true);
+  });
+
+  it("treats a target without a side as a new-side line", () => {
+    expect(isSameLine({ path: "src/a.ts", line: 4 }, "src/a.ts", 4, "new")).toBe(true);
+    expect(isSameLine({ path: "src/a.ts", line: 4 }, "src/a.ts", 4, "old")).toBe(false);
   });
 });
 

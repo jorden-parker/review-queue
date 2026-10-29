@@ -58,6 +58,8 @@ describe("ResumeCard", () => {
         session={emptySession({
           notes: [
             {
+              side: "new",
+              startLine: null,
               id: 9,
               path: null,
               line: null,

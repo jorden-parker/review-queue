@@ -21,8 +21,34 @@ function file(path: string, newLines: number[]): FileDiff {
   };
 }
 
-function note(id: number, path: string | null, line: number | null): Note {
-  return { id, path, line, kind: "nitpick", decorations: [], body: "x", createdAt: "" };
+function deletedFile(path: string, oldLines: number[]): FileDiff {
+  const diff = file(path, []);
+  diff.hunks[0].lines = oldLines.map((oldLine) => ({
+    kind: "del",
+    text: "",
+    oldLine,
+    newLine: null,
+  }));
+  return diff;
+}
+
+function note(
+  id: number,
+  path: string | null,
+  line: number | null,
+  side: Note["side"] = "new",
+): Note {
+  return {
+    id,
+    path,
+    line,
+    side,
+    startLine: null,
+    kind: "nitpick",
+    decorations: [],
+    body: "x",
+    createdAt: "",
+  };
 }
 
 describe("notesOffTheDiff", () => {
@@ -42,6 +68,34 @@ describe("notesOffTheDiff", () => {
 
   it("never names a general note", () => {
     expect(notesOffTheDiff([note(4, null, null)], files)).toEqual([]);
+  });
+
+  it("keeps an old-side note on a deleted line", () => {
+    const removed = deletedFile("e.ts", [4, 5]);
+    expect(notesOffTheDiff([note(6, "e.ts", 5, "old")], [removed])).toEqual([]);
+  });
+
+  it("names an old-side note whose line is only a new-side line", () => {
+    expect(notesOffTheDiff([note(7, "a.ts", 11, "old")], files)).toEqual([
+      note(7, "a.ts", 11, "old"),
+    ]);
+  });
+
+  it("keeps a range note whose first and last lines share a hunk", () => {
+    const range = { ...note(9, "a.ts", 12), startLine: 10 };
+    expect(notesOffTheDiff([range], files)).toEqual([]);
+  });
+
+  it("names a range note whose first and last lines are in different hunks", () => {
+    const spanning = file("c.ts", [10, 11]);
+    spanning.hunks.push({
+      header: "",
+      oldStart: 20,
+      newStart: 20,
+      lines: [{ kind: "add", text: "", oldLine: null, newLine: 20 }],
+    });
+    const range = { ...note(10, "c.ts", 20), startLine: 11 };
+    expect(notesOffTheDiff([range], [spanning])).toEqual([range]);
   });
 
   it("counts context lines as part of the diff", () => {

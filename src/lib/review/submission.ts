@@ -1,5 +1,5 @@
 import type { ReviewEvent, ReviewSubmission } from "@/lib/github/gh";
-import type { Note, NoteKind } from "@/lib/types";
+import type { DiffSide, Note, NoteKind } from "@/lib/types";
 import { conventionalLabel, splitConventionalPrefix } from "./conventional-comment";
 
 type PostableNote = Note & { kind: Exclude<NoteKind, "parked"> };
@@ -26,6 +26,10 @@ function indentLine(line: string): string {
   return line === "" ? "" : `  ${line}`;
 }
 
+function gitHubSideOf(side: DiffSide): "LEFT" | "RIGHT" {
+  return side === "old" ? "LEFT" : "RIGHT";
+}
+
 function isLineComment<T extends Note>(note: T): note is T & { path: string; line: number } {
   return note.path !== null && note.line !== null;
 }
@@ -45,8 +49,12 @@ export function buildSubmission(
     event,
     body,
     commitId: headSha,
-    comments: postable
-      .filter(isLineComment)
-      .map((note) => ({ path: note.path, line: note.line, body: postedBody(note) })),
+    comments: postable.filter(isLineComment).map((note) => ({
+      path: note.path,
+      line: note.line,
+      side: gitHubSideOf(note.side),
+      startLine: note.startLine ?? undefined,
+      body: postedBody(note),
+    })),
   };
 }

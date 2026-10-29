@@ -5,6 +5,8 @@ import type { Note } from "@/lib/types";
 import { NotesPanel } from "./notes-panel";
 
 const NIT_NOTE: Note = {
+  side: "new",
+  startLine: null,
   id: 1,
   path: "a.ts",
   line: 3,
@@ -15,6 +17,8 @@ const NIT_NOTE: Note = {
 };
 
 const PARKED_NOTE: Note = {
+  side: "new",
+  startLine: null,
   id: 2,
   path: null,
   line: null,
@@ -42,6 +46,11 @@ describe("NotesPanel rendering", () => {
   it("renders a note's Markdown as code", () => {
     renderPanel([{ ...NIT_NOTE, body: "Rename `foo`" }]);
     expect(screen.getByText("foo").tagName).toBe("CODE");
+  });
+
+  it("shows a range note's first and last line", () => {
+    renderPanel([{ ...NIT_NOTE, line: 9, startLine: 4 }]);
+    expect(screen.getByText(":4–9")).toBeTruthy();
   });
 
   it("keeps a link in the note body out of the open button", () => {

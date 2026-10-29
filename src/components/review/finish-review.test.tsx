@@ -26,6 +26,8 @@ function file(path: string, newLines: number[]): FileDiff {
 
 function note(overrides: Partial<Note>): Note {
   return {
+    side: "new",
+    startLine: null,
     id: 1,
     path: null,
     line: null,

@@ -13,6 +13,8 @@ const LINE: DiffLine = {
 };
 
 const NOTE: Note = {
+  side: "new",
+  startLine: null,
   id: 5,
   path: "src/app.ts",
   line: 7,
