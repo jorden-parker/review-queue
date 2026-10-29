@@ -206,3 +206,38 @@ describe("LanguageClient.start with a server that never answers", () => {
     }
   });
 });
+
+const EXITING_SERVER_SCRIPT = `
+let buffer = "";
+process.stdin.on("data", (chunk) => {
+  buffer += chunk;
+  const headerEnd = buffer.indexOf("\\r\\n\\r\\n");
+  if (headerEnd === -1) return;
+  const length = Number(/Content-Length: (\\d+)/.exec(buffer)[1]);
+  const bodyStart = headerEnd + 4;
+  if (buffer.length < bodyStart + length) return;
+  const message = JSON.parse(buffer.slice(bodyStart, bodyStart + length));
+  buffer = buffer.slice(bodyStart + length);
+  if (message.id === undefined) return;
+  const reply = JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
+  process.stdout.write("Content-Length: " + Buffer.byteLength(reply) + "\\r\\n\\r\\n" + reply);
+  setTimeout(() => process.exit(0), 200);
+});
+`;
+
+describe("LanguageClient.onClose", () => {
+  it("tells listeners when the server process goes away", async () => {
+    const exiting: LanguageServer = {
+      id: "typescript",
+      languageIds: { ".ts": "typescript" },
+      command: process.execPath,
+      args: ["-e", EXITING_SERVER_SCRIPT],
+      env: {},
+      initializationOptions: {},
+      settings: {},
+    };
+    const client = await LanguageClient.start(exiting, os.tmpdir(), () => "");
+    const closed = new Promise<void>((resolve) => client.onClose(resolve));
+    await expect(closed).resolves.toBeUndefined();
+  });
+});
