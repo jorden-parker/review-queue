@@ -604,6 +604,7 @@ function Dialogs({
               .length
           }
           headSha={review.headSha}
+          files={review.files}
           onSubmit={workspace.submit}
           onDraftSummary={workspace.aiEnabled ? workspace.draftSummary : undefined}
           onCancel={close}
