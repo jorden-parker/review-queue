@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageSquare, MessageSquarePlus, Trash2 } from "lucide-react";
+import { memo } from "react";
 import { cn } from "cn";
 import { Markdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
@@ -243,7 +244,7 @@ function LineFlagRow({
   );
 }
 
-export function CodeLine({
+export function CodeLineComponent({
   path,
   hunkIndex,
   lineIndex,
@@ -307,6 +308,8 @@ export function CodeLine({
     </>
   );
 }
+
+export const CodeLine = memo(CodeLineComponent);
 
 export function ContextLine({
   path,
