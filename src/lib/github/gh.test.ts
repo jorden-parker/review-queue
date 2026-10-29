@@ -4,6 +4,7 @@ import {
   getPullRequest,
   listReviewComments,
   listReviewRequests,
+  listLinkedIssues,
   listReviews,
   postReplyToReviewComment,
   submitReview,
@@ -249,5 +250,115 @@ describe("github", () => {
       },
     ]);
     expect(calls[0].args).toEqual(["api", "-i", "repos/acme/app/pulls/7/reviews?per_page=100"]);
+  });
+});
+
+describe("listLinkedIssues", () => {
+  const closing = (owner: string, repo: string, number: number) => ({
+    number,
+    url: `https://github.com/${owner}/${repo}/issues/${number}`,
+    repository: { name: repo, owner: { login: owner } },
+  });
+
+  const issueResponse = (
+    owner: string,
+    repo: string,
+    number: number,
+    title: string,
+    state: "open" | "closed",
+    bodyHtml: string | null,
+  ) => ({
+    title,
+    state,
+    html_url: `https://github.com/${owner}/${repo}/issues/${number}`,
+    body_html: bodyHtml,
+  });
+
+  function linkedIssueRunner(references: unknown[], issues: Record<string, object | Error>) {
+    const calls: Call[] = [];
+    const run = async (command: string, args: string[], options?: RunOptions) => {
+      calls.push({ command, args, options });
+      if (args[0] === "pr") return JSON.stringify({ closingIssuesReferences: references });
+      const issue = issues[args[2]];
+      if (issue instanceof Error) throw issue;
+      if (!issue) throw new Error("HTTP 404: Not Found");
+      return `HTTP/2.0 200 OK\r\nEtag: "i"\r\n\r\n${JSON.stringify(issue)}`;
+    };
+    return { run, calls };
+  }
+
+  it("lists the issues a PR closes with their rendered bodies", async () => {
+    const { run, calls } = linkedIssueRunner(
+      [closing("acme", "app", 12), closing("other", "lib", 30)],
+      {
+        "repos/acme/app/issues/12": issueResponse(
+          "acme",
+          "app",
+          12,
+          "Crash on save",
+          "open",
+          "<p>It crashes</p>",
+        ),
+        "repos/other/lib/issues/30": issueResponse("other", "lib", 30, "Lib", "closed", null),
+      },
+    );
+    const issues = await listLinkedIssues(REF, noCache, run);
+    expect(calls[0].args).toEqual([
+      "pr",
+      "view",
+      "7",
+      "--repo",
+      "acme/app",
+      "--json",
+      "closingIssuesReferences",
+    ]);
+    expect(issues).toEqual([
+      {
+        owner: "acme",
+        repo: "app",
+        number: 12,
+        title: "Crash on save",
+        state: "open",
+        url: "https://github.com/acme/app/issues/12",
+        bodyHtml: "<p>It crashes</p>",
+      },
+      {
+        owner: "other",
+        repo: "lib",
+        number: 30,
+        title: "Lib",
+        state: "closed",
+        url: "https://github.com/other/lib/issues/30",
+        bodyHtml: "",
+      },
+    ]);
+  });
+
+  it("skips a reference whose owner is not a safe name, without fetching it", async () => {
+    const { run, calls } = linkedIssueRunner([closing("..", "app", 5)], {});
+    expect(await listLinkedIssues(REF, noCache, run)).toEqual([]);
+    expect(calls.filter((call) => call.args[0] === "api")).toEqual([]);
+  });
+
+  it("drops an issue that cannot be read without failing the others", async () => {
+    const { run } = linkedIssueRunner([closing("acme", "app", 12), closing("acme", "app", 13)], {
+      "repos/acme/app/issues/12": issueResponse("acme", "app", 12, "Crash", "open", "<p>x</p>"),
+      "repos/acme/app/issues/13": new Error("HTTP 404: Not Found"),
+    });
+    const issues = await listLinkedIssues(REF, noCache, run);
+    expect(issues.map((issue) => issue.number)).toEqual([12]);
+  });
+
+  it("fetches at most three issues", async () => {
+    const references = [1, 2, 3, 4].map((number) => closing("acme", "app", number));
+    const issues = Object.fromEntries(
+      [1, 2, 3, 4].map((number) => [
+        `repos/acme/app/issues/${number}`,
+        issueResponse("acme", "app", number, "T", "open", null),
+      ]),
+    );
+    const { run, calls } = linkedIssueRunner(references, issues);
+    expect(await listLinkedIssues(REF, noCache, run)).toHaveLength(3);
+    expect(calls.filter((call) => call.args[0] === "api")).toHaveLength(3);
   });
 });

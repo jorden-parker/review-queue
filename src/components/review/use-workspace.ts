@@ -26,6 +26,7 @@ import { useShortcuts } from "./use-shortcuts";
 import { type Act, useStepNavigation } from "./use-step-navigation";
 import { usePanes } from "./use-panes";
 import { useConversation } from "./use-conversation";
+import { useLinkedIssues } from "./use-linked-issues";
 import { useFileLoader } from "./use-file-lines";
 import { focusCurrentStop } from "./change-map-list";
 
@@ -378,6 +379,7 @@ export function useWorkspace(
   controls: ReturnType<typeof useReview>,
 ) {
   const ui = useWorkspaceUi(review);
+  const linkedIssues = useLinkedIssues(ref);
   const { navigation, openFileState, openLocation } = useFileAwareNavigation(
     review,
     session,
@@ -479,6 +481,7 @@ export function useWorkspace(
     hotspots,
     startStepId,
     files,
+    linkedIssues,
     nextStep,
     resume,
     catchUp,

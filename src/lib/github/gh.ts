@@ -2,6 +2,7 @@ import type { Runner } from "@/lib/exec";
 import { conditionalGet, type EtagCache } from "./conditional-get";
 import { githubRun } from "./github-guard";
 import type { PullRequestRef } from "@/lib/types";
+import { parsePullRequestRef } from "@/lib/pr-ref";
 
 export type ReviewRequest = {
   ref: PullRequestRef;
@@ -99,6 +100,83 @@ export async function getPullRequest(
     deletions: pull.deletions,
     changedFiles: pull.changed_files,
   };
+}
+
+export type LinkedIssue = {
+  owner: string;
+  repo: string;
+  number: number;
+  title: string;
+  state: "open" | "closed";
+  url: string;
+  bodyHtml: string;
+};
+
+type ClosingReference = {
+  number: number;
+  repository: { name: string; owner: { login: string } };
+};
+
+type IssueResponse = {
+  title: string;
+  state: "open" | "closed";
+  html_url: string;
+  body_html?: string | null;
+};
+
+const LINKED_ISSUE_LIMIT = 3;
+
+function closingReferenceRef(reference: ClosingReference): PullRequestRef | null {
+  return parsePullRequestRef(
+    `${reference.repository.owner.login}/${reference.repository.name}#${reference.number}`,
+  );
+}
+
+async function loadLinkedIssue(
+  ref: PullRequestRef,
+  cache: EtagCache,
+  run: Runner,
+): Promise<LinkedIssue> {
+  const path = `repos/${ref.owner}/${ref.repo}/issues/${ref.number}`;
+  const issue = JSON.parse(
+    await conditionalGet(path, cache, run, [RENDERED_BODY]),
+  ) as IssueResponse;
+  return {
+    owner: ref.owner,
+    repo: ref.repo,
+    number: ref.number,
+    title: issue.title,
+    state: issue.state,
+    url: issue.html_url,
+    bodyHtml: issue.body_html ?? "",
+  };
+}
+
+export async function listLinkedIssues(
+  ref: PullRequestRef,
+  cache: EtagCache,
+  run: Runner = githubRun,
+): Promise<LinkedIssue[]> {
+  const output = await run("gh", [
+    "pr",
+    "view",
+    String(ref.number),
+    "--repo",
+    `${ref.owner}/${ref.repo}`,
+    "--json",
+    "closingIssuesReferences",
+  ]);
+  const { closingIssuesReferences } = JSON.parse(output) as {
+    closingIssuesReferences: ClosingReference[];
+  };
+  const issueRefs = closingIssuesReferences
+    .map(closingReferenceRef)
+    .filter((issueRef): issueRef is PullRequestRef => issueRef !== null)
+    .slice(0, LINKED_ISSUE_LIMIT);
+  const settled = await Promise.allSettled(
+    issueRefs.map((issueRef) => loadLinkedIssue(issueRef, cache, run)),
+  );
+  return settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
 }
 
 export async function submitReview(

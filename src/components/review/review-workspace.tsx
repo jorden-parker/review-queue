@@ -421,7 +421,13 @@ function FilesPane({ review, workspace }: PaneProps) {
 
 const PANE_CONTENT: Record<PaneId, (props: PaneProps) => PaneContent> = {
   about: (props) => ({
-    body: <OrientationCard key={props.fresh ? "fresh" : "started"} {...props} />,
+    body: (
+      <OrientationCard
+        key={props.fresh ? "fresh" : "started"}
+        {...props}
+        linkedIssues={props.workspace.linkedIssues.issues}
+      />
+    ),
   }),
   step: (props) => ({ body: <StepSummary {...props} /> }),
   path: (props) => ({ body: <PathPane {...props} /> }),

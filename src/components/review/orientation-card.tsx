@@ -6,13 +6,16 @@ import { useState } from "react";
 import { InlineMarkdown, Markdown } from "@/components/common/markdown-text";
 import { PrDescription } from "@/components/common/pr-description";
 import { Button } from "@/components/ui/button";
+import type { LinkedIssue } from "@/lib/github/gh";
 import type { ReviewPayload } from "@/lib/review/prepare";
+import { LinkedIssues } from "./linked-issues";
 import type { OrientationState } from "./use-review";
 
 type OrientationCardProps = {
   review: ReviewPayload;
   orientation: OrientationState;
   fresh: boolean;
+  linkedIssues: LinkedIssue[];
 };
 
 const RISK_STYLES = {
@@ -101,7 +104,12 @@ function DetailsToggle({ expanded, onToggle }: { expanded: boolean; onToggle: ()
   );
 }
 
-export function OrientationCard({ review, orientation, fresh }: OrientationCardProps) {
+export function OrientationCard({
+  review,
+  orientation,
+  fresh,
+  linkedIssues,
+}: OrientationCardProps) {
   const [expanded, setExpanded] = useState(fresh);
   return (
     <section aria-label="About this PR" className="flex flex-col gap-3">
@@ -111,6 +119,7 @@ export function OrientationCard({ review, orientation, fresh }: OrientationCardP
       </div>
       <div className={cn("flex flex-col", expanded ? "gap-4" : "gap-2")}>
         {expanded && review.pr.bodyHtml.trim() && <PrDescription html={review.pr.bodyHtml} />}
+        <LinkedIssues issues={linkedIssues} />
         <ReviewStats review={review} />
         {expanded ? (
           <AiSummary orientation={orientation} />
