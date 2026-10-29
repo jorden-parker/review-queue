@@ -1,6 +1,6 @@
 import type { Conversation } from "@/lib/github/conversation";
 import type { ReviewEvent } from "@/lib/github/gh";
-import { json } from "@/lib/json-response";
+import { json, postJson } from "@/lib/json-response";
 import { prPath } from "@/lib/pr-ref";
 import type { AssistRequest } from "@/lib/review/assist-request";
 import type { ChangePartsResult } from "@/lib/review/change-parts-service";
@@ -127,30 +127,22 @@ export function fetchSearch(
   );
 }
 
-function post<T>(url: string, body: unknown): Promise<T> {
-  return fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  }).then(json<T>);
-}
-
 export function sendSessionAction(ref: PullRequestRef, action: SessionAction): Promise<Session> {
-  return post<Session>(apiPath(ref, "/session"), action);
+  return postJson<Session>(apiPath(ref, "/session"), action);
 }
 
 export function postSeen(ref: PullRequestRef, sha: string): Promise<SeenResult> {
-  return post<SeenResult>(apiPath(ref, `/seen${query({ sha })}`), {});
+  return postJson<SeenResult>(apiPath(ref, `/seen${query({ sha })}`), {});
 }
 
 export function submitReviewRequest(ref: PullRequestRef, input: SubmitInput): Promise<Session> {
-  return post<Session>(apiPath(ref, "/submit"), input);
+  return postJson<Session>(apiPath(ref, "/submit"), input);
 }
 
 export type ReplyInput = { commentId: number; body: string };
 
 export function sendReply(ref: PullRequestRef, input: ReplyInput): Promise<Session> {
-  return post<Session>(apiPath(ref, "/reply"), input);
+  return postJson<Session>(apiPath(ref, "/reply"), input);
 }
 
 export function requestSummaryDraft(
@@ -158,7 +150,7 @@ export function requestSummaryDraft(
   sha: string,
   input: { event: ReviewEvent; noteIds: number[] },
 ): Promise<SummaryDraftResult> {
-  return post<SummaryDraftResult>(apiPath(ref, `/summary-draft${query({ sha })}`), input);
+  return postJson<SummaryDraftResult>(apiPath(ref, `/summary-draft${query({ sha })}`), input);
 }
 
 async function readAssistStream(
