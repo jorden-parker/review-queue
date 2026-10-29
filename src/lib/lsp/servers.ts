@@ -60,7 +60,7 @@ const PYTHON: LanguageServer = {
   languageIds: { ".py": "python" },
   command: "pyright-langserver",
   args: ["--stdio"],
-  env: {},
+  env: { PYTHONSAFEPATH: "1" },
   initializationOptions: {},
   settings: { python: { analysis: { autoSearchPaths: false, diagnosticMode: "openFilesOnly" } } },
 };

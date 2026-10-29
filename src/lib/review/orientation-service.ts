@@ -5,6 +5,7 @@ import {
   type Orientation,
   type OrientationInput,
 } from "@/lib/llm/orientation";
+import { logServerError } from "@/lib/log";
 import { prKey } from "@/lib/pr-ref";
 import type { SessionStore } from "@/lib/session/store";
 import { cachedModelResult, storedModelResult } from "./model-cache";
@@ -44,6 +45,7 @@ export async function orientationFor(
   store: SessionStore,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<OrientationResult> {
   if (!config.enabled) return { status: "disabled" };
   try {
@@ -51,10 +53,11 @@ export async function orientationFor(
       store,
       cacheKey(data, config),
       OrientationRecordSchema,
-      () => orient(orientationInput(data), config, fetchImpl),
+      () => orient(orientationInput(data), config, fetchImpl, signal),
     );
     return { status: "ready", orientation };
   } catch (error) {
+    logServerError(`orientation ${prKey(data.pr.ref)}`, error);
     return { status: "error", message: error instanceof Error ? error.message : String(error) };
   }
 }

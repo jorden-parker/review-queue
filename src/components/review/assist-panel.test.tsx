@@ -88,6 +88,15 @@ describe("AssistPanel reviewer turns", () => {
     expect(screen.getByText("this").tagName).toBe("STRONG");
     expect(screen.getByText("load").tagName).toBe("CODE");
   });
+
+  it("says when a model answer was cut off", () => {
+    const { thread, assist } = chat([
+      { role: "reviewer", text: "Explain this file" },
+      { role: "model", text: "Half an", ended: "failed" },
+    ]);
+    render(panel({ thread, assist }));
+    expect(screen.getByText("The answer was cut off.")).toBeTruthy();
+  });
 });
 
 describe("AssistPanel lookups", () => {

@@ -4,6 +4,7 @@ import {
   StepExplanationRecordSchema,
   type StepExplanation,
 } from "@/lib/llm/step-explanation";
+import { logServerError } from "@/lib/log";
 import { prKey } from "@/lib/pr-ref";
 import type { SessionStore } from "@/lib/session/store";
 import { cachedModelResult, storedModelResult } from "./model-cache";
@@ -35,6 +36,7 @@ export async function explanationFor(
   store: SessionStore,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<ExplanationResult> {
   if (!config.enabled) return { status: "disabled" };
   const step = data.steps.find((candidate) => candidate.id === stepId);
@@ -44,10 +46,12 @@ export async function explanationFor(
       store,
       cacheKey(data, stepId, config),
       StepExplanationRecordSchema,
-      () => explainStep({ title: data.pr.title, step, diffs: data.files }, config, fetchImpl),
+      () =>
+        explainStep({ title: data.pr.title, step, diffs: data.files }, config, fetchImpl, signal),
     );
     return { status: "ready", explanation };
   } catch (error) {
+    logServerError(`step explanation ${prKey(data.pr.ref)}`, error);
     return { status: "error", message: error instanceof Error ? error.message : String(error) };
   }
 }

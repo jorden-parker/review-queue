@@ -16,13 +16,15 @@ export function indexByLine<T>(
   return index;
 }
 
+const NO_ITEMS: never[] = [];
+
 export function linesAt<T>(
   index: ReadonlyMap<string, T[]>,
   path: string,
   line: number | null,
 ): T[] {
-  if (line === null) return [];
-  return index.get(fileLineKey(path, line)) ?? [];
+  if (line === null) return NO_ITEMS;
+  return index.get(fileLineKey(path, line)) ?? NO_ITEMS;
 }
 
 function fileLineKey(path: string, line: number): string {

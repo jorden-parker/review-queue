@@ -37,4 +37,9 @@ describe("linesAt", () => {
     const index = indexByLine(ITEMS, positionOf);
     expect(linesAt(index, "src/a.ts", 99)).toEqual([]);
   });
+
+  it("returns the same empty array for every line without items", () => {
+    const index = indexByLine([{ path: "a.ts", line: 1 }], (item) => item);
+    expect(linesAt(index, "a.ts", 2)).toBe(linesAt(index, "b.ts", null));
+  });
 });

@@ -1,4 +1,4 @@
-import { readJson } from "@/lib/review/route-context";
+import { readJson } from "@/lib/http";
 import { sessionStore } from "@/lib/review/services";
 import { settingsView, updateSettings } from "@/lib/settings/settings-service";
 

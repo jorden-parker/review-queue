@@ -118,6 +118,7 @@ export async function describeChanges(
   input: ChangePartsInput,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<ChangeParts> {
   const nodes = listedNodes(input.map);
   const request: ModelRequest = {
@@ -129,6 +130,7 @@ export async function describeChanges(
     { config, fetchImpl },
     request,
     parseChangeParts(refToNodeId(nodes)),
+    signal,
   );
   return { ...result, model: config.model };
 }

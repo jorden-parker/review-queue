@@ -1,13 +1,25 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { memo } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReviewComment } from "@/lib/github/gh";
 import type { FileLines } from "@/lib/review/file-lines";
 import type { Hunk, Note, Step } from "@/lib/types";
 import { reviewPayload } from "@/test/review-fixture";
+import { CodeLineComponent } from "./code-line";
 import type { Thread } from "./conversation-threads";
 import type { DisplayHotspot } from "./hotspot-list";
 import { StepView, type StepViewContext } from "./step-view";
+
+vi.mock("./code-line", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./code-line")>();
+  const CodeLineComponentMock = vi.fn(actual.CodeLineComponent);
+  return {
+    ...actual,
+    CodeLineComponent: CodeLineComponentMock,
+    CodeLine: memo(CodeLineComponentMock),
+  };
+});
 
 const FILE_TEXT = Array.from({ length: 14 }, (_, index) => `line ${index + 1}`);
 
@@ -195,5 +207,15 @@ describe("places annotations on their own line", () => {
     expect(within(lineRow(1)).getByRole("button", { name: "Show 1 GitHub thread" })).toBeTruthy();
     expect(within(lineRow(0)).queryByRole("button", { name: /GitHub thread/ })).toBeNull();
     expect(screen.getAllByRole("button", { name: /GitHub thread/ })).toHaveLength(1);
+  });
+});
+
+describe("StepView re-renders", () => {
+  it("does not re-render lines when only the active hunk changes", () => {
+    const context = contextFor(async () => fileLines());
+    const { rerender } = render(<StepView step={CLIENT_STEP} context={context} />);
+    vi.mocked(CodeLineComponent).mockClear();
+    rerender(<StepView step={CLIENT_STEP} context={{ ...context, activeHunkId: "some-hunk" }} />);
+    expect(vi.mocked(CodeLineComponent)).not.toHaveBeenCalled();
   });
 });

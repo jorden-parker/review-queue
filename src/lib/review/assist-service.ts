@@ -4,7 +4,7 @@ import type { LlmConfig } from "@/lib/llm/client";
 import type { LoopChunk } from "@/lib/llm/tool-loop";
 import { codeTools } from "./code-tools";
 import { AssistRequestSchema, type AssistSource, assistInputFrom } from "./assist-request";
-import { jsonError } from "./route-context";
+import { jsonError } from "@/lib/http";
 
 function encodedChunk(chunk: LoopChunk): string {
   if (chunk.kind === "lookup") {

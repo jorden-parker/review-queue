@@ -44,6 +44,7 @@ function isAllowedRequest(request: NextRequest): boolean {
 }
 
 function signInFromLink(request: NextRequest, token: string): NextResponse | null {
+  if (!isReadMethod(request.method)) return null;
   if (!matchesAccessToken(request.nextUrl.searchParams.get(TOKEN_PARAM), token)) return null;
   const destination = new URL(request.url);
   destination.searchParams.delete(TOKEN_PARAM);

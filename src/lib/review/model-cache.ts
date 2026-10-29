@@ -1,15 +1,8 @@
 import type { z } from "zod";
+import { parsedJson } from "@/lib/json";
 import type { SessionStore } from "@/lib/session/store";
 
 const inFlight = new Map<string, Promise<unknown>>();
-
-function parsedJson(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
 
 export function storedModelResult<T>(
   store: SessionStore,
