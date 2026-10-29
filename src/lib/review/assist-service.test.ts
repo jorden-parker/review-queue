@@ -32,7 +32,8 @@ const BODY = {
 };
 
 function sseEvents(events: object[]): string {
-  return events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("");
+  const stopped = `event: message_stop\ndata: {"type":"message_stop"}\n\n`;
+  return events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("") + stopped;
 }
 
 function sequentialFetch(bodies: string[]): typeof fetch {
@@ -52,8 +53,9 @@ function sseFetch(texts: string[]): typeof fetch {
         `data: ${JSON.stringify({ type: "content_block_delta", delta: { type: "text_delta", text } })}\n\n`,
     )
     .join("");
+  const stopped = `event: message_stop\ndata: {"type":"message_stop"}\n\n`;
   const fetchImpl = async () =>
-    new Response(events, { headers: { "content-type": "text/event-stream" } });
+    new Response(events + stopped, { headers: { "content-type": "text/event-stream" } });
   return fetchImpl as unknown as typeof fetch;
 }
 
