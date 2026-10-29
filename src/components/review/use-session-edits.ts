@@ -38,7 +38,7 @@ export function useSessionEdits(
         path: target?.path ?? null,
         line: target?.line ?? null,
         side: target?.side ?? "new",
-        startLine: null,
+        startLine: target?.startLine ?? null,
         kind: tag.kind,
         decorations: tag.decorations,
         body,

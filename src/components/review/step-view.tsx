@@ -198,7 +198,7 @@ function HunkBlock({
       </div>
       {hunk.lines.map((line, lineIndex) => {
         const target = noteTargetOf(file.path, line);
-        const composing = isComposingAt(context.composer, target);
+        const composer = isComposingAt(context.composer, target) ? context.composer : null;
         const landed = isLandedAt(context.landed, target);
         const lens = lensAt(lenses, line.newLine);
         const hotspots = linesAt(annotations.hotspots, file.path, line.newLine);
@@ -225,9 +225,9 @@ function HunkBlock({
               occurrenceName={context.occurrences?.name ?? null}
               handlers={context.handlers}
             />
-            {composing && target && (
+            {composer && (
               <NoteComposer
-                onSave={(tag, body) => context.handlers.onSaveNote(target, tag, body)}
+                onSave={(tag, body) => context.handlers.onSaveNote(composer, tag, body)}
                 onCancel={context.handlers.onCancelNote}
               />
             )}

@@ -239,6 +239,19 @@ describe("notes on deleted lines", () => {
     expect(within(lineBlock(1)).queryByText("Why was this removed?")).toBeNull();
   });
 
+  it("saves a range note from the composer under its last line with its start line", async () => {
+    const context = contextFor(async () => fileLines());
+    context.composer = { path: "src/client.ts", line: 11, startLine: 10, side: "new" };
+    const { user } = renderStep(CLIENT_STEP, context);
+    await user.type(within(lineBlock(1)).getByRole("textbox"), "one helper");
+    await user.click(within(lineBlock(1)).getByRole("button", { name: "Save note" }));
+    expect(context.handlers.onSaveNote).toHaveBeenCalledWith(
+      { path: "src/client.ts", line: 11, startLine: 10, side: "new" },
+      expect.any(Object),
+      "one helper",
+    );
+  });
+
   it("opens the composer under the deleted line and saves the note on the old side", async () => {
     const context = contextWithRemoval({
       composer: { path: "src/client.ts", line: 10, side: "old" },

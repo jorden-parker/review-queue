@@ -125,7 +125,9 @@ function NoteChecklist({ notes, selected, flagged, onToggle }: NoteChecklistProp
               text={isPostable(note) ? postedBody(note) : note.body}
               className="flex flex-col gap-1.5 wrap-anywhere"
             />
-            {note.path && <PathLabel path={note.path} line={note.line} />}
+            {note.path && (
+              <PathLabel path={note.path} line={note.line} startLine={note.startLine} />
+            )}
             {flagged.has(note.id) && (
               <span className="text-sm text-destructive">Line no longer in the diff</span>
             )}

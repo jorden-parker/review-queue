@@ -5,6 +5,7 @@ export type LineTarget = {
   path: string;
   line: number;
   side?: DiffSide;
+  startLine?: number;
   endLine?: number;
   name?: string;
 };
