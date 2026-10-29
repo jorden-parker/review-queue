@@ -60,6 +60,24 @@ describe("proxy", () => {
     expect(cookie).toMatchObject({ value: TOKEN, httpOnly: true, sameSite: "strict", path: "/" });
   });
 
+  it("ignores a link with the wrong token and sets no cookie", () => {
+    const response = proxy(requestFor({}, "GET", "http://127.0.0.1:4477/?token=wrong"));
+    expect(response.status).toBe(401);
+    expect(response.cookies.get("review-queue-token")).toBeUndefined();
+  });
+
+  it("signs in only on a navigation, never on a post that carries the token", () => {
+    const response = proxy(requestFor(SAME_ORIGIN_JSON, "POST", `${API}?token=${TOKEN}`));
+    expect(response.status).toBe(401);
+    expect(response.cookies.get("review-queue-token")).toBeUndefined();
+  });
+
+  it("refuses a post whose Origin names the host differently from the Host header", () => {
+    expect(proxy(requestFor({ ...JSON_HEADERS, origin: "http://localhost:4477" })).status).toBe(
+      403,
+    );
+  });
+
   it("refuses reads that another site or a sibling localhost port started", () => {
     for (const fetchSite of ["same-site", "cross-site"]) {
       for (const method of ["GET", "HEAD"]) {
