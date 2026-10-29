@@ -17,6 +17,8 @@ export type Conversation = {
   truncated: boolean;
 };
 
+export type ConversationView = Conversation & { viewer: string | null };
+
 export async function loadConversation(
   ref: PullRequestRef,
   cache: EtagCache,
