@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { llmConfigFromEnv } from "@/lib/llm/client";
+import { parsedJson } from "@/lib/json";
 import type { SessionStore } from "@/lib/session/store";
 
 export const LlmSettingsSchema = z.object({
@@ -23,14 +24,6 @@ export function llmSettingsFromEnv(env: Env): LlmSettings {
     thinking: config.thinking,
     timeoutMs: config.timeoutMs,
   };
-}
-
-function parsedJson(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
 }
 
 export function savedLlmSettings(store: SessionStore): LlmSettings | null {

@@ -1,5 +1,6 @@
 import { explanationFor } from "@/lib/review/explanation-service";
-import { jsonError, withPreparedReview } from "@/lib/review/route-context";
+import { withPreparedReview } from "@/lib/review/route-context";
+import { jsonError } from "@/lib/http";
 import { currentLlmConfig, sessionStore } from "@/lib/review/services";
 
 export const GET = withPreparedReview(async (request, prepared) => {

@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { z } from "zod";
 import type { PreparedReview } from "./prepare";
 
 process.env.REVIEW_QUEUE_DB = ":memory:";
@@ -12,43 +11,11 @@ const preparedReviews = new Map<string, Promise<PreparedReview>>();
 preparedReviews.set(`acme/app#7@${LOADED_SHA}`, Promise.resolve(LOADED_REVIEW));
 (globalThis as { reviewQueuePrepared?: unknown }).reviewQueuePrepared = preparedReviews;
 
-const { parseJsonBody, readJson, withPreparedReview, withPullRequest } =
-  await import("./route-context");
-
-const EventSchema = z.object({ event: z.enum(["COMMENT", "APPROVE"]) });
+const { withPreparedReview, withPullRequest } = await import("./route-context");
 
 function context(number = "7") {
   return { params: Promise.resolve({ owner: "acme", repo: "app", number }) };
 }
-
-function post(body: string) {
-  return new Request("http://test/api", { method: "POST", body });
-}
-
-describe("readJson", () => {
-  it("returns null for a body that is not JSON", async () => {
-    expect(await readJson(post("{nope"))).toBeNull();
-  });
-});
-
-describe("parseJsonBody", () => {
-  it("answers 400 for a body that is not JSON", async () => {
-    const result = await parseJsonBody(post("{nope"), EventSchema);
-    expect(result).toBeInstanceOf(Response);
-    expect((result as Response).status).toBe(400);
-  });
-
-  it("answers 400 for a body that fails the schema", async () => {
-    const result = await parseJsonBody(post('{"event":"NOPE"}'), EventSchema);
-    expect((result as Response).status).toBe(400);
-  });
-
-  it("returns the parsed body when it fits the schema", async () => {
-    expect(await parseJsonBody(post('{"event":"COMMENT"}'), EventSchema)).toEqual({
-      event: "COMMENT",
-    });
-  });
-});
 
 describe("withPullRequest", () => {
   it("answers 400 for a bad reference without calling the handler", async () => {
