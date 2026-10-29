@@ -89,6 +89,33 @@ const CLIENT_CAPABILITIES = {
   workspace: { configuration: true, workspaceFolders: true },
 };
 
+type ServerProcess = ReturnType<typeof spawnProcess>;
+
+async function spawnServer(server: LanguageServer, root: string): Promise<ServerProcess> {
+  const child = spawnProcess(server.command, server.args, { cwd: root, env: server.env });
+  const spawned = new Promise<void>((resolve, reject) => {
+    child.once("spawn", resolve);
+    child.once("error", reject);
+  });
+  child.stderr.resume();
+  await spawned;
+  return child;
+}
+
+function connectTo(child: ServerProcess, server: LanguageServer): MessageConnection {
+  const connection = createMessageConnection(
+    new StreamMessageReader(child.stdout),
+    new StreamMessageWriter(child.stdin),
+  );
+  connection.onRequest("workspace/configuration", (params: { items: unknown[] }) =>
+    params.items.map(() => server.settings),
+  );
+  connection.onRequest(() => null);
+  connection.onClose(() => child.kill());
+  connection.listen();
+  return connection;
+}
+
 export class LanguageClient {
   private readonly documents = new OpenDocuments({
     open: (file) => this.sendDidOpen(file),
@@ -107,25 +134,16 @@ export class LanguageClient {
     root: string,
     readSource: ReadSource,
   ): Promise<LanguageClient> {
-    const child = spawnProcess(server.command, server.args, { cwd: root, env: server.env });
-    const spawned = new Promise<void>((resolve, reject) => {
-      child.once("spawn", resolve);
-      child.once("error", reject);
-    });
-    child.stderr.resume();
-    await spawned;
-    const connection = createMessageConnection(
-      new StreamMessageReader(child.stdout),
-      new StreamMessageWriter(child.stdin),
-    );
-    connection.onRequest("workspace/configuration", (params: { items: unknown[] }) =>
-      params.items.map(() => server.settings),
-    );
-    connection.onRequest(() => null);
-    connection.onClose(() => child.kill());
-    connection.listen();
+    const child = await spawnServer(server, root);
+    const connection = connectTo(child, server);
     const client = new LanguageClient(server, root, connection, readSource);
-    await client.initialize();
+    try {
+      await client.initialize();
+    } catch (error) {
+      connection.dispose();
+      child.kill();
+      throw error;
+    }
     return client;
   }
 
@@ -167,6 +185,10 @@ export class LanguageClient {
     await withTimeout(this.connection.sendRequest("shutdown"), "shutdown").catch(() => null);
     await this.connection.sendNotification("exit").catch(() => null);
     this.connection.dispose();
+  }
+
+  onClose(listener: () => void): void {
+    this.connection.onClose(listener);
   }
 
   private async initialize(): Promise<void> {

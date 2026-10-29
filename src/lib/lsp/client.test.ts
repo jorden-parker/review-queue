@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { runCommand } from "@/lib/exec";
 import { linkWorkspacePackages } from "@/lib/git/workspace-links";
 import { LanguageClient } from "./client";
-import { serverFor } from "./servers";
+import { serverFor, type LanguageServer } from "./servers";
 
 const STORE = "export function load(id: string) {\n  return id;\n}\n";
 const APP = [
@@ -147,5 +147,62 @@ describe("LanguageClient in a workspace monorepo", () => {
     ]);
     const files = references.map((location) => path.relative(root, location.file));
     expect(files).toContain("apps/web/page.tsx");
+  });
+});
+
+const SILENT_SERVER =
+  "require('fs').writeFileSync(process.argv[1], String(process.pid)); setInterval(() => {}, 1000);";
+
+function pidOf(file: string): number | undefined {
+  if (!fs.existsSync(file)) return undefined;
+  const text = fs.readFileSync(file, "utf8");
+  return text ? Number(text) : undefined;
+}
+
+function isRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function pollUntil<T>(read: () => T | undefined): Promise<T | undefined> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const value = read();
+    if (value !== undefined) return value;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return undefined;
+}
+
+describe("LanguageClient.start with a server that never answers", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("rejects, kills the child and leaves no process behind", async () => {
+    vi.stubEnv("REVIEW_QUEUE_LSP_TIMEOUT_MS", "200");
+    const pidFile = path.join(os.tmpdir(), `lsp-silent-${process.pid}-${Date.now()}.pid`);
+    const silent: LanguageServer = {
+      id: "typescript",
+      languageIds: { ".ts": "typescript" },
+      command: process.execPath,
+      args: ["-e", SILENT_SERVER, pidFile],
+      env: {},
+      initializationOptions: {},
+      settings: {},
+    };
+    let pid: number | undefined;
+    try {
+      await expect(LanguageClient.start(silent, os.tmpdir(), () => "")).rejects.toThrow(
+        "initialize timed out",
+      );
+      pid = await pollUntil(() => pidOf(pidFile));
+      expect(pid).toBeDefined();
+      expect(await pollUntil(() => (isRunning(pid!) ? undefined : true))).toBe(true);
+    } finally {
+      if (pid !== undefined && isRunning(pid)) process.kill(pid, "SIGKILL");
+      fs.rmSync(pidFile, { force: true });
+    }
   });
 });
