@@ -18,20 +18,55 @@ describe("serverFor", () => {
     expect(serverFor("src/lib.rs")?.id).toBe("rust");
   });
 
-  it("never lets cargo pick up a wrapper from repo config", () => {
-    vi.stubEnv("REVIEW_QUEUE_LSP_RUST", "on");
-    expect(serverFor("src/lib.rs")?.env).toMatchObject({
-      RUSTC_WRAPPER: "",
-      CARGO_BUILD_RUSTC_WRAPPER: "",
-      CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER: "",
+  it("runs tsserver with no plugins, no type acquisition and the bundled binary", () => {
+    const tsserverOptions = serverFor("src/app.ts")?.initializationOptions as {
+      tsserver: { path: string };
+    };
+    expect(tsserverOptions).toMatchObject({
+      tsserver: { useSyntaxServer: "never" },
+      plugins: [],
+      disableAutomaticTypingAcquisition: true,
+    });
+    expect(tsserverOptions.tsserver.path).toMatch(/node_modules\/typescript\/lib\/tsserver\.js$/);
+    expect(serverFor("src/app.ts")?.env).toEqual({});
+  });
+
+  it("keeps gopls offline, on the local toolchain, without cgo or a workspace file", () => {
+    expect(serverFor("main.go")?.env).toEqual({
+      GOFLAGS: "-mod=readonly",
+      GOPROXY: "off",
+      GOTOOLCHAIN: "local",
+      CGO_ENABLED: "0",
+      GOWORK: "off",
     });
   });
 
-  it("never lets cargo or rustup reach the network", () => {
+  it("keeps pyright off the checkout's import path and search paths", () => {
+    expect(serverFor("app.py")?.env).toEqual({ PYTHONSAFEPATH: "1" });
+    expect(serverFor("app.py")?.settings).toMatchObject({
+      python: { analysis: { autoSearchPaths: false, diagnosticMode: "openFilesOnly" } },
+    });
+  });
+
+  it("keeps rust-analyzer from building, expanding macros, downloading or using repo wrappers", () => {
     vi.stubEnv("REVIEW_QUEUE_LSP_RUST", "on");
-    expect(serverFor("src/lib.rs")?.env).toMatchObject({
+    const rust = serverFor("src/lib.rs");
+    expect(rust?.env).toEqual({
+      RUSTC_WRAPPER: "",
+      CARGO_BUILD_RUSTC_WRAPPER: "",
+      CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER: "",
+      CARGO_BUILD_RUSTC: "rustc",
+      RUSTUP_TOOLCHAIN: "stable",
       CARGO_NET_OFFLINE: "true",
       RUSTUP_AUTO_INSTALL: "0",
     });
+    const sandbox = {
+      cargo: { buildScripts: { enable: false }, allTargets: false },
+      procMacro: { enable: false },
+      checkOnSave: false,
+      cachePriming: { enable: false },
+    };
+    expect(rust?.initializationOptions).toEqual(sandbox);
+    expect(rust?.settings).toEqual({ "rust-analyzer": sandbox });
   });
 });

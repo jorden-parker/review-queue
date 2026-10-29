@@ -81,6 +81,12 @@ export function withModelText(
   return { ...thread, turns: [...earlier, turn] };
 }
 
+export function withEnding(thread: AssistThread, ended: "stopped" | "failed"): AssistThread {
+  const last = thread.turns.at(-1);
+  if (last?.role !== "model") return thread;
+  return { ...thread, turns: [...thread.turns.slice(0, -1), { ...last, ended }] };
+}
+
 export function hasModelReply(thread: AssistThread): boolean {
   const last = thread.turns.at(-1);
   return last?.role === "model" && last.text.trim() !== "";

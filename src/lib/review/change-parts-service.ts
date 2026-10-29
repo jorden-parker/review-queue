@@ -1,5 +1,6 @@
 import type { LlmConfig } from "@/lib/llm/client";
 import { ChangePartsRecordSchema, describeChanges, type ChangeParts } from "@/lib/llm/change-parts";
+import { logServerError } from "@/lib/log";
 import { prKey } from "@/lib/pr-ref";
 import type { SessionStore } from "@/lib/session/store";
 import { cachedModelResult } from "./model-cache";
@@ -21,6 +22,7 @@ export async function changePartsFor(
   store: SessionStore,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<ChangePartsResult> {
   if (!config.enabled) return { status: "disabled" };
   try {
@@ -33,10 +35,12 @@ export async function changePartsFor(
           { title: data.pr.title, map: data.changeMap, diffs: data.files },
           config,
           fetchImpl,
+          signal,
         ),
     );
     return { status: "ready", parts };
   } catch (error) {
+    logServerError(`change parts ${prKey(data.pr.ref)}`, error);
     return { status: "error", message: error instanceof Error ? error.message : String(error) };
   }
 }

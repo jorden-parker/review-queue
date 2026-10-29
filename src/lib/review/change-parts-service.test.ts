@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PullRequest } from "@/lib/github/gh";
 import { SessionStore } from "@/lib/session/store";
 import { changePartsFor } from "./change-parts-service";
@@ -70,8 +70,12 @@ describe("changePartsFor", () => {
   it("reports errors without throwing", async () => {
     const store = new SessionStore(":memory:");
     const failing = (async () => new Response("down", { status: 503 })) as unknown as typeof fetch;
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(await changePartsFor(DATA, store, CONFIG, failing)).toMatchObject({
       status: "error",
     });
+    expect(logged).toHaveBeenCalledOnce();
+    expect(logged.mock.calls[0][0]).toContain("review-queue: change parts a/b#1 failed");
+    logged.mockRestore();
   });
 });

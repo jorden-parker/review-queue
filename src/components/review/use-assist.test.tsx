@@ -82,12 +82,31 @@ describe("useAssist retry", () => {
         expect.objectContaining({
           turns: [
             { role: "reviewer", text: "Explain this file" },
-            { role: "model", text: "It sets" },
+            { role: "model", text: "It sets", ended: "stopped" },
           ],
         }),
       ),
     );
     expect(result.current.error).toBeNull();
+  });
+
+  it("saves a failed answer with what arrived and marks it failed", async () => {
+    vi.mocked(streamAssist).mockImplementationOnce(async (_ref, _sha, _request, onUpdate) => {
+      onUpdate(reply("Half an"));
+      throw new Error("The model's answer ended early; try again");
+    });
+    const { result, onSave } = setup();
+
+    act(() => result.current.open(TARGET, "explain"));
+    await waitFor(() => expect(result.current.error).toMatch(/ended early/));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        turns: [
+          { role: "reviewer", text: "Explain this file" },
+          { role: "model", text: "Half an", ended: "failed" },
+        ],
+      }),
+    );
   });
 
   it("refuses to send or retry on a thread asked on an older commit", async () => {

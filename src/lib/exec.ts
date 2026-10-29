@@ -31,6 +31,39 @@ export const runCommand: Runner = (command, args, options = {}) =>
 
 export type SpawnOptions = { cwd: string; env?: Record<string, string> };
 
+const INHERITED_VARIABLES = [
+  "PATH",
+  "HOME",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "TERM",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "TMPDIR",
+  "TZ",
+  "XDG_CACHE_HOME",
+  "XDG_CONFIG_HOME",
+  "XDG_DATA_HOME",
+  "GOPATH",
+  "GOROOT",
+  "GOCACHE",
+  "GOMODCACHE",
+  "CARGO_HOME",
+  "RUSTUP_HOME",
+];
+
+function inheritedEnvironment(): NodeJS.ProcessEnv {
+  const source = withoutRepositoryVariables(process.env);
+  return Object.fromEntries(
+    INHERITED_VARIABLES.flatMap((name) => {
+      const value = source[name];
+      return value === undefined ? [] : [[name, value]];
+    }),
+  ) as NodeJS.ProcessEnv;
+}
+
 export function spawnProcess(
   command: string,
   args: string[],
@@ -38,7 +71,7 @@ export function spawnProcess(
 ): ChildProcessWithoutNullStreams {
   return spawn(command, args, {
     cwd: options.cwd,
-    env: { ...withoutRepositoryVariables(process.env), ...options.env },
+    env: { ...inheritedEnvironment(), ...options.env },
     stdio: "pipe",
   });
 }

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { llmConfigFromEnv } from "@/lib/llm/client";
 import { autoModel, ollamaModels } from "@/lib/llm/model-choice";
-import { jsonError } from "@/lib/review/route-context";
+import { jsonError } from "@/lib/http";
 import type { SessionStore } from "@/lib/session/store";
 import {
   type LlmSettings,

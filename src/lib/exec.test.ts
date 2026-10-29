@@ -39,4 +39,18 @@ describe("spawnProcess", () => {
     await new Promise((resolve) => child.on("close", resolve));
     expect(output).toBe("none|set");
   });
+
+  it("passes only the allowlisted variables and the given environment to the child", async () => {
+    vi.stubEnv("GITHUB_TOKEN", "secret");
+    vi.stubEnv("HOME", "/home/reviewer");
+    const child = spawnProcess(
+      "sh",
+      ["-c", 'printf "%s|%s|%s|%s" "${GITHUB_TOKEN:-none}" "$HOME" "${PATH:+path}" "$EXTRA"'],
+      { cwd: os.tmpdir(), env: { EXTRA: "set" } },
+    );
+    let output = "";
+    child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()));
+    await new Promise((resolve) => child.on("close", resolve));
+    expect(output).toBe("none|/home/reviewer|path|set");
+  });
 });

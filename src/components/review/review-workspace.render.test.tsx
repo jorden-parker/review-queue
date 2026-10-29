@@ -1,18 +1,23 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Profiler } from "react";
+import { Profiler, memo } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ChangeNode } from "@/lib/types";
 import { installFakeApi } from "@/test/fake-api";
 import { REF, reviewPayload } from "@/test/review-fixture";
-import { CodeLine } from "./code-line";
+import { CodeLineComponent } from "./code-line";
 import type { PanelSide } from "./pane-layout";
 import { ReviewLoader } from "./review-loader";
 
 vi.mock("./code-line", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./code-line")>();
-  return { ...actual, CodeLine: vi.fn(actual.CodeLine) };
+  const CodeLineComponentMock = vi.fn(actual.CodeLineComponent);
+  return {
+    ...actual,
+    CodeLineComponent: CodeLineComponentMock,
+    CodeLine: memo(CodeLineComponentMock),
+  };
 });
 
 const MAP_NODE: ChangeNode = {
@@ -38,7 +43,7 @@ function mountReview(onRender = vi.fn()) {
 
 async function renderWorkspace(payload = reviewPayload()) {
   const api = installFakeApi(payload);
-  vi.mocked(CodeLine).mockClear();
+  vi.mocked(CodeLineComponent).mockClear();
   const onRender = mountReview();
   await screen.findByText(/^Step \d of 3/);
   await settleRequests(api.calls);
@@ -60,7 +65,7 @@ function nextFrame() {
 }
 
 function diffLineRenders() {
-  return vi.mocked(CodeLine).mock.calls.length;
+  return vi.mocked(CodeLineComponent).mock.calls.length;
 }
 
 function reviewPanel(side: PanelSide = "right"): HTMLElement {
@@ -90,6 +95,19 @@ function manyNavigableFilesPayload() {
   return payload;
 }
 
+function twoHunkFirstStepPayload() {
+  const payload = reviewPayload();
+  const [first] = payload.files;
+  payload.files[0] = {
+    ...first,
+    hunks: [...first.hunks, ...first.hunks],
+    highlighted: [...first.highlighted, ...first.highlighted],
+    additions: first.additions * 2,
+  };
+  payload.steps[0].files = [{ path: first.path, hunkIndexes: [0, 1] }];
+  return payload;
+}
+
 function countReferenceRequests(calls: { url: string }[]) {
   return calls.filter((call) => call.url.includes("/reference-counts"));
 }
@@ -110,15 +128,23 @@ describe("review workspace renders", () => {
   it("a side-panel toggle renders no diff lines", async () => {
     const { user } = await renderWorkspace();
     expect(diffLineRenders()).toBeGreaterThan(0);
-    vi.mocked(CodeLine).mockClear();
+    vi.mocked(CodeLineComponent).mockClear();
     await user.keyboard("]");
+    expect(diffLineRenders()).toBe(0);
+  });
+
+  it("moving to the next hunk renders no diff lines", async () => {
+    const { user } = await renderWorkspace(twoHunkFirstStepPayload());
+    expect(diffLineRenders()).toBeGreaterThan(0);
+    vi.mocked(CodeLineComponent).mockClear();
+    await user.keyboard("j");
     expect(diffLineRenders()).toBe(0);
   });
 
   it("typing in a note renders no diff lines", async () => {
     const { user } = await renderWorkspace();
     await user.keyboard("c");
-    vi.mocked(CodeLine).mockClear();
+    vi.mocked(CodeLineComponent).mockClear();
     await user.type(screen.getByPlaceholderText(/What did you notice/), "abc");
     expect(diffLineRenders()).toBe(0);
   });

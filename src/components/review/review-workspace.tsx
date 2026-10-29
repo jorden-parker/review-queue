@@ -604,6 +604,7 @@ function Dialogs({
               .length
           }
           headSha={review.headSha}
+          files={review.files}
           onSubmit={workspace.submit}
           onDraftSummary={workspace.aiEnabled ? workspace.draftSummary : undefined}
           onCancel={close}
@@ -789,6 +790,34 @@ export function ReviewWorkspace({
   );
   const { setComposer, showPane } = workspace;
   const { open: openAssist } = workspace.assist;
+  const handlers: StepViewContext["handlers"] = useMemo(
+    () => ({
+      onIdentifier: workspace.peekName,
+      onHoverIdentifier: workspace.setHovered,
+      onAddNote: (path, line) => setComposer({ path, line }),
+      onDeleteNote: workspace.deleteNote,
+      onToggleHotspot: workspace.toggleHotspot,
+      onCheckFlag: workspace.aiEnabled
+        ? (range) => openAssist({ kind: "lines", range }, "check")
+        : null,
+      onSaveNote: workspace.saveNote,
+      onCancelNote: () => setComposer(null),
+      onShowReferences: workspace.peek.showReferences,
+      onOpenConversation: () => showPane("github"),
+    }),
+    [
+      workspace.peekName,
+      workspace.setHovered,
+      setComposer,
+      workspace.deleteNote,
+      workspace.toggleHotspot,
+      workspace.aiEnabled,
+      workspace.saveNote,
+      openAssist,
+      workspace.peek.showReferences,
+      showPane,
+    ],
+  );
   const context: StepViewContext = useMemo(
     () => ({
       files: workspace.files,
@@ -805,20 +834,7 @@ export function ReviewWorkspace({
       onAskFile: workspace.aiEnabled
         ? (path, action) => openAssist({ kind: "file", path }, action)
         : null,
-      handlers: {
-        onIdentifier: workspace.peekName,
-        onHoverIdentifier: workspace.setHovered,
-        onAddNote: (path, line) => setComposer({ path, line }),
-        onDeleteNote: workspace.deleteNote,
-        onToggleHotspot: workspace.toggleHotspot,
-        onCheckFlag: workspace.aiEnabled
-          ? (range) => openAssist({ kind: "lines", range }, "check")
-          : null,
-        onSaveNote: workspace.saveNote,
-        onCancelNote: () => setComposer(null),
-        onShowReferences: workspace.peek.showReferences,
-        onOpenConversation: () => showPane("github"),
-      },
+      handlers,
     }),
     [
       workspace.files,
@@ -829,19 +845,12 @@ export function ReviewWorkspace({
       workspace.activeHunkId,
       workspace.aiEnabled,
       workspace.peek.peek,
-      workspace.peekName,
-      workspace.setHovered,
-      setComposer,
-      workspace.deleteNote,
-      workspace.toggleHotspot,
-      workspace.saveNote,
       openAssist,
-      workspace.peek.showReferences,
-      showPane,
       workspace.loadFile,
       session.notes,
       session.checkedHotspots,
       referenceCounts,
+      handlers,
     ],
   );
 

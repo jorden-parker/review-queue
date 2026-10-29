@@ -105,16 +105,15 @@ async function failureMessage(response: Response, model: string): Promise<string
 
 type Deadline = { signal: AbortSignal; release: () => void };
 
-function firstResponseDeadline(timeoutMs: number): Deadline {
+const SLOW_START_MESSAGE =
+  "The model took too long to start answering; raise Timeout in Settings for a slow machine or a whole-file review";
+const WENT_QUIET_MESSAGE =
+  "The model stopped answering; raise Timeout in Settings if the machine is swapping or try again";
+
+function startDeadline(timeoutMs: number, message: string): Deadline {
   const controller = new AbortController();
   const timer = setTimeout(
-    () =>
-      controller.abort(
-        new DOMException(
-          "The model took too long to start answering; raise Timeout in Settings for a slow machine or a whole-file review",
-          "TimeoutError",
-        ),
-      ),
+    () => controller.abort(new DOMException(message, "TimeoutError")),
     timeoutMs,
   );
   return { signal: controller.signal, release: () => clearTimeout(timer) };
@@ -131,7 +130,7 @@ async function postMessages(
   request: ModelRequest,
   signal?: AbortSignal,
 ): Promise<Response> {
-  const deadline = firstResponseDeadline(client.config.timeoutMs);
+  const deadline = startDeadline(client.config.timeoutMs, SLOW_START_MESSAGE);
   const response = await client
     .fetchImpl(`${client.config.baseURL}/v1/messages`, {
       method: "POST",
@@ -157,9 +156,13 @@ async function postMessages(
   return response;
 }
 
-export async function askModel(client: LlmClient, request: ModelRequest): Promise<string> {
+export async function askModel(
+  client: LlmClient,
+  request: ModelRequest,
+  signal?: AbortSignal,
+): Promise<string> {
   let reply = "";
-  for await (const text of streamModel(client, request)) reply += text;
+  for await (const text of streamModel(client, request, signal)) reply += text;
   return reply;
 }
 
@@ -189,17 +192,58 @@ function parseEvents(rawEvents: string[]): StreamEvent[] {
   return rawEvents.map(parseEvent).filter((event): event is StreamEvent => event !== null);
 }
 
-async function* textChunks(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
-  const decoder = new TextDecoder();
-  const reader = body.getReader();
-  for (let read = await reader.read(); !read.done; read = await reader.read()) {
-    yield decoder.decode(read.value, { stream: true });
+async function readOrTimeOut(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeoutMs: number,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  const idle = startDeadline(timeoutMs, WENT_QUIET_MESSAGE);
+  const timedOut = new Promise<never>((_resolve, reject) =>
+    idle.signal.addEventListener("abort", () => reject(idle.signal.reason)),
+  );
+  try {
+    return await Promise.race([reader.read(), timedOut]);
+  } finally {
+    idle.release();
   }
 }
 
-async function* streamEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<StreamEvent> {
+async function* textChunks(
+  body: ReadableStream<Uint8Array>,
+  timeoutMs: number,
+): AsyncGenerator<string> {
+  const decoder = new TextDecoder();
+  const reader = body.getReader();
+  try {
+    let read = await readOrTimeOut(reader, timeoutMs);
+    while (!read.done) {
+      yield decoder.decode(read.value, { stream: true });
+      read = await readOrTimeOut(reader, timeoutMs);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+}
+
+const ENDED_EARLY_MESSAGE = "The model's answer ended early; try again";
+
+async function* streamEvents(
+  body: ReadableStream<Uint8Array>,
+  timeoutMs: number,
+): AsyncGenerator<StreamEvent> {
+  let stopped = false;
+  for await (const event of rawStreamEvents(body, timeoutMs)) {
+    stopped ||= event.type === "message_stop";
+    yield event;
+  }
+  if (!stopped) throw new Error(ENDED_EARLY_MESSAGE);
+}
+
+async function* rawStreamEvents(
+  body: ReadableStream<Uint8Array>,
+  timeoutMs: number,
+): AsyncGenerator<StreamEvent> {
   let pending = "";
-  for await (const chunk of textChunks(body)) {
+  for await (const chunk of textChunks(body, timeoutMs)) {
     const rawEvents = (pending + chunk).replaceAll("\r\n", "\n").split("\n\n");
     pending = rawEvents.pop() ?? "";
     yield* parseEvents(rawEvents);
@@ -263,10 +307,10 @@ function turnEventOf(
   return textEventOf(event);
 }
 
-async function* responseEvents(response: Response): AsyncGenerator<TurnEvent> {
+async function* responseEvents(response: Response, timeoutMs: number): AsyncGenerator<TurnEvent> {
   if (!response.body) return;
   const toolBlocks = new Map<number, PendingToolUse>();
-  for await (const event of streamEvents(response.body)) {
+  for await (const event of streamEvents(response.body, timeoutMs)) {
     const turnEvent = turnEventOf(event, toolBlocks);
     if (turnEvent) yield turnEvent;
   }
@@ -274,11 +318,23 @@ async function* responseEvents(response: Response): AsyncGenerator<TurnEvent> {
 
 const globals = globalThis as { reviewQueueModelTurn?: Promise<void> };
 
-async function takeTurn(): Promise<() => void> {
+function abortedBy(signal: AbortSignal | undefined): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    if (signal?.aborted) reject(signal.reason);
+    signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+  });
+}
+
+async function takeTurn(signal?: AbortSignal): Promise<() => void> {
   const previous = globals.reviewQueueModelTurn ?? Promise.resolve();
   let release = () => {};
   globals.reviewQueueModelTurn = new Promise<void>((resolve) => (release = resolve));
-  await previous;
+  try {
+    await Promise.race([abortedBy(signal), previous]);
+  } catch (reason) {
+    void previous.then(release);
+    throw reason;
+  }
   return release;
 }
 
@@ -287,9 +343,9 @@ export async function* streamTurn(
   request: ModelRequest,
   signal?: AbortSignal,
 ): AsyncGenerator<TurnEvent> {
-  const release = await takeTurn();
+  const release = await takeTurn(signal);
   try {
-    yield* responseEvents(await postMessages(client, request, signal));
+    yield* responseEvents(await postMessages(client, request, signal), client.config.timeoutMs);
   } finally {
     release();
   }
@@ -309,22 +365,27 @@ export async function askForJson<T>(
   client: LlmClient,
   request: ModelRequest,
   parse: (text: string) => T,
+  signal?: AbortSignal,
 ): Promise<T> {
-  const first = await askModel(client, request);
+  const first = await askModel(client, request, signal);
   try {
     return parse(first);
   } catch (error) {
-    const retry = await askModel(client, {
-      ...request,
-      messages: [
-        ...request.messages,
-        { role: "assistant", content: first },
-        {
-          role: "user",
-          content: `That was not valid JSON for the schema (${String(error)}). Reply with only the JSON object.`,
-        },
-      ],
-    });
+    const retry = await askModel(
+      client,
+      {
+        ...request,
+        messages: [
+          ...request.messages,
+          { role: "assistant", content: first },
+          {
+            role: "user",
+            content: `That was not valid JSON for the schema (${String(error)}). Reply with only the JSON object.`,
+          },
+        ],
+      },
+      signal,
+    );
     return parse(retry);
   }
 }

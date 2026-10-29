@@ -21,6 +21,13 @@ describe("access token", () => {
     expect(loadAccessToken(file)).toBe(token);
   });
 
+  it("tightens a token file that other accounts could read", () => {
+    const file = path.join(directory, "access-token");
+    fs.writeFileSync(file, "shared-token", { mode: 0o644 });
+    expect(loadAccessToken(file)).toBe("shared-token");
+    expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+  });
+
   it("matches only the exact token", () => {
     expect(matchesAccessToken("secret-token", "secret-token")).toBe(true);
     expect(matchesAccessToken("secret-tokem", "secret-token")).toBe(false);

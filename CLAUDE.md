@@ -143,12 +143,15 @@ Ollama-compatible endpoint. Results are cached in the store's cache table.
 Configure it with `REVIEW_QUEUE_LLM_URL` (or `OLLAMA_HOST`),
 `REVIEW_QUEUE_LLM_MODEL`, `REVIEW_QUEUE_LLM_TIMEOUT_MS`, and
 `REVIEW_QUEUE_LLM=off`. Every call streams, and the timeout (default 180 000 ms)
-only bounds the wait for the model's first byte, so a slow local model is never
-cut off mid-answer. Calls run one at a time (`streamTurn` in
-`lib/llm/client.ts`), so a call queued behind another does not spend its timeout
-waiting for Ollama's slot. Models think before answering, with 2048 extra tokens
-for it; `REVIEW_QUEUE_LLM_THINKING=off` stops that, but only use it with a model
-that does not then write its reasoning into the answer. Without
+bounds the wait for the model's first byte and the longest silence between
+chunks, never the whole answer, so a slow local model is not cut off while it is
+still writing. A stream that ends without `message_stop` is an error, and every
+model call takes the route's abort signal so a reader who leaves frees the
+queue. Calls run one at a time (`streamTurn` in `lib/llm/client.ts`), so a call
+queued behind another does not spend its timeout waiting for Ollama's slot.
+Models think before answering, with 2048 extra tokens for it;
+`REVIEW_QUEUE_LLM_THINKING=off` stops that, but only use it with a model that
+does not then write its reasoning into the answer. Without
 `REVIEW_QUEUE_LLM_MODEL`, `lib/llm/model-choice.ts` uses the first model in
 claude-ollama's `ollama/sizes.json` (found by following the `claude-ollama`
 launcher on `PATH`) that Ollama has installed.

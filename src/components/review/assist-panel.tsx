@@ -99,6 +99,13 @@ function ModelTurn({ turn, streaming, isLast, citationsOf, onShowCitation }: Tur
         className="flex flex-col gap-2"
         citations={citationRenderer(citations, activeIndex, showCitation)}
       />
+      {turn.ended && (
+        <p className="text-sm text-muted-foreground">
+          {turn.ended === "stopped"
+            ? "Stopped before the answer finished."
+            : "The answer was cut off."}
+        </p>
+      )}
       {streaming && <span className="h-4 w-1.5 animate-pulse bg-primary" aria-label="Writing" />}
       {isLast && !streaming && (
         <CitationWalk citations={citations} activeIndex={activeIndex} onStep={showCitation} />

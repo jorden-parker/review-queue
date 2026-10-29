@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prKey } from "@/lib/pr-ref";
-import { parseJsonBody, withPreparedReview } from "@/lib/review/route-context";
+import { withPreparedReview } from "@/lib/review/route-context";
+import { parseJsonBody } from "@/lib/http";
 import { currentLlmConfig, sessionStore } from "@/lib/review/services";
 import { summaryDraftFor } from "@/lib/review/summary-draft-service";
 
@@ -16,6 +17,13 @@ export const POST = withPreparedReview(async (request, prepared) => {
     .getSession(prKey(prepared.data.pr.ref))
     .notes.filter((note) => input.noteIds.includes(note.id));
   return Response.json(
-    await summaryDraftFor(prepared.data.pr.title, input.event, notes, await currentLlmConfig()),
+    await summaryDraftFor(
+      prepared.data.pr.title,
+      input.event,
+      notes,
+      await currentLlmConfig(),
+      fetch,
+      request.signal,
+    ),
   );
 });

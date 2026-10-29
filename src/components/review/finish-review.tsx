@@ -9,13 +9,14 @@ import { Markdown } from "@/components/common/markdown-text";
 import { EmptyState } from "@/components/common/empty-state";
 import { PathLabel } from "@/components/common/path-label";
 import { isBlocking } from "@/lib/review/conventional-comment";
+import { notesOffTheDiff, offTheDiffMessage } from "@/lib/review/note-targets";
 import { isPostable, postedBody } from "@/lib/review/submission";
 import { plural } from "@/lib/plural";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MarkdownField } from "@/components/common/markdown-field";
 import type { ReviewEvent } from "@/lib/github/gh";
-import type { Note } from "@/lib/types";
+import type { FileDiff, Note } from "@/lib/types";
 import { NoteKindBadge } from "./note-kind-badge";
 import { unfinishedMessage } from "./unfinished";
 
@@ -26,6 +27,7 @@ type FinishReviewProps = {
   stepsLeft: number;
   hotspotsLeft: number;
   headSha: string;
+  files: FileDiff[];
   onSubmit: (event: ReviewEvent, summary: string, noteIds: number[]) => Promise<void>;
   onDraftSummary?: DraftSummary;
   onCancel: () => void;
@@ -98,10 +100,11 @@ function DraftSummaryButton({
 type NoteChecklistProps = {
   notes: Note[];
   selected: number[];
+  flagged: ReadonlySet<number>;
   onToggle: (id: number) => void;
 };
 
-function NoteChecklist({ notes, selected, onToggle }: NoteChecklistProps) {
+function NoteChecklist({ notes, selected, flagged, onToggle }: NoteChecklistProps) {
   return (
     <div className="flex flex-col gap-2">
       <h3 className="text-sm font-bold">Notes to post ({selected.length})</h3>
@@ -123,6 +126,9 @@ function NoteChecklist({ notes, selected, onToggle }: NoteChecklistProps) {
               className="flex flex-col gap-1.5 wrap-anywhere"
             />
             {note.path && <PathLabel path={note.path} line={note.line} />}
+            {flagged.has(note.id) && (
+              <span className="text-sm text-destructive">Line no longer in the diff</span>
+            )}
           </span>
         </label>
       ))}
@@ -130,11 +136,16 @@ function NoteChecklist({ notes, selected, onToggle }: NoteChecklistProps) {
   );
 }
 
+function initialSelection(postable: Note[], flagged: ReadonlySet<number>): number[] {
+  return postable.filter((note) => !flagged.has(note.id)).map((note) => note.id);
+}
+
 export function FinishReview({
   notes,
   stepsLeft,
   hotspotsLeft,
   headSha,
+  files,
   onSubmit,
   onDraftSummary,
   onCancel,
@@ -142,9 +153,11 @@ export function FinishReview({
   const postable = notes.filter((note) => note.kind !== "parked");
   const parkedCount = notes.length - postable.length;
   const unfinished = unfinishedMessage(stepsLeft, hotspotsLeft);
+  const offDiff = notesOffTheDiff(postable, files);
+  const offDiffIds = new Set(offDiff.map((note) => note.id));
   const [event, setEvent] = useState<ReviewEvent>(defaultEvent(postable, unfinished));
   const [summary, setSummary] = useState("");
-  const [selected, setSelected] = useState(postable.map((note) => note.id));
+  const [selected, setSelected] = useState(initialSelection(postable, offDiffIds));
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -174,7 +187,8 @@ export function FinishReview({
           Every step and hotspot is ticked off.
         </p>
       )}
-      <NoteChecklist notes={postable} selected={selected} onToggle={toggle} />
+      {offDiff.length > 0 && <Callout>{offTheDiffMessage(offDiff)}</Callout>}
+      <NoteChecklist notes={postable} selected={selected} flagged={offDiffIds} onToggle={toggle} />
       {parkedCount > 0 && (
         <p className="text-sm text-muted-foreground">
           {plural(parkedCount, "parked note")} won’t be posted.

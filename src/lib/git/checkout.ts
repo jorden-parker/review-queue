@@ -31,9 +31,13 @@ function githubUrl(ref: PullRequestRef): string {
   return `https://github.com/${ref.owner}/${ref.repo}.git`;
 }
 
+function ensurePrivateDirectory(directory: string): void {
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+}
+
 async function ensureBareClone(remoteUrl: string, repoDir: string, run: Runner): Promise<void> {
   if (fs.existsSync(repoDir)) return;
-  fs.mkdirSync(path.dirname(repoDir), { recursive: true });
+  ensurePrivateDirectory(path.dirname(repoDir));
   await run("git", ["clone", "--quiet", "--bare", remoteUrl, repoDir]);
 }
 
@@ -95,7 +99,7 @@ async function ensureWorktree(
   run: Runner,
 ): Promise<void> {
   if (fs.existsSync(worktreePath)) return;
-  fs.mkdirSync(path.dirname(worktreePath), { recursive: true });
+  ensurePrivateDirectory(path.dirname(worktreePath));
   await run("git", ["worktree", "add", "--quiet", "--detach", worktreePath, sha], {
     cwd: repoDir,
   });

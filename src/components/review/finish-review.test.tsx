@@ -1,9 +1,28 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { Note } from "@/lib/types";
+import type { FileDiff, Note } from "@/lib/types";
 import { HEAD_SHA } from "@/test/review-fixture";
 import { FinishReview } from "./finish-review";
+
+function file(path: string, newLines: number[]): FileDiff {
+  return {
+    path,
+    oldPath: path,
+    status: "modified",
+    binary: false,
+    additions: newLines.length,
+    deletions: 0,
+    hunks: [
+      {
+        header: "",
+        oldStart: 1,
+        newStart: newLines[0] ?? 1,
+        lines: newLines.map((newLine) => ({ kind: "add", text: "", oldLine: null, newLine })),
+      },
+    ],
+  };
+}
 
 function note(overrides: Partial<Note>): Note {
   return {
@@ -22,10 +41,12 @@ function renderDialog({
   notes = [],
   stepsLeft = 0,
   hotspotsLeft = 0,
+  files = [file("a.ts", [2])],
 }: {
   notes?: Note[];
   stepsLeft?: number;
   hotspotsLeft?: number;
+  files?: FileDiff[];
 }) {
   const onSubmit = vi.fn().mockResolvedValue(undefined);
   render(
@@ -34,6 +55,7 @@ function renderDialog({
       stepsLeft={stepsLeft}
       hotspotsLeft={hotspotsLeft}
       headSha={HEAD_SHA}
+      files={files}
       onSubmit={onSubmit}
       onCancel={vi.fn()}
     />,
@@ -98,5 +120,28 @@ describe("FinishReview", () => {
     });
     await user.click(screen.getByRole("button", { name: "Approve on GitHub" }));
     expect(onSubmit).toHaveBeenCalledWith("APPROVE", "", [2]);
+  });
+
+  it("unchecks a note whose line left the diff and says why", async () => {
+    const user = userEvent.setup();
+    const stale = note({ id: 7, path: "a.ts", line: 40, body: "old line" });
+    const fine = note({ id: 8, path: "a.ts", line: 2, body: "still here" });
+    const { onSubmit } = renderDialog({ notes: [stale, fine], stepsLeft: 1 });
+    expect(screen.getByText(/a line the diff no longer has/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Notes to post \(1\)/ })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Post comment to GitHub/ }));
+    expect(onSubmit).toHaveBeenCalledWith("COMMENT", "", [8]);
+  });
+
+  it("shows the server's refusal when a post is rejected", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderDialog({
+      notes: [note({ id: 2, kind: "nitpick", body: "rename" })],
+    });
+    onSubmit.mockRejectedValueOnce(
+      new Error("These notes point at a line the diff no longer has: a.ts:99. Deselect them."),
+    );
+    await user.click(screen.getByRole("button", { name: "Approve on GitHub" }));
+    expect(await screen.findByText(/a\.ts:99/)).toBeTruthy();
   });
 });
