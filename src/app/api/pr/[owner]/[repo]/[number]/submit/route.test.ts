@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReviewSubmission } from "@/lib/github/gh";
 import { sessionStore } from "@/lib/review/services";
+import type { FileDiff } from "@/lib/types";
 
 const github = {
   sent: [] as ReviewSubmission[],
   failure: null as string | null,
   head: "sha1",
 };
+
+const prepared = { files: [] as FileDiff[] };
 
 vi.mock("@/lib/github/gh", () => ({
   submitReview: async (_ref: unknown, submission: ReviewSubmission) => {
@@ -15,6 +18,10 @@ vi.mock("@/lib/github/gh", () => ({
     return { id: 42, url: REVIEW_URL };
   },
   getPullRequest: async () => ({ headSha: github.head }),
+}));
+
+vi.mock("@/lib/review/prepare", () => ({
+  findPrepared: () => Promise.resolve({ data: { files: prepared.files } }),
 }));
 
 process.env.REVIEW_QUEUE_DB = ":memory:";
@@ -32,6 +39,25 @@ function request(body: unknown) {
   return new Request("http://test/api", { method: "POST", body: JSON.stringify(body) });
 }
 
+function file(path: string, newLines: number[]): FileDiff {
+  return {
+    path,
+    oldPath: path,
+    status: "modified",
+    binary: false,
+    additions: newLines.length,
+    deletions: 0,
+    hunks: [
+      {
+        header: "",
+        oldStart: 1,
+        newStart: newLines[0] ?? 1,
+        lines: newLines.map((newLine) => ({ kind: "add", text: "", oldLine: null, newLine })),
+      },
+    ],
+  };
+}
+
 const VALID = { event: "COMMENT", summary: "ok", noteIds: [], headSha: "sha1" };
 
 describe("POST submit", () => {
@@ -39,6 +65,7 @@ describe("POST submit", () => {
     github.sent = [];
     github.failure = null;
     github.head = "sha1";
+    prepared.files = [file("a.ts", [2]), file("b.ts", [5])];
   });
 
   it("rejects bad refs and bodies", async () => {
@@ -125,6 +152,25 @@ describe("POST submit", () => {
     expect(github.sent).toHaveLength(1);
   });
 
+  it("refuses a note whose line is no longer in the diff and names it, without posting", async () => {
+    const stale = sessionStore().addNote(KEY, {
+      path: "a.ts",
+      line: 99,
+      kind: "issue",
+      decorations: [],
+      body: "gone",
+    });
+    const response = await POST(request({ ...VALID, noteIds: [stale.id] }), context());
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: expect.stringContaining("a.ts:99"),
+      noteIds: [stale.id],
+    });
+    expect(github.sent).toEqual([]);
+    expect(sessionStore().getSession(KEY).notes).toHaveLength(1);
+    sessionStore().deleteNote(KEY, stale.id);
+  });
+
   it("keeps notes and answers a fixed message when GitHub fails", async () => {
     sessionStore().addNote(KEY, {
       path: null,
@@ -133,7 +179,7 @@ describe("POST submit", () => {
       decorations: [],
       body: "why?",
     });
-    github.failure = "gh: 422";
+    github.failure = "gh api failed: gh: Bad Gateway (HTTP 502)";
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const response = await POST(request(VALID), context());
     expect(response.status).toBe(502);
@@ -141,5 +187,26 @@ describe("POST submit", () => {
     expect(logged).toHaveBeenCalledOnce();
     logged.mockRestore();
     expect(sessionStore().getSession(KEY).notes).toHaveLength(1);
+  });
+
+  it("answers GitHub's 422 as 422 with advice, and keeps the notes", async () => {
+    const kept = sessionStore().addNote(KEY, {
+      path: null,
+      line: null,
+      kind: "question",
+      decorations: [],
+      body: "why?",
+    });
+    github.failure =
+      "gh api repos/acme/app/pulls/7/reviews failed: gh: Validation Failed (HTTP 422)";
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const response = await POST(request(VALID), context());
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: expect.stringContaining("not in the diff") });
+    expect(sessionStore().getSession(KEY).notes).toContainEqual(
+      expect.objectContaining({ id: kept.id }),
+    );
+    logged.mockRestore();
+    sessionStore().deleteNote(KEY, kept.id);
   });
 });
