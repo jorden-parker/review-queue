@@ -1,5 +1,5 @@
 import type { Conversation } from "@/lib/github/conversation";
-import type { ReviewEvent } from "@/lib/github/gh";
+import type { LinkedIssue, ReviewEvent } from "@/lib/github/gh";
 import { json, postJson } from "@/lib/json-response";
 import { prPath } from "@/lib/pr-ref";
 import type { AssistRequest } from "@/lib/review/assist-request";
@@ -46,6 +46,10 @@ export function fetchHead(ref: PullRequestRef): Promise<{ headSha: string }> {
 
 export function fetchConversation(ref: PullRequestRef): Promise<Conversation> {
   return fetch(apiPath(ref, "/conversation")).then(json<Conversation>);
+}
+
+export function fetchLinkedIssues(ref: PullRequestRef): Promise<{ issues: LinkedIssue[] }> {
+  return fetch(apiPath(ref, "/linked-issues")).then(json<{ issues: LinkedIssue[] }>);
 }
 
 export function fetchChanges(ref: PullRequestRef, sha: string): Promise<Interdiff> {
