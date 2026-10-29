@@ -1,13 +1,13 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Conversation } from "@/lib/github/conversation";
+import type { ConversationView } from "@/lib/github/conversation";
 import type { PullRequestRef } from "@/lib/types";
 import { useConversation } from "./use-conversation";
 
 const REF: PullRequestRef = { owner: "acme", repo: "app", number: 7 };
 
-const EMPTY: Conversation = { comments: [], reviews: [], truncated: false };
-const WITH_COMMENT: Conversation = {
+const EMPTY: ConversationView = { comments: [], reviews: [], truncated: false, viewer: null };
+const WITH_COMMENT: ConversationView = {
   comments: [
     {
       id: 1,
@@ -23,9 +23,10 @@ const WITH_COMMENT: Conversation = {
   ],
   reviews: [],
   truncated: false,
+  viewer: null,
 };
 
-let currentConversation: Conversation;
+let currentConversation: ConversationView;
 
 async function settle() {
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
