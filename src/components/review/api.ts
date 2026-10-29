@@ -1,4 +1,4 @@
-import type { Conversation } from "@/lib/github/conversation";
+import type { ConversationView } from "@/lib/github/conversation";
 import type { LinkedIssue, ReviewEvent } from "@/lib/github/gh";
 import { json, postJson } from "@/lib/json-response";
 import { prPath } from "@/lib/pr-ref";
@@ -44,8 +44,8 @@ export function fetchHead(ref: PullRequestRef): Promise<{ headSha: string }> {
   return fetch(apiPath(ref, "/head")).then(json<{ headSha: string }>);
 }
 
-export function fetchConversation(ref: PullRequestRef): Promise<Conversation> {
-  return fetch(apiPath(ref, "/conversation")).then(json<Conversation>);
+export function fetchConversation(ref: PullRequestRef): Promise<ConversationView> {
+  return fetch(apiPath(ref, "/conversation")).then(json<ConversationView>);
 }
 
 export function fetchLinkedIssues(ref: PullRequestRef): Promise<{ issues: LinkedIssue[] }> {

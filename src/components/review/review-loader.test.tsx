@@ -584,6 +584,7 @@ describe("ReviewLoader", () => {
       comments: [thread],
       reviews: [],
       truncated: false,
+      viewer: null,
     });
     const user = userEvent.setup();
     render(<ReviewLoader pullRequest={REF} />, { wrapper: TooltipProvider });
