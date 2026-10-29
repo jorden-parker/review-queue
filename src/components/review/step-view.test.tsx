@@ -4,6 +4,7 @@ import { memo } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReviewComment } from "@/lib/github/gh";
 import type { FileLines } from "@/lib/review/file-lines";
+import type { PreparedFile } from "@/lib/review/prepare";
 import type { Hunk, Note, Step } from "@/lib/types";
 import { reviewPayload } from "@/test/review-fixture";
 import { CodeLineComponent } from "./code-line";
@@ -139,6 +140,8 @@ const CLIENT_NOTE: Note = {
   id: 1,
   path: "src/client.ts",
   line: 11,
+  side: "new",
+  startLine: null,
   kind: "issue",
   decorations: [],
   body: "Log the options once",
@@ -181,6 +184,76 @@ function lineRow(lineIndex: number): HTMLElement {
 function lineBlock(lineIndex: number): HTMLElement {
   return lineRow(lineIndex).closest<HTMLElement>(".group")!.parentElement!;
 }
+
+function fileWithRemoval(): PreparedFile {
+  const base = reviewPayload().files.find((file) => file.path === "src/client.ts")!;
+  const removal: Hunk = {
+    header: "",
+    oldStart: 10,
+    newStart: 10,
+    lines: [
+      { kind: "del", text: "  old();", oldLine: 10, newLine: null },
+      { kind: "add", text: "  new();", oldLine: null, newLine: 10 },
+    ],
+  };
+  return {
+    ...base,
+    hunks: [removal],
+    highlighted: [
+      [
+        [{ text: "  old();", light: "#000", dark: "#fff" }],
+        [{ text: "  new();", light: "#000", dark: "#fff" }],
+      ],
+    ],
+  };
+}
+
+function contextWithRemoval(overrides: Partial<StepViewContext> = {}): StepViewContext {
+  const context = contextFor(async () => fileLines());
+  context.files.set("src/client.ts", fileWithRemoval());
+  return { ...context, ...overrides };
+}
+
+describe("notes on deleted lines", () => {
+  it("offers an add-note button on a deleted line that targets its old side", async () => {
+    const context = contextWithRemoval();
+    const { user } = renderStep(CLIENT_STEP, context);
+    await user.click(within(lineRow(0)).getByTitle(/Add a note/));
+    expect(context.handlers.onAddNote).toHaveBeenCalledWith({
+      path: "src/client.ts",
+      line: 10,
+      side: "old",
+    });
+  });
+
+  it("shows an old-side note on the deleted line and not on the added line with its number", () => {
+    const removedNote: Note = {
+      ...CLIENT_NOTE,
+      id: 2,
+      line: 10,
+      side: "old",
+      body: "Why was this removed?",
+    };
+    renderStep(CLIENT_STEP, contextWithRemoval({ notes: [removedNote] }));
+    expect(within(lineBlock(0)).getByText("Why was this removed?")).toBeTruthy();
+    expect(within(lineBlock(1)).queryByText("Why was this removed?")).toBeNull();
+  });
+
+  it("opens the composer under the deleted line and saves the note on the old side", async () => {
+    const context = contextWithRemoval({
+      composer: { path: "src/client.ts", line: 10, side: "old" },
+    });
+    const { user } = renderStep(CLIENT_STEP, context);
+    await user.type(within(lineBlock(0)).getByRole("textbox"), "why was this removed?");
+    await user.click(within(lineBlock(0)).getByRole("button", { name: "Save note" }));
+    expect(context.handlers.onSaveNote).toHaveBeenCalledWith(
+      { path: "src/client.ts", line: 10, side: "old" },
+      expect.any(Object),
+      "why was this removed?",
+    );
+    expect(within(lineBlock(1)).queryByRole("textbox")).toBeNull();
+  });
+});
 
 describe("places annotations on their own line", () => {
   it("shows a note on its own line only", () => {

@@ -1,4 +1,4 @@
-import type { FileDiff, Note } from "@/lib/types";
+import type { DiffSide, FileDiff, Note } from "@/lib/types";
 
 type LineNote = Note & { path: string; line: number };
 
@@ -6,21 +6,28 @@ function isLineNote(note: Note): note is LineNote {
   return note.path !== null && note.line !== null;
 }
 
-function newSideLines(files: readonly FileDiff[]): Map<string, Set<number>> {
-  const lines = new Map<string, Set<number>>();
+type SideLines = Record<DiffSide, Set<number>>;
+
+function linesBySide(files: readonly FileDiff[]): Map<string, SideLines> {
+  const lines = new Map<string, SideLines>();
   for (const file of files) {
-    const numbers = new Set<number>();
+    const sides: SideLines = { old: new Set(), new: new Set() };
     for (const hunk of file.hunks) {
-      for (const line of hunk.lines) if (line.newLine !== null) numbers.add(line.newLine);
+      for (const line of hunk.lines) {
+        if (line.oldLine !== null) sides.old.add(line.oldLine);
+        if (line.newLine !== null) sides.new.add(line.newLine);
+      }
     }
-    lines.set(file.path, numbers);
+    lines.set(file.path, sides);
   }
   return lines;
 }
 
 export function notesOffTheDiff(notes: readonly Note[], files: readonly FileDiff[]): Note[] {
-  const lines = newSideLines(files);
-  return notes.filter(isLineNote).filter((note) => !lines.get(note.path)?.has(note.line));
+  const lines = linesBySide(files);
+  return notes
+    .filter(isLineNote)
+    .filter((note) => !lines.get(note.path)?.[note.side].has(note.line));
 }
 
 export function offTheDiffMessage(notes: readonly Note[]): string {

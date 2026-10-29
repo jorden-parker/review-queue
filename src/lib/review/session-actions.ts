@@ -55,14 +55,25 @@ export const SessionActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("current-step"), stepId: z.string(), headSha: CommitShaSchema }),
   z.object({ type: z.literal("step-done"), stepId: z.string(), done: z.boolean() }),
   z.object({ type: z.literal("hotspot-checked"), hotspotId: z.string(), checked: z.boolean() }),
-  z.object({
-    type: z.literal("note-add"),
-    path: z.string().nullable(),
-    line: z.number().int().positive().nullable(),
-    kind: NoteKindSchema,
-    decorations: NoteDecorationsSchema,
-    body: z.string().trim().min(1),
-  }),
+  z
+    .object({
+      type: z.literal("note-add"),
+      path: z.string().nullable(),
+      line: z.number().int().positive().nullable(),
+      side: z.enum(["old", "new"]).default("new"),
+      startLine: z.number().int().positive().nullable().default(null),
+      kind: NoteKindSchema,
+      decorations: NoteDecorationsSchema,
+      body: z.string().trim().min(1),
+    })
+    .refine(
+      (action) =>
+        action.startLine === null || (action.line !== null && action.startLine < action.line),
+      {
+        message: "a range must start before the line it ends on",
+        path: ["startLine"],
+      },
+    ),
   z.object({
     type: z.literal("note-edit"),
     id: z.number().int(),

@@ -17,11 +17,30 @@ vi.mock("./api", () => ({
 const OTHER_REF = { ...REF, number: 8 };
 
 function note(id: number, body: string): Note {
-  return { id, path: null, line: null, kind: "nitpick", decorations: [], body, createdAt: "" };
+  return {
+    side: "new",
+    startLine: null,
+    id,
+    path: null,
+    line: null,
+    kind: "nitpick",
+    decorations: [],
+    body,
+    createdAt: "",
+  };
 }
 
 function noteAdd(body: string): SessionAction {
-  return { type: "note-add", path: null, line: null, kind: "nitpick", decorations: [], body };
+  return {
+    side: "new",
+    startLine: null,
+    type: "note-add",
+    path: null,
+    line: null,
+    kind: "nitpick",
+    decorations: [],
+    body,
+  };
 }
 
 function withNoteAdded(body: string) {

@@ -272,6 +272,8 @@ describe("ReviewLoader", () => {
         doneSteps: ["types:src/types.ts:0"],
         notes: [
           {
+            side: "new",
+            startLine: null,
             id: 3,
             path: null,
             line: null,
@@ -611,6 +613,8 @@ describe("ReviewLoader", () => {
           type: "note-add",
           path: "src/types.ts",
           line: 1,
+          side: "new",
+          startLine: null,
           kind: "issue",
           decorations: ["blocking"],
           body: "Needs a default",
@@ -619,6 +623,8 @@ describe("ReviewLoader", () => {
           type: "note-add",
           path: null,
           line: null,
+          side: "new",
+          startLine: null,
           kind: "parked",
           decorations: [],
           body: "Check logging later",
@@ -652,6 +658,8 @@ describe("ReviewLoader", () => {
       type: "note-add",
       path: "src/types.ts",
       line: 1,
+      side: "new",
+      startLine: null,
       kind: "suggestion",
       decorations: ["non-blocking"],
       body: "Extract a helper",
@@ -723,6 +731,8 @@ describe("ReviewLoader", () => {
       emptySession({
         notes: [
           {
+            side: "new",
+            startLine: null,
             id: 3,
             path: "src/client.ts",
             line: 11,
@@ -759,6 +769,8 @@ describe("ReviewLoader", () => {
       emptySession({
         notes: [
           {
+            side: "new",
+            startLine: null,
             id: 3,
             path: "src/client.ts",
             line: 11,
@@ -893,6 +905,8 @@ describe("ReviewLoader", () => {
       type: "note-add",
       path: "src/types.ts",
       line: 1,
+      side: "new",
+      startLine: null,
       kind: "issue",
       decorations: ["blocking"],
       body: ASSIST_REPLY.join(""),

@@ -5,6 +5,8 @@ import { modelReply } from "@/test/fake-llm";
 
 const NOTES: Note[] = [
   {
+    side: "new",
+    startLine: null,
     id: 1,
     path: "src/a.ts",
     line: 3,

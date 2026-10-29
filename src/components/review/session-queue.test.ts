@@ -18,6 +18,8 @@ type AddedNote = Parameters<typeof serverIdOfAddedNote>[1];
 
 function note(id: number, body: string, overrides: Partial<Note> = {}): Note {
   return {
+    side: "new",
+    startLine: null,
     id,
     path: null,
     line: null,
@@ -34,7 +36,16 @@ function ledger(overrides: Partial<SessionLedger> = {}): SessionLedger {
 }
 
 function addedNote(body: string): AddedNote {
-  return { type: "note-add", path: null, line: null, kind: "nitpick", decorations: [], body };
+  return {
+    side: "new",
+    startLine: null,
+    type: "note-add",
+    path: null,
+    line: null,
+    kind: "nitpick",
+    decorations: [],
+    body,
+  };
 }
 
 function deferred<T>() {
