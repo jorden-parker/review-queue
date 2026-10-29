@@ -83,12 +83,13 @@ export async function explainStep(
   input: StepExplanationInput,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<StepExplanation> {
   const request: ModelRequest = {
     system: systemPrompt(input),
     maxTokens: MAX_TOKENS,
     messages: [{ role: "user", content: buildStepPrompt(input) }],
   };
-  const explanation = await askForJson({ config, fetchImpl }, request, parseExplanation);
+  const explanation = await askForJson({ config, fetchImpl }, request, parseExplanation, signal);
   return { ...explanation, model: config.model };
 }

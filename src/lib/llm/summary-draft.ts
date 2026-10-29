@@ -59,11 +59,12 @@ export async function draftSummary(
   input: SummaryDraftInput,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<string> {
   const request: ModelRequest = {
     system: SYSTEM_PROMPT,
     maxTokens: MAX_TOKENS,
     messages: [{ role: "user", content: buildSummaryPrompt(input) }],
   };
-  return askForJson({ config, fetchImpl }, request, parseSummary);
+  return askForJson({ config, fetchImpl }, request, parseSummary, signal);
 }

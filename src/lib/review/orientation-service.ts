@@ -44,6 +44,7 @@ export async function orientationFor(
   store: SessionStore,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<OrientationResult> {
   if (!config.enabled) return { status: "disabled" };
   try {
@@ -51,7 +52,7 @@ export async function orientationFor(
       store,
       cacheKey(data, config),
       OrientationRecordSchema,
-      () => orient(orientationInput(data), config, fetchImpl),
+      () => orient(orientationInput(data), config, fetchImpl, signal),
     );
     return { status: "ready", orientation };
   } catch (error) {

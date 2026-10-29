@@ -14,10 +14,11 @@ export async function summaryDraftFor(
   notes: Note[],
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<SummaryDraftResult> {
   if (!config.enabled) return { status: "disabled" };
   try {
-    const summary = await draftSummary({ title, event, notes }, config, fetchImpl);
+    const summary = await draftSummary({ title, event, notes }, config, fetchImpl, signal);
     return { status: "ready", summary };
   } catch (error) {
     return { status: "error", message: error instanceof Error ? error.message : String(error) };
