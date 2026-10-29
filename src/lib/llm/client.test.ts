@@ -14,7 +14,8 @@ function recordingFetch() {
   const fetchImpl = async (_url: unknown, init?: RequestInit) => {
     bodies.push(JSON.parse(String(init?.body)));
     return new Response(
-      sseEvent("content_block_delta", { delta: { type: "text_delta", text: "ok" } }),
+      sseEvent("content_block_delta", { delta: { type: "text_delta", text: "ok" } }) +
+        sseEvent("message_stop", {}),
     );
   };
   return { fetchImpl: fetchImpl as typeof fetch, bodies };
@@ -66,18 +67,44 @@ describe("askModel", () => {
 
   it("waits past the timeout once the answer has started", async () => {
     const config = { ...CONFIG, timeoutMs: 20 };
-    const reply = await askModel({ config, fetchImpl: slowAnswerFetch(60) }, REQUEST);
+    const reply = await askModel({ config, fetchImpl: slowAnswerFetch(10) }, REQUEST);
     expect(reply).toBe("ab");
   });
 
   it("sends one request at a time, so a queued request's timeout starts when it is sent", async () => {
     const config = { ...CONFIG, timeoutMs: 20 };
-    const fetchImpl = singleSlotFetch(60);
+    const fetchImpl = singleSlotFetch(10);
     const replies = await Promise.all([
       askModel({ config, fetchImpl }, REQUEST),
       askModel({ config, fetchImpl }, REQUEST),
     ]);
     expect(replies).toEqual(["ab", "ab"]);
+  });
+
+  it("fails when the model goes quiet for the timeout after it started answering", async () => {
+    const config = { ...CONFIG, timeoutMs: 20 };
+    await expect(
+      askModel({ config, fetchImpl: silentAfterFirstByteFetch() }, REQUEST),
+    ).rejects.toThrow(/stopped answering/);
+  });
+
+  it("lets an aborted caller leave the queue without holding the next one up", async () => {
+    const config = { ...CONFIG, timeoutMs: 200 };
+    const fetchImpl = singleSlotFetch(30);
+    const first = askModel({ config, fetchImpl }, REQUEST);
+    const controller = new AbortController();
+    const second = askModel({ config, fetchImpl }, REQUEST, controller.signal);
+    const third = askModel({ config, fetchImpl }, REQUEST);
+    controller.abort(new DOMException("left", "AbortError"));
+    await expect(second).rejects.toThrow("left");
+    expect(await Promise.all([first, third])).toEqual(["ab", "ab"]);
+  });
+
+  it("fails when the stream ends before message_stop", async () => {
+    const { fetchImpl } = streamingFetch([
+      sseEvent("content_block_delta", { delta: { type: "text_delta", text: "half" } }),
+    ]);
+    await expect(askModel({ config: CONFIG, fetchImpl }, REQUEST)).rejects.toThrow(/ended early/);
   });
 });
 
@@ -116,6 +143,7 @@ function slowAnswerBody(
       onAnswered();
       if (signal?.aborted) return controller.error(signal.reason);
       controller.enqueue(delta("b"));
+      controller.enqueue(encoder.encode(sseEvent("message_stop", {})));
       controller.close();
     },
   });
@@ -124,6 +152,23 @@ function slowAnswerBody(
 function slowAnswerFetch(delayMs: number): typeof fetch {
   return (async (_url: unknown, init?: RequestInit) =>
     new Response(slowAnswerBody(delayMs, init?.signal, () => {}))) as unknown as typeof fetch;
+}
+
+function silentAfterFirstByteFetch(): typeof fetch {
+  return (async (_url: unknown, init?: RequestInit) => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            sseEvent("content_block_delta", { delta: { type: "text_delta", text: "a" } }),
+          ),
+        );
+        init?.signal?.addEventListener("abort", () => controller.error(init.signal?.reason));
+      },
+    });
+    return new Response(body);
+  }) as unknown as typeof fetch;
 }
 
 function abortRejection(signal: AbortSignal | null | undefined): Promise<never> {
@@ -177,7 +222,8 @@ describe("streamModel", () => {
         index: 0,
         delta: { type: "thinking_delta", thinking: "Draft" },
       }) +
-      sseEvent("content_block_delta", { index: 1, delta: { type: "text_delta", text: "Answer" } });
+      sseEvent("content_block_delta", { index: 1, delta: { type: "text_delta", text: "Answer" } }) +
+      sseEvent("message_stop", {});
     const { fetchImpl } = streamingFetch([events]);
     const parts = await collect(streamModel({ config: CONFIG, fetchImpl }, REQUEST));
     expect(parts.join("")).toBe("Answer");
@@ -196,7 +242,7 @@ describe("streamModel", () => {
 
   it("keeps streaming past the timeout once the answer has started", async () => {
     const config = { ...CONFIG, timeoutMs: 20 };
-    const parts = await collect(streamModel({ config, fetchImpl: slowAnswerFetch(60) }, REQUEST));
+    const parts = await collect(streamModel({ config, fetchImpl: slowAnswerFetch(10) }, REQUEST));
     expect(parts.join("")).toBe("ab");
   });
 
@@ -255,7 +301,8 @@ describe("streamTurn", () => {
         index: 1,
         delta: { type: "input_json_delta", partial_json: '{"path":"src/a.ts"}' },
       }) +
-      sseEvent("content_block_stop", { index: 1 });
+      sseEvent("content_block_stop", { index: 1 }) +
+      sseEvent("message_stop", {});
     const { fetchImpl } = streamingFetch([events]);
     const turn = await collect(streamTurn({ config: CONFIG, fetchImpl }, REQUEST));
     expect(turn).toEqual([
@@ -272,7 +319,8 @@ describe("streamTurn", () => {
         delta: { type: "thinking_delta", thinking: "Draft" },
       }) +
       sseEvent("content_block_stop", { index: 0 }) +
-      sseEvent("content_block_delta", { index: 1, delta: { type: "text_delta", text: "Answer" } });
+      sseEvent("content_block_delta", { index: 1, delta: { type: "text_delta", text: "Answer" } }) +
+      sseEvent("message_stop", {});
     const { fetchImpl } = streamingFetch([events]);
     const turn = await collect(streamTurn({ config: CONFIG, fetchImpl }, REQUEST));
     expect(turn).toEqual([{ type: "text", text: "Answer" }]);
@@ -307,7 +355,8 @@ describe("streamTurn", () => {
         index: 0,
         delta: { type: "input_json_delta", partial_json: '{"name":' },
       }) +
-      sseEvent("content_block_stop", { index: 0 });
+      sseEvent("content_block_stop", { index: 0 }) +
+      sseEvent("message_stop", {});
     const { fetchImpl } = streamingFetch([events]);
     const turn = await collect(streamTurn({ config: CONFIG, fetchImpl }, REQUEST));
     expect(turn).toEqual([
