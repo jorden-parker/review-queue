@@ -59,6 +59,7 @@ import { contextCount } from "./context-symbols";
 import { HotspotList } from "./hotspot-list";
 import { JumpTrail } from "./jump-trail";
 import { ConversationPanel } from "./conversation-panel";
+import { newReplyCount } from "./your-threads";
 import { NotesPanel } from "./notes-panel";
 import { OrientationCard } from "./orientation-card";
 import { PauseDialog } from "./pause-dialog";
@@ -190,7 +191,7 @@ function paneEntries({ session, workspace }: PaneProps, side: PanelSide): PaneEn
     map: null,
     hotspots: openHotspots,
     notes: session.notes.length,
-    github: null,
+    github: newReplyCount(workspace.threads, workspace.conversation.viewer),
     chat: null,
     chats: session.assistThreads.length,
     context: contextCount(session.contextSymbols, workspace.currentStep?.id ?? null),

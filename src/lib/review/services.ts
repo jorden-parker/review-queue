@@ -1,10 +1,15 @@
-import { type Conversation, loadConversation } from "@/lib/github/conversation";
+import {
+  type Conversation,
+  type ConversationView,
+  loadConversation,
+} from "@/lib/github/conversation";
 import {
   getPullRequest,
   type LinkedIssue,
   listLinkedIssues,
   listReviewRequests,
   type ReviewRequest,
+  viewerLogin,
 } from "@/lib/github/gh";
 import { TtlCache } from "@/lib/github/ttl-cache";
 import type { LlmConfig } from "@/lib/llm/client";
@@ -18,6 +23,7 @@ import type { ReviewDeps } from "./prepare";
 const REVIEW_REQUESTS_TTL_MS = 60_000;
 const PULL_REQUEST_TTL_MS = 30_000;
 const LINKED_ISSUES_TTL_MS = 5 * 60_000;
+const VIEWER_TTL_MS = 60 * 60_000;
 
 const globals = globalThis as {
   reviewQueueStore?: SessionStore;
@@ -54,6 +60,17 @@ export function linkedIssues(ref: PullRequestRef): Promise<LinkedIssue[]> {
   return githubCache().get(`linked-issues:${prKey(ref)}`, LINKED_ISSUES_TTL_MS, () =>
     listLinkedIssues(ref, sessionStore()),
   );
+}
+
+function viewer(): Promise<string | null> {
+  return githubCache()
+    .get("viewer", VIEWER_TTL_MS, viewerLogin)
+    .catch(() => null);
+}
+
+export async function conversationView(ref: PullRequestRef): Promise<ConversationView> {
+  const [loaded, signedInAs] = await Promise.all([conversation(ref), viewer()]);
+  return { ...loaded, viewer: signedInAs };
 }
 
 export function forgetConversation(ref: PullRequestRef): void {
