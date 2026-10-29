@@ -16,6 +16,13 @@ export const POST = withPreparedReview(async (request, prepared) => {
     .getSession(prKey(prepared.data.pr.ref))
     .notes.filter((note) => input.noteIds.includes(note.id));
   return Response.json(
-    await summaryDraftFor(prepared.data.pr.title, input.event, notes, await currentLlmConfig()),
+    await summaryDraftFor(
+      prepared.data.pr.title,
+      input.event,
+      notes,
+      await currentLlmConfig(),
+      fetch,
+      request.signal,
+    ),
   );
 });

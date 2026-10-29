@@ -21,6 +21,7 @@ export async function changePartsFor(
   store: SessionStore,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<ChangePartsResult> {
   if (!config.enabled) return { status: "disabled" };
   try {
@@ -33,6 +34,7 @@ export async function changePartsFor(
           { title: data.pr.title, map: data.changeMap, diffs: data.files },
           config,
           fetchImpl,
+          signal,
         ),
     );
     return { status: "ready", parts };

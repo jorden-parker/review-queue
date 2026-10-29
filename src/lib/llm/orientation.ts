@@ -137,14 +137,18 @@ export async function orient(
   input: OrientationInput,
   config: LlmConfig,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<Orientation> {
   const request: ModelRequest = {
     system: systemPrompt(input),
     maxTokens: MAX_TOKENS,
     messages: [{ role: "user", content: buildPrompt(input) }],
   };
-  const orientation = await askForJson({ config, fetchImpl }, request, (text) =>
-    parseOrientation(text, input),
+  const orientation = await askForJson(
+    { config, fetchImpl },
+    request,
+    (text) => parseOrientation(text, input),
+    signal,
   );
   return { ...orientation, model: config.model };
 }

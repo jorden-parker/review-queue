@@ -330,7 +330,7 @@ async function takeTurn(signal?: AbortSignal): Promise<() => void> {
   let release = () => {};
   globals.reviewQueueModelTurn = new Promise<void>((resolve) => (release = resolve));
   try {
-    await Promise.race([previous, abortedBy(signal)]);
+    await Promise.race([abortedBy(signal), previous]);
   } catch (reason) {
     void previous.then(release);
     throw reason;
