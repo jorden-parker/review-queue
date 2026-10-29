@@ -37,6 +37,8 @@ export function useSessionEdits(
       const note = {
         path: target?.path ?? null,
         line: target?.line ?? null,
+        side: target?.side ?? "new",
+        startLine: null,
         kind: tag.kind,
         decorations: tag.decorations,
         body,

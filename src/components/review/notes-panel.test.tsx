@@ -5,6 +5,8 @@ import type { Note } from "@/lib/types";
 import { NotesPanel } from "./notes-panel";
 
 const NIT_NOTE: Note = {
+  side: "new",
+  startLine: null,
   id: 1,
   path: "a.ts",
   line: 3,
@@ -15,6 +17,8 @@ const NIT_NOTE: Note = {
 };
 
 const PARKED_NOTE: Note = {
+  side: "new",
+  startLine: null,
   id: 2,
   path: null,
   line: null,

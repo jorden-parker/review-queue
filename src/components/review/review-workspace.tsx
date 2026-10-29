@@ -794,7 +794,7 @@ export function ReviewWorkspace({
     () => ({
       onIdentifier: workspace.peekName,
       onHoverIdentifier: workspace.setHovered,
-      onAddNote: (path, line) => setComposer({ path, line }),
+      onAddNote: (target) => setComposer(target),
       onDeleteNote: workspace.deleteNote,
       onToggleHotspot: workspace.toggleHotspot,
       onCheckFlag: workspace.aiEnabled

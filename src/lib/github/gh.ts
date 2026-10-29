@@ -34,7 +34,13 @@ export type ReviewSubmission = {
   event: ReviewEvent;
   body: string;
   commitId: string;
-  comments: { path: string; line: number; body: string }[];
+  comments: {
+    path: string;
+    line: number;
+    side: "LEFT" | "RIGHT";
+    startLine?: number;
+    body: string;
+  }[];
 };
 
 type SearchResult = {
@@ -110,7 +116,7 @@ export async function submitReview(
     event: review.event,
     body: review.body,
     commit_id: review.commitId,
-    comments: review.comments.map((comment) => ({ ...comment, side: "RIGHT" })),
+    comments: review.comments.map(toGitHubComment),
   };
   const output = await run(
     "gh",
@@ -126,6 +132,11 @@ export async function submitReview(
   );
   const created = JSON.parse(output) as { id: number; html_url: string };
   return { id: created.id, url: created.html_url };
+}
+
+function toGitHubComment({ startLine, ...comment }: ReviewSubmission["comments"][number]) {
+  if (startLine === undefined) return comment;
+  return { ...comment, start_line: startLine, start_side: comment.side };
 }
 
 export async function postReplyToReviewComment(

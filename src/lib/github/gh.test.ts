@@ -100,7 +100,7 @@ describe("github", () => {
         event: "COMMENT",
         body: "Looks good",
         commitId: "abc",
-        comments: [{ path: "a.ts", line: 3, body: "nit: rename" }],
+        comments: [{ path: "a.ts", line: 3, side: "RIGHT", body: "nit: rename" }],
       },
       run,
     );
@@ -119,6 +119,35 @@ describe("github", () => {
       commit_id: "abc",
       comments: [{ path: "a.ts", line: 3, side: "RIGHT", body: "nit: rename" }],
     });
+  });
+
+  it("posts a deleted-line comment on the old side and a range with its start", async () => {
+    const created = { id: 43, html_url: "https://github.com/acme/app/pull/7#pullrequestreview-43" };
+    const { run, calls } = fakeRunner(JSON.stringify(created));
+    await submitReview(
+      REF,
+      {
+        event: "COMMENT",
+        body: "",
+        commitId: "abc",
+        comments: [
+          { path: "a.ts", line: 6, side: "LEFT", body: "why removed?" },
+          { path: "a.ts", line: 9, side: "RIGHT", startLine: 4, body: "one helper" },
+        ],
+      },
+      run,
+    );
+    expect(JSON.parse(calls[0].options?.input ?? "").comments).toEqual([
+      { path: "a.ts", line: 6, side: "LEFT", body: "why removed?" },
+      {
+        path: "a.ts",
+        line: 9,
+        side: "RIGHT",
+        start_line: 4,
+        start_side: "RIGHT",
+        body: "one helper",
+      },
+    ]);
   });
 
   it("posts a reply to a review comment through the API", async () => {
