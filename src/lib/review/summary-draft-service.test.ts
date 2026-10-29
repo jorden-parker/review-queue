@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Note } from "@/lib/types";
 import { summaryDraftFor } from "./summary-draft-service";
 import { modelReply } from "@/test/fake-llm";
@@ -43,9 +43,13 @@ describe("summaryDraftFor", () => {
   });
 
   it("reports the server failure as an error", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const failing = (async () => Response.json({}, { status: 503 })) as typeof fetch;
     const result = await summaryDraftFor("Add cache", "COMMENT", NOTES, CONFIG, failing);
     expect(result).toMatchObject({ status: "error" });
     expect(result).toHaveProperty("message", expect.stringContaining("HTTP 503"));
+    expect(logged).toHaveBeenCalledOnce();
+    expect(logged.mock.calls[0][0]).toContain("review-queue: summary draft failed");
+    logged.mockRestore();
   });
 });

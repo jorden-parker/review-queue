@@ -72,7 +72,11 @@ describe("orientationFor", () => {
   it("reports errors without throwing", async () => {
     const store = new SessionStore(":memory:");
     const failing = (async () => new Response("down", { status: 503 })) as unknown as typeof fetch;
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(await orientationFor(DATA, store, CONFIG, failing)).toMatchObject({ status: "error" });
+    expect(logged).toHaveBeenCalledOnce();
+    expect(logged.mock.calls[0][0]).toContain("review-queue: orientation a/b#1 failed");
+    logged.mockRestore();
   });
 
   it("gives up without calling the model when the request was already aborted", async () => {

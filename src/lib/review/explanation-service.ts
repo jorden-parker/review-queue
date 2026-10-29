@@ -4,6 +4,7 @@ import {
   StepExplanationRecordSchema,
   type StepExplanation,
 } from "@/lib/llm/step-explanation";
+import { logServerError } from "@/lib/log";
 import { prKey } from "@/lib/pr-ref";
 import type { SessionStore } from "@/lib/session/store";
 import { cachedModelResult, storedModelResult } from "./model-cache";
@@ -50,6 +51,7 @@ export async function explanationFor(
     );
     return { status: "ready", explanation };
   } catch (error) {
+    logServerError(`step explanation ${prKey(data.pr.ref)}`, error);
     return { status: "error", message: error instanceof Error ? error.message : String(error) };
   }
 }
