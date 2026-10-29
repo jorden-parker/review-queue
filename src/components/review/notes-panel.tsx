@@ -126,7 +126,7 @@ function NoteRow({
         <Markdown text={note.body} className="flex flex-col gap-1.5 wrap-anywhere" />
         {note.path && (
           <button onClick={() => onOpen(note)} className="self-start text-left">
-            <PathLabel path={note.path} line={note.line} />
+            <PathLabel path={note.path} line={note.line} startLine={note.startLine} />
           </button>
         )}
       </div>

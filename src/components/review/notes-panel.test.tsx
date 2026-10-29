@@ -48,6 +48,11 @@ describe("NotesPanel rendering", () => {
     expect(screen.getByText("foo").tagName).toBe("CODE");
   });
 
+  it("shows a range note's first and last line", () => {
+    renderPanel([{ ...NIT_NOTE, line: 9, startLine: 4 }]);
+    expect(screen.getByText(":4–9")).toBeTruthy();
+  });
+
   it("keeps a link in the note body out of the open button", () => {
     renderPanel([{ ...NIT_NOTE, body: "see [docs](https://example.com)" }]);
     expect(screen.getByRole("link", { name: "docs" }).closest("button")).toBeNull();

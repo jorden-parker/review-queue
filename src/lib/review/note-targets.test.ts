@@ -81,6 +81,23 @@ describe("notesOffTheDiff", () => {
     ]);
   });
 
+  it("keeps a range note whose first and last lines share a hunk", () => {
+    const range = { ...note(9, "a.ts", 12), startLine: 10 };
+    expect(notesOffTheDiff([range], files)).toEqual([]);
+  });
+
+  it("names a range note whose first and last lines are in different hunks", () => {
+    const spanning = file("c.ts", [10, 11]);
+    spanning.hunks.push({
+      header: "",
+      oldStart: 20,
+      newStart: 20,
+      lines: [{ kind: "add", text: "", oldLine: null, newLine: 20 }],
+    });
+    const range = { ...note(10, "c.ts", 20), startLine: 11 };
+    expect(notesOffTheDiff([range], [spanning])).toEqual([range]);
+  });
+
   it("counts context lines as part of the diff", () => {
     const withContext = file("d.ts", [1]);
     withContext.hunks[0].lines.push({ kind: "context", text: "", oldLine: 2, newLine: 2 });

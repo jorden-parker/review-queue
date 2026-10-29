@@ -72,6 +72,7 @@ import { StartOverDialog } from "./start-over-dialog";
 import { occurrencesOf } from "./occurrences";
 import { orderedSteps, stepReasons } from "./step-order";
 import { SavedChatsPanel } from "./saved-chats-panel";
+import { noteAnchorOf } from "./note-range";
 import { SelectionToolbar } from "./selection-toolbar";
 import type { LoadFile } from "./use-file-lines";
 import { useReferenceCounts } from "./use-file-symbols";
@@ -692,10 +693,27 @@ function WorkspaceAssist({ workspace }: { workspace: Workspace }) {
 
 function WorkspaceSelectionToolbar({ workspace }: { workspace: Workspace }) {
   const { selection } = workspace;
-  if (!workspace.aiEnabled || !selection) return null;
+  if (!selection) return null;
+  const anchor = noteAnchorOf(
+    workspace.files.get(selection.range.path)?.hunks ?? [],
+    selection.range,
+  );
   return (
     <SelectionToolbar
       selection={selection}
+      aiEnabled={workspace.aiEnabled}
+      onNote={
+        anchor
+          ? () =>
+              workspace.setComposer({
+                path: anchor.path,
+                side: anchor.side,
+                startLine: anchor.startLine,
+                line: anchor.line,
+                endLine: anchor.line,
+              })
+          : null
+      }
       onAction={(action) =>
         workspace.assist.open({ kind: "lines", range: selection.range }, action)
       }
