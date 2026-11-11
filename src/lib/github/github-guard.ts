@@ -1,4 +1,5 @@
 import { runCommand, type Runner } from "@/lib/exec";
+import { GIT_NETWORK_SUBCOMMANDS } from "@/lib/git-env";
 
 type GitHubBudgets = { perMinute: number; perHour: number; searchPerMinute: number };
 
@@ -17,7 +18,6 @@ export class GitHubBudgetError extends Error {
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
-const GIT_NETWORK_SUBCOMMANDS = new Set(["clone", "fetch", "ls-remote", "pull", "push"]);
 const RATE_LIMIT_PATTERN = /rate limit|abuse detection|HTTP 429/i;
 
 const DEFAULT_OPTIONS: GuardOptions = {

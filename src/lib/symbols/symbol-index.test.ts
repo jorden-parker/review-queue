@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Runner } from "@/lib/exec";
 import { ensureCheckout } from "@/lib/git/checkout";
 import {
@@ -68,6 +68,14 @@ describe("SymbolIndex", () => {
       "src/store.ts:1",
     ]);
     expect(references[2].text).toContain("load('1')");
+  });
+
+  it("finds references whatever the reviewer's own git config says", async () => {
+    const reviewerConfig = path.join(fixture.root, "reviewer-gitconfig");
+    fs.writeFileSync(reviewerConfig, "[color]\n\tui = always\n[grep]\n\tcolumn = true\n");
+    vi.stubEnv("GIT_CONFIG_GLOBAL", reviewerConfig);
+    const references = await index.referencesTo("load").finally(() => vi.unstubAllEnvs());
+    expect(references.map((reference) => reference.path)).toContain("src/app.ts");
   });
 
   it("searches file contents as text, including non-code files", async () => {

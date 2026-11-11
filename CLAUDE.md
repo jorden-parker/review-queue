@@ -198,8 +198,16 @@ alone (curl).
 
 **Shell-outs** all go through `lib/exec.ts` (`Runner`). It drops the repository
 variables git exports inside hooks (`lib/git-env.ts`), so checkouts never touch
-an enclosing repo. Modules take a `run` parameter so tests can inject fakes, and
-`ReviewDeps` injects `fetchPullRequest` and `store` the same way.
+an enclosing repo. Every git command except the network subcommands (`clone`,
+`fetch`, `ls-remote`, `pull`, `push`) runs with `GIT_CONFIG_GLOBAL` set to the
+null device and `GIT_CONFIG_NOSYSTEM=1` (`commandEnvironment`), so the
+reviewer's own git config cannot change the output the parsers read; the network
+subcommands keep that config. The network subcommands also answer GitHub's
+credential request from the `gh` login (`gh auth git-credential`, set through
+`GIT_CONFIG_COUNT`) and run with `GIT_TERMINAL_PROMPT=0`, so a private repo
+needs no git setup beyond `gh` and a missing login fails at once. Modules take a
+`run` parameter so tests can inject fakes, and `ReviewDeps` injects
+`fetchPullRequest` and `store` the same way.
 
 **Client** (`src/components/review/`). `review-loader.tsx` →
 `review-workspace.tsx`. State lives in `use-*` hooks (navigation, session edits,

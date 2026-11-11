@@ -1,5 +1,5 @@
 import { type ChildProcessWithoutNullStreams, execFile, spawn } from "node:child_process";
-import { withoutRepositoryVariables } from "./git-env";
+import { commandEnvironment, withoutRepositoryVariables } from "./git-env";
 
 export type RunOptions = { cwd?: string; input?: string };
 
@@ -14,7 +14,7 @@ export const runCommand: Runner = (command, args, options = {}) =>
       args,
       {
         cwd: options.cwd,
-        env: withoutRepositoryVariables(process.env),
+        env: commandEnvironment(command, args, process.env),
         maxBuffer: MAX_OUTPUT_BYTES,
         encoding: "utf8",
       },

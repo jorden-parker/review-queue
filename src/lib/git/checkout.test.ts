@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCommand, type Runner } from "@/lib/exec";
 import {
   createFixtureRepo,
@@ -39,7 +39,10 @@ describe("checkout", () => {
     );
   });
 
-  afterEach(() => removeFixtureRepo(fixture));
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    removeFixtureRepo(fixture);
+  });
 
   it("checks out the PR head into a worktree and diffs it against the merge base", async () => {
     const options = { cacheRoot: fixture.cacheRoot, remoteUrl: fixture.origin };
@@ -115,6 +118,16 @@ describe("checkout", () => {
     const churn = await fileChurn(checkout);
     expect(churn.get("src/a.ts")).toBe(2);
     expect(churn.get("README.md")).toBe(1);
+  });
+
+  it("diffs the same way whatever the reviewer's own git config says", async () => {
+    const reviewerConfig = path.join(fixture.root, "reviewer-gitconfig");
+    fs.writeFileSync(reviewerConfig, "[diff]\n\tnoprefix = true\n");
+    vi.stubEnv("GIT_CONFIG_GLOBAL", reviewerConfig);
+    const options = { cacheRoot: fixture.cacheRoot, remoteUrl: fixture.origin };
+    const checkout = await ensureCheckout(REF, currentCommits(fixture), options);
+    const diffs = await diffCheckout(checkout);
+    expect(diffs.map((diff) => diff.path)).toEqual(["src/a.ts", "src/b.ts"]);
   });
 
   it("skips the network fetch when both commits are already cached", async () => {
