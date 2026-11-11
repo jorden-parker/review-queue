@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { accessLink, loadAccessToken, matchesAccessToken } from "./access-token";
 
 describe("access token", () => {
@@ -11,7 +11,10 @@ describe("access token", () => {
     directory = fs.mkdtempSync(path.join(os.tmpdir(), "access-token-"));
   });
 
-  afterEach(() => fs.rmSync(directory, { recursive: true, force: true }));
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
 
   it("creates a private random token once and reuses it", () => {
     const file = path.join(directory, "nested", "access-token");
@@ -35,7 +38,16 @@ describe("access token", () => {
     expect(matchesAccessToken(null, "secret-token")).toBe(false);
   });
 
-  it("builds the link that signs the browser in", () => {
-    expect(accessLink("abc")).toBe("http://127.0.0.1:4477/?token=abc");
+  it("builds the link that signs the browser in on the app's own host name", () => {
+    expect(accessLink("abc")).toBe("http://review-queue.localhost:4477/?token=abc");
+  });
+
+  it("starts a fresh token instead of reusing one issued for the 127.0.0.1 address", () => {
+    vi.stubEnv("HOME", directory);
+    vi.stubEnv("REVIEW_QUEUE_TOKEN_FILE", undefined);
+    const formerFile = path.join(directory, ".local", "share", "review-queue", "access-token");
+    fs.mkdirSync(path.dirname(formerFile), { recursive: true });
+    fs.writeFileSync(formerFile, "former-token", { mode: 0o600 });
+    expect(loadAccessToken()).not.toBe("former-token");
   });
 });

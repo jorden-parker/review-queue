@@ -3,11 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { dataDirectory } from "@/lib/data-directory";
 
-const APP_ORIGIN = "http://127.0.0.1:4477";
+export const APP_HOST_NAME = "review-queue.localhost";
+const APP_ORIGIN = `http://${APP_HOST_NAME}:4477`;
 const TOKEN_BYTES = 32;
 
 function accessTokenPath(): string {
-  return process.env.REVIEW_QUEUE_TOKEN_FILE ?? path.join(dataDirectory(), "access-token");
+  return process.env.REVIEW_QUEUE_TOKEN_FILE ?? path.join(dataDirectory(), "access-token-v2");
 }
 
 function createAccessToken(file: string): string {

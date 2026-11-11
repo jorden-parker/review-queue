@@ -10,24 +10,38 @@ const tokenDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "proxy-token-"));
 process.env.REVIEW_QUEUE_TOKEN_FILE = path.join(tokenDirectory, "access-token");
 const TOKEN = loadAccessToken();
 
-const API = "http://127.0.0.1:4477/api/pr/acme/app/7/submit";
+const APP_HOST = "review-queue.localhost:4477";
+const APP_URL = `http://${APP_HOST}`;
+const API = `${APP_URL}/api/pr/acme/app/7/submit`;
 const SIGNED_IN = { cookie: `review-queue-token=${TOKEN}` };
 
 function requestFor(headers: Record<string, string>, method = "POST", url = API): NextRequest {
-  return new NextRequest(url, { method, headers: { host: "127.0.0.1:4477", ...headers } });
+  return new NextRequest(url, { method, headers: { host: APP_HOST, ...headers } });
 }
 
-const SAME_ORIGIN_JSON = { origin: "http://127.0.0.1:4477", "content-type": "application/json" };
+const SAME_ORIGIN_JSON = { origin: APP_URL, "content-type": "application/json" };
 const JSON_HEADERS = { ...SIGNED_IN, ...SAME_ORIGIN_JSON };
 
 describe("proxy", () => {
   afterAll(() => fs.rmSync(tokenDirectory, { recursive: true, force: true }));
 
-  it("allows signed-in same-origin JSON posts and plain reads on loopback", () => {
+  it("allows signed-in same-origin JSON posts and plain reads on the app's own host name", () => {
     expect(proxy(requestFor(JSON_HEADERS)).status).toBe(200);
     expect(proxy(requestFor(SIGNED_IN, "GET")).status).toBe(200);
-    expect(proxy(requestFor({ ...SIGNED_IN, host: "localhost:4477" }, "GET")).status).toBe(200);
-    expect(proxy(requestFor({ ...SIGNED_IN, host: "[::1]:4477" }, "GET")).status).toBe(200);
+  });
+
+  it("sends reads on a former loopback name to the app's own host name", () => {
+    for (const formerHost of ["127.0.0.1:4477", "localhost:4477", "[::1]:4477"]) {
+      const url = `http://${formerHost}/pr/a/b/1?tab=notes`;
+      const response = proxy(requestFor({ ...SIGNED_IN, host: formerHost }, "GET", url));
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(`${APP_URL}/pr/a/b/1?tab=notes`);
+    }
+  });
+
+  it("refuses writes on a former loopback name, so a cookie set there is never honoured", () => {
+    const formerOrigin = { origin: "http://127.0.0.1:4477", host: "127.0.0.1:4477" };
+    expect(proxy(requestFor({ ...JSON_HEADERS, ...formerOrigin })).status).toBe(403);
   });
 
   it("refuses other hosts, so DNS rebinding cannot reach it", () => {
@@ -51,17 +65,15 @@ describe("proxy", () => {
   });
 
   it("signs the browser in from the token link and strips the token from the URL", () => {
-    const response = proxy(
-      requestFor({}, "GET", `http://127.0.0.1:4477/pr/a/b/1?token=${TOKEN}&tab=notes`),
-    );
+    const response = proxy(requestFor({}, "GET", `${APP_URL}/pr/a/b/1?token=${TOKEN}&tab=notes`));
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://127.0.0.1:4477/pr/a/b/1?tab=notes");
+    expect(response.headers.get("location")).toBe(`${APP_URL}/pr/a/b/1?tab=notes`);
     const cookie = response.cookies.get("review-queue-token");
     expect(cookie).toMatchObject({ value: TOKEN, httpOnly: true, sameSite: "strict", path: "/" });
   });
 
   it("ignores a link with the wrong token and sets no cookie", () => {
-    const response = proxy(requestFor({}, "GET", "http://127.0.0.1:4477/?token=wrong"));
+    const response = proxy(requestFor({}, "GET", `${APP_URL}/?token=wrong`));
     expect(response.status).toBe(401);
     expect(response.cookies.get("review-queue-token")).toBeUndefined();
   });

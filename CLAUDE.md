@@ -15,8 +15,8 @@ root holds local overrides; it is git-ignored and should be `chmod 600`.
 
 ## Commands
 
-- `bun run dev`: dev server on http://127.0.0.1:4477 (it binds to loopback only,
-  on purpose)
+- `bun run dev`: dev server on http://review-queue.localhost:4477 (it binds to
+  127.0.0.1 only, on purpose)
 - `bun run test`: all Vitest tests, with coverage
 - `bunx vitest run src/lib/plan/reading-path.test.ts`: one file; add
   `-t "<name>"` for a single test
@@ -184,17 +184,21 @@ routes get their config from `currentLlmConfig()` in `lib/review/services.ts`.
 table (orientations, step explanations and GitHub ETags).
 
 **Security boundary** (`src/proxy.ts`, the Next 16 replacement for middleware).
-It rejects any non-loopback `Host`, then requires the `review-queue-token`
-cookie on every request. The token lives in a 0600 file
-(`~/.local/share/review-queue/access-token`; `REVIEW_QUEUE_TOKEN_FILE` overrides
-it), and `src/instrumentation.ts` prints a `http://127.0.0.1:4477/?token=…` link
-at startup. Opening that link sets the cookie (HttpOnly, SameSite=Strict).
-Non-GET requests must also be same-origin and `application/json`, and every
-response forbids framing. New mutating routes depend on this, so keep request
-bodies JSON. Any request the browser marks `Sec-Fetch-Site: same-site` or
-`cross-site` is refused for every method, so another localhost port cannot read
-or write with the cookie; a request without that header is judged by the cookie
-alone (curl).
+The app answers only on its own host name, `review-queue.localhost`
+(`APP_HOST_NAME` in `lib/access-token.ts`), because a cookie is shared by every
+port of a host: one set on `127.0.0.1` would reach any other local dev server.
+Reads on `127.0.0.1`, `localhost` and `[::1]` are redirected to that name, and
+every other `Host` is rejected. It then requires the `review-queue-token` cookie
+on every request. The token lives in a 0600 file
+(`~/.local/share/review-queue/access-token-v2`; `REVIEW_QUEUE_TOKEN_FILE`
+overrides it), and `src/instrumentation.ts` prints a
+`http://review-queue.localhost:4477/?token=…` link at startup. Opening that link
+sets the cookie (HttpOnly, SameSite=Strict). Non-GET requests must also be
+same-origin and `application/json`, and every response forbids framing. New
+mutating routes depend on this, so keep request bodies JSON. Any request the
+browser marks `Sec-Fetch-Site: same-site` or `cross-site` is refused for every
+method, so another localhost port cannot read or write with the cookie; a
+request without that header is judged by the cookie alone (curl).
 
 **Shell-outs** all go through `lib/exec.ts` (`Runner`). It drops the repository
 variables git exports inside hooks (`lib/git-env.ts`), so checkouts never touch

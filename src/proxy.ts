@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { loadAccessToken, matchesAccessToken } from "@/lib/access-token";
+import { APP_HOST_NAME, loadAccessToken, matchesAccessToken } from "@/lib/access-token";
 
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+const FORMER_HOST_NAMES = new Set(["127.0.0.1", "localhost", "[::1]"]);
 const TOKEN_COOKIE = "review-queue-token";
 const TOKEN_PARAM = "token";
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
@@ -12,9 +12,8 @@ function hostName(host: string | null): string | null {
   return host.startsWith("[") ? host.slice(0, host.indexOf("]") + 1) : host.split(":")[0];
 }
 
-function isLoopback(host: string | null): boolean {
-  const name = hostName(host);
-  return name !== null && LOOPBACK_HOSTS.has(name);
+function isAppHost(host: string | null): boolean {
+  return hostName(host) === APP_HOST_NAME;
 }
 
 function originHost(origin: string | null): string | null {
@@ -24,7 +23,7 @@ function originHost(origin: string | null): string | null {
 
 function isSameOriginJson(request: NextRequest): boolean {
   const host = request.headers.get("host");
-  const sameOrigin = isLoopback(host) && originHost(request.headers.get("origin")) === host;
+  const sameOrigin = isAppHost(host) && originHost(request.headers.get("origin")) === host;
   const json = request.headers.get("content-type")?.startsWith("application/json") ?? false;
   return sameOrigin && json;
 }
@@ -59,9 +58,19 @@ function signInFromLink(request: NextRequest, token: string): NextResponse | nul
   return response;
 }
 
+function redirectFromFormerHost(request: NextRequest): NextResponse | null {
+  const host = request.headers.get("host");
+  const name = hostName(host);
+  if (!host || !name || !FORMER_HOST_NAMES.has(name)) return null;
+  if (!isReadMethod(request.method)) return null;
+  const destination = new URL(request.url);
+  destination.host = `${APP_HOST_NAME}${host.slice(name.length)}`;
+  return NextResponse.redirect(destination.toString());
+}
+
 function guard(request: NextRequest, token: string): NextResponse {
-  if (!isLoopback(request.headers.get("host"))) {
-    return new NextResponse("Forbidden", { status: 403 });
+  if (!isAppHost(request.headers.get("host"))) {
+    return redirectFromFormerHost(request) ?? new NextResponse("Forbidden", { status: 403 });
   }
   const signedIn = signInFromLink(request, token);
   if (signedIn) return signedIn;
