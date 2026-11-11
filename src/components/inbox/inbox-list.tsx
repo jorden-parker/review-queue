@@ -49,10 +49,10 @@ function InboxRow({ entry }: { entry: QueueEntry }) {
     <li>
       <Link
         href={prPath(request.ref)}
-        className="flex items-center gap-4 px-5 py-4 transition-colors duration-calm hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none"
+        className="flex items-center gap-4 px-5 py-4 transition-colors duration-calm hover:border-foreground/20 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
       >
         <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="font-bold">
+          <span className="font-semibold">
             <InlineMarkdown text={request.title} />
           </span>
           <span className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
@@ -143,7 +143,7 @@ function RequestQueue({
   if (error) {
     return (
       <QueueSection count={0}>
-        <Card className="gap-2 px-5 text-sm ring-destructive/40">
+        <Card className="gap-2 px-5 text-sm border-destructive/40">
           <p>
             🔌 Couldn&apos;t reach GitHub through <code className="font-mono">gh</code>. Is it
             installed and logged in?
@@ -156,7 +156,7 @@ function RequestQueue({
   if (requests.length === 0) {
     return (
       <QueueSection count={0}>
-        <div className="rounded-xl bg-card ring-1 ring-border">
+        <div className="rounded-xl bg-card border">
           <EmptyState emoji="🌴">Nothing is waiting for your review. Enjoy it.</EmptyState>
         </div>
       </QueueSection>
@@ -167,7 +167,7 @@ function RequestQueue({
       {requests.length === REVIEW_REQUEST_LIMIT && (
         <p className="text-sm text-muted-foreground">Showing the first {REVIEW_REQUEST_LIMIT}</p>
       )}
-      <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
+      <ul className="divide-y overflow-hidden rounded-xl bg-card border">
         <QueueRows entries={orderQueue(requests, progress)} />
       </ul>
     </QueueSection>

@@ -45,12 +45,12 @@ export function PostedList({ reviews }: { reviews: RecentSubmission[] }) {
     <section className="flex flex-col gap-3">
       <h2 className="text-lg font-bold">Posted</h2>
       {reviews.length === 0 ? (
-        <div className="rounded-xl bg-card ring-1 ring-border">
+        <div className="rounded-xl bg-card border">
           <EmptyState emoji="📭">Nothing posted yet</EmptyState>
         </div>
       ) : (
         <>
-          <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
+          <ul className="divide-y overflow-hidden rounded-xl bg-card border">
             {reviews.map((review) => (
               <PostedRow key={review.reviewId} review={review} />
             ))}

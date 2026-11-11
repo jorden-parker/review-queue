@@ -34,4 +34,18 @@ describe("PageHeader", () => {
     render(<PageHeader title="Settings" backHref="/" backLabel="Review queue" />);
     expect(screen.getByRole("link", { name: "Review queue" }).getAttribute("href")).toBe("/");
   });
+
+  it("draws a dot-grid backdrop behind the header, hidden from assistive tech", () => {
+    const { container } = render(<PageHeader title="Settings" />);
+    const backdrop = container.querySelector(".bg-grid");
+    expect(backdrop).not.toBeNull();
+    expect(backdrop?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("sets the title large with tight tracking", () => {
+    render(<PageHeader title="Settings" />);
+    const classes = screen.getByRole("heading", { level: 1 }).classList;
+    expect(classes.contains("text-5xl")).toBe(true);
+    expect(classes.contains("tracking-tighter")).toBe(true);
+  });
 });

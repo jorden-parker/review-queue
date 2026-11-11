@@ -73,7 +73,7 @@ export function InProgressList({
       <h2 ref={headingRef} tabIndex={-1} className="text-lg font-bold">
         Also in progress <span className="text-muted-foreground">({sessions.length})</span>
       </h2>
-      <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
+      <ul className="divide-y overflow-hidden rounded-xl bg-card border">
         {sessions.map((session) => (
           <InProgressRow
             key={session.key}

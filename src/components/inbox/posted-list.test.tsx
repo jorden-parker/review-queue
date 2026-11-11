@@ -58,4 +58,17 @@ describe("PostedList", () => {
     render(<PostedList reviews={reviews} />);
     expect(screen.getByText(`Showing the latest ${POSTED_REVIEW_LIMIT}`)).toBeTruthy();
   });
+
+  it("draws the posted list on a hairline border rather than a ring", () => {
+    const { container } = render(<PostedList reviews={[review()]} />);
+    expect(container.querySelector("ul")?.classList.contains("border")).toBe(true);
+    expect(container.querySelector(".ring-1")).toBeNull();
+  });
+
+  it("draws the empty posted state on a hairline border rather than a ring", () => {
+    const { container } = render(<PostedList reviews={[]} />);
+    const classes = (container.querySelector(".rounded-xl") as HTMLElement).classList;
+    expect(classes.contains("border")).toBe(true);
+    expect(classes.contains("ring-1")).toBe(false);
+  });
 });

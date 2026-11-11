@@ -25,7 +25,7 @@ export function ArchivedList({
           Archived sessions stay out of &ldquo;Also in progress&rdquo; until you restore them or
           push a new commit to the PR.
         </p>
-        <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
+        <ul className="divide-y overflow-hidden rounded-xl bg-card border">
           {sessions.map((session) => (
             <InProgressRow
               key={session.key}

@@ -111,7 +111,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
 
 function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
   return (
-    <header className="flex h-14 items-center gap-2 border-b bg-background pr-2 pl-1.5 sm:gap-4 sm:pr-4 sm:pl-4.5">
+    <header className="flex h-14 items-center gap-2 sticky top-0 z-10 border-b bg-background/80 backdrop-blur pr-2 pl-1.5 sm:gap-4 sm:pr-4 sm:pl-4.5">
       <HintButton
         variant="ghost"
         size="icon"

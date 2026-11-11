@@ -125,6 +125,13 @@ afterEach(() => {
 });
 
 describe("review workspace renders", () => {
+  it("keeps the top bar pinned with a blurred background", async () => {
+    await renderWorkspace();
+    const topBar = screen.getByRole("link", { name: "Back to inbox" }).closest("header");
+    expect(topBar?.classList.contains("sticky")).toBe(true);
+    expect(topBar?.classList.contains("backdrop-blur")).toBe(true);
+  });
+
   it("a side-panel toggle renders no diff lines", async () => {
     const { user } = await renderWorkspace();
     expect(diffLineRenders()).toBeGreaterThan(0);

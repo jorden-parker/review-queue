@@ -13,10 +13,12 @@ export default function InboxPage() {
       <PageHeader
         title={
           <>
-            <span aria-hidden className="animate-float">
+            <span aria-hidden className="animate-float hover:animate-wiggle">
               🦦
             </span>
-            Review queue
+            <span>
+              Review <span className="text-whimsy">queue</span>
+            </span>
           </>
         }
         lede="One PR at a time. Pick one, follow the path, take breaks."

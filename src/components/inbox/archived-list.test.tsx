@@ -63,4 +63,19 @@ describe("ArchivedList", () => {
     await userEvent.click(screen.getByRole("button", { name: "Restore acme/app#7" }));
     expect(onRestore).toHaveBeenCalledWith(SESSION);
   });
+
+  it("draws the list on a hairline border rather than a ring", () => {
+    const { container } = render(
+      <ArchivedList
+        sessions={[SESSION]}
+        busy={false}
+        onRestore={vi.fn()}
+        summaryRef={createRef<HTMLElement>()}
+      />,
+      { wrapper: TooltipProvider },
+    );
+    const list = container.querySelector("ul");
+    expect(list?.classList.contains("border")).toBe(true);
+    expect(list?.classList.contains("ring-1")).toBe(false);
+  });
 });

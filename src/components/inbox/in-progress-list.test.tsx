@@ -57,4 +57,19 @@ describe("InProgressList", () => {
       "/pr/acme/app/7",
     );
   });
+
+  it("draws the list on a hairline border rather than a ring", () => {
+    const { container } = render(
+      <InProgressList
+        sessions={[SESSION]}
+        busy={false}
+        onArchive={vi.fn()}
+        headingRef={createRef<HTMLHeadingElement>()}
+      />,
+      { wrapper: TooltipProvider },
+    );
+    const list = container.querySelector("ul");
+    expect(list?.classList.contains("border")).toBe(true);
+    expect(list?.classList.contains("ring-1")).toBe(false);
+  });
 });

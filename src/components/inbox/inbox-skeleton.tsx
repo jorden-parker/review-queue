@@ -6,7 +6,7 @@ export function InboxSkeleton() {
   return (
     <div className="flex flex-col gap-3" aria-label="Asking GitHub what needs your review">
       <Skeleton className="h-7 w-44" />
-      <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-border">
+      <ul className="divide-y overflow-hidden rounded-xl bg-card border">
         {Array.from({ length: PLACEHOLDER_ROW_COUNT }, (_, index) => (
           <li key={index} className="flex items-center gap-4 px-5 py-4">
             <span className="flex flex-1 flex-col gap-2">
