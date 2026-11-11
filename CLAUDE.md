@@ -156,11 +156,30 @@ does not then write its reasoning into the answer. Without
 claude-ollama's `ollama/sizes.json` (found by following the `claude-ollama`
 launcher on `PATH`) that Ollama has installed.
 
+**Claude Code backend** (`lib/llm/claude-code.ts`, `streamTurn` in
+`lib/llm/client.ts`). `REVIEW_QUEUE_LLM_BACKEND=claude-code` (or Backend in
+Settings) sends every model turn through the logged-in `claude` CLI instead of
+Ollama; `REVIEW_QUEUE_CLAUDE_MODEL` (`haiku` by default, or `sonnet`/`opus`)
+picks the model and `REVIEW_QUEUE_CLAUDE_BIN` overrides the binary. Each turn
+spawns `claude -p --output-format stream-json --include-partial-messages`, and
+its `stream_event` lines carry the same raw events the Ollama stream parser
+already reads, so timeouts, the one-at-a-time queue and the `message_stop` check
+are shared. To spend few tokens it replaces Claude Code's system prompt with the
+app's own, turns off tools, MCP servers, skills, settings sources and session
+saving, runs in an empty temp directory so no `CLAUDE.md` is found, and caps
+output with `CLAUDE_CODE_MAX_OUTPUT_TOKENS`. Ask makes one call with no tools
+and no `INVESTIGATE_RULE`. Cache keys include the model, so Claude and local
+answers never mix. PR code is sent to Anthropic on this backend. Constants
+shared with the client-side settings form live in `lib/llm/backends.ts`, which
+must stay free of Node imports.
+
 **Settings page** (`app/settings/page.tsx`, `lib/settings/`). It edits the model
-on/off, model, thinking and timeout, saved in the store's `settings` table. Once
-saved, these replace the matching environment variables; the URL stays
-environment-only so PR code cannot be sent elsewhere from the UI. LLM routes get
-their config from `currentLlmConfig()` in `lib/review/services.ts`.
+on/off, backend (local or Claude Code), model, Claude model, thinking and
+timeout, saved in the store's `settings` table. Once saved, these replace the
+matching environment variables; the URL stays environment-only so PR code cannot
+be sent to another endpoint from the UI. The Claude Code backend is the one
+exception: choosing it sends PR code to Anthropic through the `claude` CLI. LLM
+routes get their config from `currentLlmConfig()` in `lib/review/services.ts`.
 `PUT /api/settings` saves and `DELETE /api/settings/cache` empties the cache
 table (orientations, step explanations and GitHub ETags).
 

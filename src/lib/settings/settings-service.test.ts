@@ -4,7 +4,14 @@ import { savedLlmSettings } from "./llm-settings";
 import { clearCacheResponse, settingsView, updateSettings } from "./settings-service";
 
 const ENV = { PATH: "/nowhere", REVIEW_QUEUE_LLM_TIMEOUT_MS: "8000" };
-const SETTINGS = { enabled: true, model: "b", thinking: false, timeoutMs: 20_000 };
+const SETTINGS = {
+  enabled: true,
+  model: "b",
+  thinking: false,
+  timeoutMs: 20_000,
+  backend: "local",
+  claudeModel: "haiku",
+} as const;
 
 function ollamaWith(names: string[]): typeof fetch {
   return (async () => Response.json({ models: names.map((name) => ({ name })) })) as typeof fetch;
@@ -18,7 +25,14 @@ describe("settingsView", () => {
   it("shows the environment's settings and the installed models until settings are saved", async () => {
     const store = new SessionStore(":memory:");
     expect(await settingsView(store, ENV, ollamaWith(["a:latest", "b"]))).toEqual({
-      llm: { enabled: true, model: null, thinking: true, timeoutMs: 8000 },
+      llm: {
+        enabled: true,
+        model: null,
+        thinking: true,
+        timeoutMs: 8000,
+        backend: "local",
+        claudeModel: "haiku",
+      },
       models: ["a", "b"],
       autoModel: null,
     });

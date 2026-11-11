@@ -1,11 +1,18 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SettingsView } from "@/lib/settings/settings-service";
 import { LlmSettingsForm } from "./llm-settings-form";
 
 const VIEW: SettingsView = {
-  llm: { enabled: true, model: null, thinking: true, timeoutMs: 8000 },
+  llm: {
+    enabled: true,
+    model: null,
+    thinking: true,
+    timeoutMs: 8000,
+    backend: "local",
+    claudeModel: "haiku",
+  },
   models: ["qwen3-4b-cc", "granite4.2-3b-cc"],
   autoModel: "granite4.2-3b-cc",
 };
@@ -27,7 +34,9 @@ afterEach(() => vi.unstubAllGlobals());
 describe("LlmSettingsForm", () => {
   it("offers auto, naming the model it picks, and every installed model", () => {
     render(<LlmSettingsForm initial={VIEW} />);
-    const options = screen.getAllByRole("option").map((option) => option.textContent);
+    const options = within(screen.getByLabelText("Model"))
+      .getAllByRole("option")
+      .map((option) => option.textContent);
     expect(options).toEqual(["Auto (granite4.2-3b-cc)", "qwen3-4b-cc", "granite4.2-3b-cc"]);
   });
 
@@ -39,6 +48,34 @@ describe("LlmSettingsForm", () => {
     await userEvent.click(screen.getByLabelText(/Let the model think/));
     await userEvent.clear(screen.getByLabelText("Timeout (seconds)"));
     await userEvent.type(screen.getByLabelText("Timeout (seconds)"), "30");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Saved.")).toBeTruthy();
+    expect(calls).toEqual([{ url: "/api/settings", method: "PUT", body: { llm: saved } }]);
+  });
+
+  it("shows the local model field, not the Claude one, by default", () => {
+    render(<LlmSettingsForm initial={VIEW} />);
+    expect(screen.getByLabelText("Backend")).toHaveProperty("value", "local");
+    expect(screen.queryByLabelText("Claude model")).toBeNull();
+  });
+
+  it("swaps the local model field for a Claude model choice, and says code goes to Anthropic", async () => {
+    render(<LlmSettingsForm initial={VIEW} />);
+    await userEvent.selectOptions(screen.getByLabelText("Backend"), "claude-code");
+    expect(screen.queryByLabelText("Model")).toBeNull();
+    const choices = within(screen.getByLabelText("Claude model"))
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    expect(choices).toEqual(["haiku", "sonnet", "opus"]);
+    expect(screen.getByText(/sent to Anthropic/)).toBeTruthy();
+  });
+
+  it("saves Claude Code with the chosen Claude model", async () => {
+    const saved = { ...VIEW.llm, backend: "claude-code", claudeModel: "sonnet" };
+    const calls = fakeFetch({ "PUT /api/settings": { ...VIEW, llm: saved } });
+    render(<LlmSettingsForm initial={VIEW} />);
+    await userEvent.selectOptions(screen.getByLabelText("Backend"), "claude-code");
+    await userEvent.selectOptions(screen.getByLabelText("Claude model"), "sonnet");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Saved.")).toBeTruthy();
     expect(calls).toEqual([{ url: "/api/settings", method: "PUT", body: { llm: saved } }]);

@@ -31,6 +31,15 @@ const unreachable = (async () => {
   throw new Error("connection refused");
 }) as typeof fetch;
 
+const LOCAL_SETTINGS = {
+  enabled: true,
+  model: null,
+  thinking: true,
+  timeoutMs: 8000,
+  backend: "local",
+  claudeModel: "haiku",
+} as const;
+
 describe("claudeOllamaSizesPath", () => {
   it("follows the claude-ollama launcher on PATH to its sizes.json", async () => {
     const { binDir, sizesPath } = claudeCustomCheckout();
@@ -69,7 +78,7 @@ describe("llmConfig", () => {
   it("prefers saved settings to the environment", async () => {
     const { binDir } = claudeCustomCheckout();
     const env = { PATH: binDir, REVIEW_QUEUE_LLM_MODEL: "from-env" };
-    const saved = { enabled: true, model: "saved", thinking: false, timeoutMs: 1234 };
+    const saved = { ...LOCAL_SETTINGS, model: "saved", thinking: false, timeoutMs: 1234 };
     expect(await llmConfig(env, ollamaWith(["qwen3.6-35b-cc"]), saved)).toMatchObject({
       model: "saved",
       thinking: false,
@@ -77,10 +86,28 @@ describe("llmConfig", () => {
     });
   });
 
+  it("uses the chosen Claude model without asking Ollama what is installed", async () => {
+    const saved = {
+      ...LOCAL_SETTINGS,
+      backend: "claude-code",
+      claudeModel: "sonnet",
+      model: "ignored-local-model",
+    } as const;
+    const config = await llmConfig({}, unreachable, saved);
+    expect(config).toMatchObject({ backend: "claude-code", model: "sonnet" });
+    const fromEnv = await llmConfig(
+      { REVIEW_QUEUE_LLM_BACKEND: "claude-code", REVIEW_QUEUE_CLAUDE_MODEL: "opus" },
+      (async () => {
+        throw new Error("fetch must not be called");
+      }) as typeof fetch,
+    );
+    expect(fromEnv).toMatchObject({ backend: "claude-code", model: "opus" });
+  });
+
   it("picks a model automatically when the saved model is auto", async () => {
     const { binDir } = claudeCustomCheckout();
     const env = { PATH: binDir, REVIEW_QUEUE_LLM_MODEL: "from-env" };
-    const saved = { enabled: true, model: null, thinking: true, timeoutMs: 1234 };
+    const saved = { ...LOCAL_SETTINGS, model: null, timeoutMs: 1234 };
     const config = await llmConfig(env, ollamaWith(["qwen3.6-35b-cc"]), saved);
     expect(config.model).toBe("qwen3.6-35b-cc");
   });

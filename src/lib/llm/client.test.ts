@@ -1,10 +1,14 @@
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
+import type { ClaudeLauncher, ClaudeProcess } from "./claude-code";
 import { askModel, fencedTitle, llmConfigFromEnv, streamModel, streamTurn } from "./client";
 
 const CONFIG = {
   baseURL: "http://llm.test",
   model: "m",
   enabled: true,
+  backend: "local" as const,
   thinking: true,
   timeoutMs: 1000,
 };
@@ -27,6 +31,7 @@ describe("llmConfigFromEnv", () => {
       baseURL: "http://localhost:11434",
       model: "qwen3.8-27b-cc",
       enabled: true,
+      backend: "local" as const,
       thinking: true,
     });
     expect(llmConfigFromEnv({ REVIEW_QUEUE_LLM: "off" }).enabled).toBe(false);
@@ -367,6 +372,188 @@ describe("streamTurn", () => {
         input: { invalid_json: '{"name":' },
       },
     ]);
+  });
+});
+
+type FakeClaudeOptions = { exitCode?: number; stderr?: string; stayOpen?: boolean };
+
+function frame(event: object): string {
+  return `${JSON.stringify({ type: "stream_event", event })}\n`;
+}
+
+function textFrame(text: string): string {
+  return frame({ type: "content_block_delta", delta: { type: "text_delta", text } });
+}
+
+const STOP_FRAME = frame({ type: "message_stop" });
+
+function fakeClaude(lines: string[], options: FakeClaudeOptions = {}) {
+  const launches: { model: string; maxTokens: number; thinking: boolean }[] = [];
+  const kills: string[] = [];
+  const launchClaude: ClaudeLauncher = (model, request, thinking) => {
+    launches.push({ model, maxTokens: request.maxTokens, thinking });
+    const emitter = new EventEmitter();
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    const closeProcess = () => {
+      stdout.end();
+      emitter.emit("close", options.exitCode ?? 0);
+    };
+    const child = Object.assign(emitter, {
+      stdin: new PassThrough(),
+      stdout,
+      stderr,
+      kill: () => {
+        kills.push("killed");
+        closeProcess();
+        return true;
+      },
+    });
+    for (const line of lines) stdout.write(line);
+    if (options.stderr) stderr.write(options.stderr);
+    if (!options.stayOpen) setImmediate(closeProcess);
+    return child as unknown as ClaudeProcess;
+  };
+  return { launchClaude, launches, kills };
+}
+
+const CLAUDE_CONFIG = { ...CONFIG, backend: "claude-code" as const, model: "haiku" };
+
+function launchFailingWith(failure: Error): ClaudeLauncher {
+  return () => {
+    const emitter = new EventEmitter();
+    const stdout = new PassThrough();
+    setImmediate(() => {
+      emitter.emit("error", failure);
+      stdout.end();
+    });
+    return Object.assign(emitter, {
+      stdin: new PassThrough(),
+      stdout,
+      stderr: new PassThrough(),
+      kill: () => true,
+    }) as unknown as ClaudeProcess;
+  };
+}
+
+describe("streamTurn on Claude Code", () => {
+  it("yields the text of the streamed events and never calls fetch", async () => {
+    const { launchClaude, launches } = fakeClaude([
+      `${JSON.stringify({ type: "system", subtype: "init" })}\n`,
+      textFrame("Hel"),
+      textFrame("lo"),
+      STOP_FRAME,
+      `${JSON.stringify({ type: "result", is_error: false, result: "Hello" })}\n`,
+    ]);
+    const fetchImpl = (async () => {
+      throw new Error("fetch must not be called");
+    }) as typeof fetch;
+    const parts = await collect(
+      streamModel({ config: CLAUDE_CONFIG, fetchImpl, launchClaude }, REQUEST),
+    );
+    expect(parts.join("")).toBe("Hello");
+    expect(launches).toEqual([{ model: "haiku", maxTokens: 10 + 2048, thinking: true }]);
+  });
+
+  it("gives the model no room to think when thinking is off", async () => {
+    const { launchClaude, launches } = fakeClaude([textFrame("ok"), STOP_FRAME]);
+    const config = { ...CLAUDE_CONFIG, thinking: false };
+    await collect(streamModel({ config, fetchImpl: fetch, launchClaude }, REQUEST));
+    expect(launches).toEqual([{ model: "haiku", maxTokens: 10, thinking: false }]);
+  });
+
+  it("handles a line split across chunks and thinking events", async () => {
+    const whole =
+      frame({ type: "content_block_delta", delta: { type: "thinking_delta", thinking: "hm" } }) +
+      textFrame("Answer") +
+      STOP_FRAME;
+    const { launchClaude } = fakeClaude([whole.slice(0, 40), whole.slice(40)]);
+    const parts = await collect(
+      streamModel({ config: CLAUDE_CONFIG, fetchImpl: fetch, launchClaude }, REQUEST),
+    );
+    expect(parts.join("")).toBe("Answer");
+  });
+
+  it("fails when the output ends before message_stop", async () => {
+    const { launchClaude } = fakeClaude([textFrame("half")]);
+    await expect(
+      collect(streamModel({ config: CLAUDE_CONFIG, fetchImpl: fetch, launchClaude }, REQUEST)),
+    ).rejects.toThrow(/ended early/);
+  });
+
+  it("reports what Claude Code wrote to stderr when it exits with an error", async () => {
+    const { launchClaude } = fakeClaude([], { exitCode: 1, stderr: "Not logged in" });
+    await expect(
+      collect(streamModel({ config: CLAUDE_CONFIG, fetchImpl: fetch, launchClaude }, REQUEST)),
+    ).rejects.toThrow(/Not logged in/);
+  });
+
+  it("raises the message of a failed result", async () => {
+    const failure = JSON.stringify({ type: "result", is_error: true, result: "Out of credit" });
+    const { launchClaude } = fakeClaude([`${failure}\n`], { exitCode: 1 });
+    await expect(
+      collect(streamModel({ config: CLAUDE_CONFIG, fetchImpl: fetch, launchClaude }, REQUEST)),
+    ).rejects.toThrow("Out of credit");
+  });
+
+  it("says Claude Code is missing when the binary cannot be found", async () => {
+    const launchClaude = launchFailingWith(
+      Object.assign(new Error("spawn claude ENOENT"), { code: "ENOENT" }),
+    );
+    await expect(
+      collect(streamModel({ config: CLAUDE_CONFIG, fetchImpl: fetch, launchClaude }, REQUEST)),
+    ).rejects.toThrow(/Claude Code was not found.*REVIEW_QUEUE_CLAUDE_BIN/);
+  });
+
+  it("keeps the message of other spawn failures", async () => {
+    const launchClaude = launchFailingWith(
+      Object.assign(new Error("spawn claude EACCES"), { code: "EACCES" }),
+    );
+    await expect(
+      collect(streamModel({ config: CLAUDE_CONFIG, fetchImpl: fetch, launchClaude }, REQUEST)),
+    ).rejects.toThrow("spawn claude EACCES");
+  });
+
+  it("kills Claude Code when the reader aborts", async () => {
+    const { launchClaude, kills } = fakeClaude([textFrame("a")], { stayOpen: true });
+    const controller = new AbortController();
+    const reading = collect(
+      streamModel(
+        { config: CLAUDE_CONFIG, fetchImpl: fetch, launchClaude },
+        REQUEST,
+        controller.signal,
+      ),
+    );
+    setTimeout(() => controller.abort(new DOMException("left", "AbortError")), 10);
+    await expect(reading).rejects.toThrow("left");
+    expect(kills).toHaveLength(1);
+  });
+
+  it("kills Claude Code when the reader stops early", async () => {
+    const { launchClaude, kills } = fakeClaude([textFrame("a"), textFrame("b")], {
+      stayOpen: true,
+    });
+    const stream = streamModel({ config: CLAUDE_CONFIG, fetchImpl: fetch, launchClaude }, REQUEST);
+    await stream.next();
+    await stream.return(undefined);
+    expect(kills).toHaveLength(1);
+  });
+
+  it("goes quiet after the timeout, not before the first byte", async () => {
+    const { launchClaude } = fakeClaude([], { stayOpen: true });
+    const config = { ...CLAUDE_CONFIG, timeoutMs: 20 };
+    await expect(
+      collect(streamModel({ config, fetchImpl: fetch, launchClaude }, REQUEST)),
+    ).rejects.toThrow(/too long|stopped/);
+  });
+});
+
+describe("llmConfigFromEnv backend", () => {
+  it("defaults to the local model and switches to Claude Code on request", () => {
+    expect(llmConfigFromEnv({}).backend).toBe("local");
+    expect(llmConfigFromEnv({ REVIEW_QUEUE_LLM_BACKEND: "claude-code" }).backend).toBe(
+      "claude-code",
+    );
   });
 });
 

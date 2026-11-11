@@ -1,6 +1,15 @@
+import { Readable } from "node:stream";
+import { CLAUDE_MODELS, type ClaudeModel, type LlmBackend } from "./backends";
 import type { FileDiff } from "@/lib/types";
+import {
+  type ClaudeLauncher,
+  type ClaudeProcess,
+  claudeCodeFrame,
+  launchClaudeCode,
+} from "./claude-code";
 
 export type LlmConfig = {
+  backend: LlmBackend;
   baseURL: string;
   model: string;
   enabled: boolean;
@@ -8,7 +17,11 @@ export type LlmConfig = {
   timeoutMs: number;
 };
 
-export type LlmClient = { config: LlmConfig; fetchImpl: typeof fetch };
+export type LlmClient = {
+  config: LlmConfig;
+  fetchImpl: typeof fetch;
+  launchClaude?: ClaudeLauncher;
+};
 
 export type ToolSpec = { name: string; description: string; input_schema: Record<string, unknown> };
 
@@ -46,8 +59,17 @@ export const UNTRUSTED_DATA_RULE =
 
 const DEFAULT_TIMEOUT_MS = 180_000;
 
+function llmBackendFromEnv(env: Record<string, string | undefined>): LlmBackend {
+  return env.REVIEW_QUEUE_LLM_BACKEND === "claude-code" ? "claude-code" : "local";
+}
+
+export function claudeModelFromEnv(env: Record<string, string | undefined>): ClaudeModel {
+  return CLAUDE_MODELS.find((model) => model === env.REVIEW_QUEUE_CLAUDE_MODEL) ?? "haiku";
+}
+
 export function llmConfigFromEnv(env: Record<string, string | undefined> = process.env): LlmConfig {
   return {
+    backend: llmBackendFromEnv(env),
     baseURL: env.REVIEW_QUEUE_LLM_URL ?? env.OLLAMA_HOST ?? "http://localhost:11434",
     model: env.REVIEW_QUEUE_LLM_MODEL ?? "qwen3.8-27b-cc",
     enabled: env.REVIEW_QUEUE_LLM !== "off",
@@ -166,7 +188,7 @@ export async function askModel(
   return reply;
 }
 
-type StreamEvent = {
+export type StreamEvent = {
   type?: string;
   index?: number;
   content_block?: { type?: string; id?: string; name?: string };
@@ -188,8 +210,14 @@ function parseEvent(rawEvent: string): StreamEvent | null {
   return event;
 }
 
-function parseEvents(rawEvents: string[]): StreamEvent[] {
-  return rawEvents.map(parseEvent).filter((event): event is StreamEvent => event !== null);
+type FrameFormat = { separator: string; parse: (rawFrame: string) => StreamEvent | null };
+
+const SERVER_SENT_EVENTS: FrameFormat = { separator: "\n\n", parse: parseEvent };
+
+const CLAUDE_CODE_LINES: FrameFormat = { separator: "\n", parse: claudeCodeFrame };
+
+function parseFrames(rawFrames: string[], format: FrameFormat): StreamEvent[] {
+  return rawFrames.map(format.parse).filter((event): event is StreamEvent => event !== null);
 }
 
 async function readOrTimeOut(
@@ -229,9 +257,10 @@ const ENDED_EARLY_MESSAGE = "The model's answer ended early; try again";
 async function* streamEvents(
   body: ReadableStream<Uint8Array>,
   timeoutMs: number,
+  format: FrameFormat,
 ): AsyncGenerator<StreamEvent> {
   let stopped = false;
-  for await (const event of rawStreamEvents(body, timeoutMs)) {
+  for await (const event of rawStreamEvents(body, timeoutMs, format)) {
     stopped ||= event.type === "message_stop";
     yield event;
   }
@@ -241,14 +270,15 @@ async function* streamEvents(
 async function* rawStreamEvents(
   body: ReadableStream<Uint8Array>,
   timeoutMs: number,
+  format: FrameFormat,
 ): AsyncGenerator<StreamEvent> {
   let pending = "";
   for await (const chunk of textChunks(body, timeoutMs)) {
-    const rawEvents = (pending + chunk).replaceAll("\r\n", "\n").split("\n\n");
-    pending = rawEvents.pop() ?? "";
-    yield* parseEvents(rawEvents);
+    const rawFrames = (pending + chunk).replaceAll("\r\n", "\n").split(format.separator);
+    pending = rawFrames.pop() ?? "";
+    yield* parseFrames(rawFrames, format);
   }
-  yield* parseEvents([pending]);
+  yield* parseFrames([pending], format);
 }
 
 function startToolBlock(event: StreamEvent, toolBlocks: Map<number, PendingToolUse>): void {
@@ -307,12 +337,92 @@ function turnEventOf(
   return textEventOf(event);
 }
 
-async function* responseEvents(response: Response, timeoutMs: number): AsyncGenerator<TurnEvent> {
-  if (!response.body) return;
+async function* turnEvents(events: AsyncIterable<StreamEvent>): AsyncGenerator<TurnEvent> {
   const toolBlocks = new Map<number, PendingToolUse>();
-  for await (const event of streamEvents(response.body, timeoutMs)) {
+  for await (const event of events) {
     const turnEvent = turnEventOf(event, toolBlocks);
     if (turnEvent) yield turnEvent;
+  }
+}
+
+async function* responseEvents(response: Response, timeoutMs: number): AsyncGenerator<TurnEvent> {
+  if (!response.body) return;
+  yield* turnEvents(streamEvents(response.body, timeoutMs, SERVER_SENT_EVENTS));
+}
+
+const MAX_STDERR_CHARS = 4_000;
+
+function collectStderr(child: ClaudeProcess): () => string {
+  let stderr = "";
+  child.stderr.on("data", (chunk: Buffer) => {
+    stderr = (stderr + chunk.toString()).slice(-MAX_STDERR_CHARS);
+  });
+  return () => stderr.trim();
+}
+
+const CLAUDE_CODE_MISSING_MESSAGE =
+  "Claude Code was not found. Install it, or set REVIEW_QUEUE_CLAUDE_BIN to the path of the claude binary";
+
+function spawnFailureOf(error: Error & { code?: string }): Error {
+  return error.code === "ENOENT" ? new Error(CLAUDE_CODE_MISSING_MESSAGE) : error;
+}
+
+function exitCodeOf(child: ClaudeProcess): Promise<number | null> {
+  return new Promise((resolve, reject) => {
+    child.once("close", resolve);
+    child.once("error", (error: Error & { code?: string }) => reject(spawnFailureOf(error)));
+  });
+}
+
+async function exitFailure(
+  exitCode: Promise<number | null>,
+  stderr: () => string,
+): Promise<Error | null> {
+  const code = await exitCode;
+  if (code === 0 || code === null) return null;
+  return new Error(`Claude Code failed: ${stderr() || `exit code ${code}`}`);
+}
+
+function stdoutBody(child: ClaudeProcess): ReadableStream<Uint8Array> {
+  return Readable.toWeb(child.stdout) as ReadableStream<Uint8Array>;
+}
+
+async function* claudeCodeEvents(
+  client: LlmClient,
+  request: ModelRequest,
+  signal: AbortSignal | undefined,
+): AsyncGenerator<TurnEvent> {
+  const { config } = client;
+  const outputRequest = {
+    ...request,
+    maxTokens: thinkingFields(config, request.maxTokens).max_tokens,
+  };
+  const child = (client.launchClaude ?? launchClaudeCode)(
+    config.model,
+    outputRequest,
+    config.thinking,
+  );
+  const stderr = collectStderr(child);
+  const exitCode = exitCodeOf(child);
+  exitCode.catch(() => undefined);
+  let isStopped = false;
+  const stop = () => {
+    if (isStopped) return;
+    isStopped = true;
+    child.kill();
+  };
+  signal?.addEventListener("abort", stop, { once: true });
+  try {
+    yield* turnEvents(streamEvents(stdoutBody(child), config.timeoutMs, CLAUDE_CODE_LINES));
+  } catch (error) {
+    if (signal?.aborted) throw signal.reason;
+    if (error instanceof Error && error.message === ENDED_EARLY_MESSAGE) {
+      throw (await exitFailure(exitCode, stderr)) ?? error;
+    }
+    throw error;
+  } finally {
+    signal?.removeEventListener("abort", stop);
+    stop();
   }
 }
 
@@ -345,7 +455,11 @@ export async function* streamTurn(
 ): AsyncGenerator<TurnEvent> {
   const release = await takeTurn(signal);
   try {
-    yield* responseEvents(await postMessages(client, request, signal), client.config.timeoutMs);
+    if (client.config.backend === "claude-code") {
+      yield* claudeCodeEvents(client, request, signal);
+    } else {
+      yield* responseEvents(await postMessages(client, request, signal), client.config.timeoutMs);
+    }
   } finally {
     release();
   }

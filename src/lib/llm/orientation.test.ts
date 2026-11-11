@@ -34,6 +34,7 @@ const CONFIG = {
   baseURL: "http://llm.test",
   model: "m",
   enabled: true,
+  backend: "local" as const,
   thinking: true,
   timeoutMs: 1000,
 };

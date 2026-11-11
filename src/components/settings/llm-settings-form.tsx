@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { CLAUDE_MODELS, type ClaudeModel, type LlmBackend } from "@/lib/llm/backends";
 import type { LlmSettings } from "@/lib/settings/llm-settings";
 import type { SettingsView } from "@/lib/settings/settings-service";
 import { clearCache, saveSettings } from "./settings-api";
@@ -42,6 +43,59 @@ function ModelField({
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+const BACKEND_LABELS: Record<LlmBackend, string> = {
+  local: "Local model",
+  "claude-code": "Claude Code",
+};
+
+function BackendField({ settings, onChange }: { settings: LlmSettings; onChange: Change }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor="backend" className="text-sm font-bold">
+        Backend
+      </label>
+      <select
+        id="backend"
+        value={settings.backend}
+        onChange={(event) => onChange({ backend: event.target.value as LlmBackend })}
+        className="h-9 rounded-lg border border-input bg-card px-3 text-sm"
+      >
+        {Object.entries(BACKEND_LABELS).map(([backend, label]) => (
+          <option key={backend} value={backend}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function ClaudeModelField({ settings, onChange }: { settings: LlmSettings; onChange: Change }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor="claude-model" className="text-sm font-bold">
+        Claude model
+      </label>
+      <select
+        id="claude-model"
+        value={settings.claudeModel}
+        onChange={(event) => onChange({ claudeModel: event.target.value as ClaudeModel })}
+        className="h-9 rounded-lg border border-input bg-card px-3 font-mono text-sm"
+      >
+        {CLAUDE_MODELS.map((model) => (
+          <option key={model} value={model}>
+            {model}
+          </option>
+        ))}
+      </select>
+      <p className="text-xs text-muted-foreground">
+        Runs your logged-in <code>claude</code> command, so PR code is sent to Anthropic. Ask
+        answers without looking up other files.
+      </p>
     </div>
   );
 }
@@ -154,15 +208,20 @@ export function LlmSettingsForm({ initial }: { initial: SettingsView }) {
   return (
     <div className="flex flex-col gap-8">
       <form onSubmit={save} className="flex flex-col gap-6">
-        <h2 className="text-lg font-bold">Local model</h2>
+        <h2 className="text-lg font-bold">Model</h2>
         <CheckField
           id="enabled"
-          label="Use the local model"
+          label="Use the model"
           hint="Orientation, step explanations, summary drafts and Ask."
           checked={settings.enabled}
           onChange={(enabled) => change({ enabled })}
         />
-        <ModelField view={view} settings={settings} onChange={change} />
+        <BackendField settings={settings} onChange={change} />
+        {settings.backend === "claude-code" ? (
+          <ClaudeModelField settings={settings} onChange={change} />
+        ) : (
+          <ModelField view={view} settings={settings} onChange={change} />
+        )}
         <CheckField
           id="thinking"
           label="Let the model think before answering"

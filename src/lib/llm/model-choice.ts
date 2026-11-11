@@ -52,8 +52,9 @@ export async function llmConfig(
   saved: LlmSettings | null = null,
 ): Promise<LlmConfig> {
   const settings = saved ?? llmSettingsFromEnv(env);
-  const { model, ...choices } = settings;
+  const { model, claudeModel, ...choices } = settings;
   const config = { ...llmConfigFromEnv(env), ...choices };
+  if (config.backend === "claude-code") return { ...config, model: claudeModel };
   if (model) return { ...config, model };
   if (!config.enabled) return config;
   const chosen = await installedAutoModel(env, config.baseURL, fetchImpl).catch(() => null);

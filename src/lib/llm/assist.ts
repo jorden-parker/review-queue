@@ -1,5 +1,6 @@
 import type { AssistAction } from "@/lib/assist-protocol";
 import { type DiffLine, type FileDiff, type Hunk, NOTE_LABELS, type Step } from "@/lib/types";
+import type { ClaudeLauncher } from "./claude-code";
 import {
   CODE_NAME_RULE,
   diffText,
@@ -8,6 +9,7 @@ import {
   type LlmConfig,
   type Message,
   type ModelRequest,
+  streamModel,
   UNTRUSTED_DATA_RULE,
 } from "./client";
 import { reviewGuidance } from "./review-guidance";
@@ -101,7 +103,11 @@ function designRules(input: AssistInput): string[] {
   return input.action === "simplify" ? [] : [reviewGuidance([input.path])];
 }
 
-function systemPrompt(input: AssistInput): string {
+function investigationRules(canLookUpCode: boolean): string[] {
+  return canLookUpCode ? [INVESTIGATE_RULE] : [];
+}
+
+function systemPrompt(input: AssistInput, canLookUpCode: boolean): string {
   return [
     ROLE,
     TASKS[input.action],
@@ -109,7 +115,7 @@ function systemPrompt(input: AssistInput): string {
     ...designRules(input),
     CODE_NAME_RULE,
     CITE_RULE,
-    INVESTIGATE_RULE,
+    ...investigationRules(canLookUpCode),
     DATA_RULE,
   ].join("\n\n");
 }
@@ -190,9 +196,13 @@ export function buildAssistPrompt(input: AssistInput): string {
   return sections.join("\n");
 }
 
-export function assistRequest(input: AssistInput, history: Message[]): ModelRequest {
+export function assistRequest(
+  input: AssistInput,
+  history: Message[],
+  canLookUpCode = true,
+): ModelRequest {
   return {
-    system: systemPrompt(input),
+    system: systemPrompt(input, canLookUpCode),
     maxTokens: MAX_TOKENS,
     messages: [{ role: "user", content: buildAssistPrompt(input) }, ...history],
   };
@@ -205,6 +215,13 @@ export async function* assistStream(
   fetchImpl: typeof fetch,
   signal: AbortSignal | undefined,
   tools: ToolBox,
+  launchClaude?: ClaudeLauncher,
 ): AsyncGenerator<LoopChunk> {
-  yield* toolLoop({ config, fetchImpl }, assistRequest(input, history), tools, signal);
+  const client = { config, fetchImpl, launchClaude };
+  if (config.backend === "claude-code") {
+    const request = assistRequest(input, history, false);
+    for await (const text of streamModel(client, request, signal)) yield { kind: "text", text };
+    return;
+  }
+  yield* toolLoop(client, assistRequest(input, history), tools, signal);
 }

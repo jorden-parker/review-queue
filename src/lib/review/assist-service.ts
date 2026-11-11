@@ -40,7 +40,7 @@ export function assistResponse(
   fetchImpl: typeof fetch = fetch,
   signal?: AbortSignal,
 ): Response {
-  if (!config.enabled) return jsonError("Local model is off", 404);
+  if (!config.enabled) return jsonError("The model is off", 404);
   const request = AssistRequestSchema.safeParse(body);
   if (!request.success) return jsonError(request.error.message, 400);
   const input = assistInputFrom(source, request.data);

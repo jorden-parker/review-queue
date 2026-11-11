@@ -1,8 +1,12 @@
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import { type FileDiff, type Hunk, NOTE_LABELS, type Step } from "@/lib/types";
 import { addedHunk, lines } from "@/test/diff-builders";
-import { type AssistInput, assistRequest, buildAssistPrompt } from "./assist";
+import { type AssistInput, assistRequest, assistStream, buildAssistPrompt } from "./assist";
+import type { ClaudeLauncher, ClaudeProcess } from "./claude-code";
 import { CODE_NAME_RULE, UNTRUSTED_DATA_RULE } from "./client";
+import type { ToolBox } from "./tool-loop";
 
 const CONTEXT: Hunk[] = [addedHunk(["const a = 1;", "const b = 2;", "const c = 3;"], 10)];
 const INPUT: AssistInput = {
@@ -245,6 +249,70 @@ const CHECK_INPUT: AssistInput = {
   action: "explain",
   stepCheck: CHECK_CONTENT,
 };
+
+describe("assistRequest without tools", () => {
+  it("leaves out the instructions to investigate with lookups that cannot happen", () => {
+    const system = assistRequest(INPUT, [], false).system;
+    expect(system).not.toContain("Investigate before you answer");
+    expect(system).toContain(UNTRUSTED_DATA_RULE);
+  });
+});
+
+function claudeAnswering(text: string) {
+  const prompts: string[] = [];
+  const launchClaude: ClaudeLauncher = (_model, request) => {
+    prompts.push(JSON.stringify(request));
+    const stdout = new PassThrough();
+    const emitter = new EventEmitter();
+    const frame = (event: object) => `${JSON.stringify({ type: "stream_event", event })}\n`;
+    stdout.write(frame({ type: "content_block_delta", delta: { type: "text_delta", text } }));
+    stdout.write(frame({ type: "message_stop" }));
+    stdout.end();
+    setImmediate(() => emitter.emit("close", 0));
+    return Object.assign(emitter, {
+      stdin: new PassThrough(),
+      stdout,
+      stderr: new PassThrough(),
+      kill: () => true,
+    }) as unknown as ClaudeProcess;
+  };
+  return { launchClaude, prompts };
+}
+
+describe("assistStream on Claude Code", () => {
+  it("asks once, without tools or investigation instructions, and streams the text", async () => {
+    const { launchClaude, prompts } = claudeAnswering("It adds two constants.");
+    const config = {
+      backend: "claude-code" as const,
+      baseURL: "http://unused",
+      model: "haiku",
+      enabled: true,
+      thinking: false,
+      timeoutMs: 1000,
+    };
+    const tools: ToolBox = {
+      specs: [{ name: "read_file", description: "d", input_schema: {} }],
+      run: async () => {
+        throw new Error("tools must not run");
+      },
+    };
+    const chunks = [];
+    for await (const chunk of assistStream(
+      INPUT,
+      [],
+      config,
+      fetch,
+      undefined,
+      tools,
+      launchClaude,
+    ))
+      chunks.push(chunk);
+    expect(chunks).toEqual([{ kind: "text", text: "It adds two constants." }]);
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).not.toContain("Investigate before you answer");
+    expect(prompts[0]).not.toContain("tools");
+  });
+});
 
 describe("buildAssistPrompt for a step check", () => {
   it("shows the step, its diff and the check the model suggested", () => {

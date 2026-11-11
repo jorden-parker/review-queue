@@ -7,6 +7,7 @@ const CONFIG = {
   baseURL: "http://llm.test",
   model: "m",
   enabled: true,
+  backend: "local" as const,
   thinking: true,
   timeoutMs: 1000,
 };
@@ -82,8 +83,10 @@ describe("assistResponse", () => {
     expect(text).toBe(`${ASSIST_ERROR_MARKER}Model "m" is not installed (HTTP 404)`);
   });
 
-  it("is a 404 when the local model is off", () => {
-    expect(assistResponse(DATA, BODY, { ...CONFIG, enabled: false }).status).toBe(404);
+  it("is a 404 saying the model is off when it is turned off", async () => {
+    const response = assistResponse(DATA, BODY, { ...CONFIG, enabled: false });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "The model is off" });
   });
 
   it("is a 400 for a bad body or lines outside the diff", () => {

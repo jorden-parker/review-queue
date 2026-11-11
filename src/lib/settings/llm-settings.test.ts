@@ -7,7 +7,14 @@ import {
   savedLlmSettings,
 } from "./llm-settings";
 
-const SETTINGS = { enabled: true, model: "qwen3:4b", thinking: false, timeoutMs: 20_000 };
+const SETTINGS = {
+  enabled: true,
+  model: "qwen3:4b",
+  thinking: false,
+  timeoutMs: 20_000,
+  backend: "local",
+  claudeModel: "haiku",
+} as const;
 
 describe("llmSettingsFromEnv", () => {
   it("reads the environment, with no model meaning auto", () => {
@@ -16,6 +23,8 @@ describe("llmSettingsFromEnv", () => {
       model: null,
       thinking: true,
       timeoutMs: expect.any(Number),
+      backend: "local",
+      claudeModel: "haiku",
     });
     expect(
       llmSettingsFromEnv({
@@ -24,7 +33,32 @@ describe("llmSettingsFromEnv", () => {
         REVIEW_QUEUE_LLM_THINKING: "off",
         REVIEW_QUEUE_LLM_TIMEOUT_MS: "5000",
       }),
-    ).toEqual({ enabled: false, model: "mine", thinking: false, timeoutMs: 5000 });
+    ).toEqual({
+      enabled: false,
+      model: "mine",
+      thinking: false,
+      timeoutMs: 5000,
+      backend: "local",
+      claudeModel: "haiku",
+    });
+  });
+
+  it("picks Claude Code and its model from the environment", () => {
+    expect(
+      llmSettingsFromEnv({
+        REVIEW_QUEUE_LLM_BACKEND: "claude-code",
+        REVIEW_QUEUE_CLAUDE_MODEL: "sonnet",
+      }),
+    ).toMatchObject({ backend: "claude-code", claudeModel: "sonnet" });
+  });
+
+  it("ignores an unknown backend or Claude model", () => {
+    expect(
+      llmSettingsFromEnv({
+        REVIEW_QUEUE_LLM_BACKEND: "carrier-pigeon",
+        REVIEW_QUEUE_CLAUDE_MODEL: "gpt",
+      }),
+    ).toMatchObject({ backend: "local", claudeModel: "haiku" });
   });
 });
 
@@ -36,6 +70,15 @@ describe("LlmSettingsSchema", () => {
 });
 
 describe("savedLlmSettings", () => {
+  it("reads settings saved before the backend existed as local with haiku", () => {
+    const store = new SessionStore(":memory:");
+    const older: Record<string, unknown> = { ...SETTINGS };
+    delete older.backend;
+    delete older.claudeModel;
+    store.setSetting("llm", JSON.stringify(older));
+    expect(savedLlmSettings(store)).toEqual(SETTINGS);
+  });
+
   it("is null until settings are saved, then returns them", () => {
     const store = new SessionStore(":memory:");
     expect(savedLlmSettings(store)).toBeNull();

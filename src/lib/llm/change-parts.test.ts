@@ -9,6 +9,7 @@ const CONFIG = {
   baseURL: "http://llm.test",
   model: "m",
   enabled: true,
+  backend: "local" as const,
   thinking: false,
   timeoutMs: 1000,
 };

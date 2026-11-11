@@ -34,8 +34,8 @@ describe("streamAssist", () => {
   });
 
   it("shows the server message when an error body is JSON", async () => {
-    stubResponse(Response.json({ error: "Local model is off" }, { status: 404 }));
-    await expect(ask()).rejects.toThrow("Local model is off");
+    stubResponse(Response.json({ error: "The model is off" }, { status: 404 }));
+    await expect(ask()).rejects.toThrow("The model is off");
   });
 
   it("fails instead of resolving when the response has no body", async () => {
