@@ -67,6 +67,7 @@ const PULL_REQUEST: PullRequest = {
   baseSha: "base1",
   headRef: "retry",
   headSha: HEAD_SHA,
+  state: "open",
   additions: 3,
   deletions: 0,
   changedFiles: 2,

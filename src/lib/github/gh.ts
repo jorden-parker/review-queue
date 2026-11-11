@@ -13,6 +13,8 @@ export type ReviewRequest = {
   isDraft: boolean;
 };
 
+type PullRequestState = "open" | "closed" | "merged";
+
 export type PullRequest = {
   ref: PullRequestRef;
   title: string;
@@ -24,6 +26,7 @@ export type PullRequest = {
   baseSha: string;
   headRef: string;
   headSha: string;
+  state: PullRequestState;
   additions: number;
   deletions: number;
   changedFiles: number;
@@ -102,6 +105,7 @@ export async function getPullRequest(
     baseSha: pull.base.sha,
     headRef: pull.head.ref,
     headSha: pull.head.sha,
+    state: pull.merged ? "merged" : pull.state,
     additions: pull.additions,
     deletions: pull.deletions,
     changedFiles: pull.changed_files,

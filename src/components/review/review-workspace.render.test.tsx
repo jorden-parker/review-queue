@@ -210,4 +210,23 @@ describe("review workspace renders", () => {
     await user.click(paneButton("Map"));
     expect((await screen.findAllByText(MAP_NODE.name!)).length).toBeGreaterThan(0);
   });
+
+  it("warns the reader when the PR is already merged", async () => {
+    const merged = reviewPayload();
+    merged.pr = { ...merged.pr, state: "merged" };
+    await renderWorkspace(merged);
+    expect(screen.getByText(/already merged/)).toBeTruthy();
+  });
+
+  it("warns the reader when the PR was closed without merging", async () => {
+    const closed = reviewPayload();
+    closed.pr = { ...closed.pr, state: "closed" };
+    await renderWorkspace(closed);
+    expect(screen.getByText(/closed without merging/)).toBeTruthy();
+  });
+
+  it("shows no merged or closed warning on an open PR", async () => {
+    await renderWorkspace();
+    expect(screen.queryByText(/already merged|closed without merging/)).toBeNull();
+  });
 });

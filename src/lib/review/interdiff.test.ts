@@ -26,6 +26,7 @@ function pullRequest(headSha: string, baseSha: string): PullRequest {
     baseSha,
     headRef: "feature",
     headSha,
+    state: "open",
     additions: 0,
     deletions: 0,
     changedFiles: 0,

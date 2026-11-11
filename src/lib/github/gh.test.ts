@@ -63,6 +63,8 @@ describe("github", () => {
       user: { login: "sam" },
       base: { ref: "main", sha: "base1" },
       head: { ref: "cache", sha: "abc" },
+      state: "open",
+      merged: false,
       additions: 10,
       deletions: 2,
       changed_files: 3,
@@ -87,10 +89,26 @@ describe("github", () => {
       baseSha: "base1",
       headRef: "cache",
       headSha: "abc",
+      state: "open",
       additions: 10,
       deletions: 2,
       changedFiles: 3,
     });
+  });
+
+  it("tells a merged pull request from one closed without merging", async () => {
+    const stateOf = async (fields: { state: string; merged: boolean }) => {
+      const body = JSON.stringify({
+        base: { ref: "main", sha: "base1" },
+        head: { ref: "cache", sha: "abc" },
+        ...fields,
+      });
+      const { run } = fakeRunner(`HTTP/2.0 200 OK\r\n\r\n${body}`);
+      return (await getPullRequest(REF, noCache, run)).state;
+    };
+    expect(await stateOf({ state: "closed", merged: true })).toBe("merged");
+    expect(await stateOf({ state: "closed", merged: false })).toBe("closed");
+    expect(await stateOf({ state: "open", merged: false })).toBe("open");
   });
 
   it("submits a review with line comments through the API", async () => {

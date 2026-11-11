@@ -558,6 +558,16 @@ function PushNotice({ headSha, onDismiss }: { headSha: string; onDismiss: () => 
   );
 }
 
+const CLOSED_NOTICES = {
+  merged: "This PR is already merged. Anything you post now is a comment on shipped code.",
+  closed: "This PR was closed without merging. Check with the author before you spend time on it.",
+};
+
+function ClosedNotice({ state }: { state: ReviewPayload["pr"]["state"] }) {
+  if (state === "open") return null;
+  return <Callout>{CLOSED_NOTICES[state]}</Callout>;
+}
+
 function BreakBanner({ workspace }: { workspace: Workspace }) {
   if (!workspace.breakDue) return null;
   return (
@@ -896,6 +906,7 @@ export function ReviewWorkspace({
           <div className="shrink-0 border-b bg-background px-3 py-4 sm:px-8">
             <div className="mx-auto flex max-w-5xl flex-col gap-3">
               <StepBar review={review} session={session} workspace={workspace} />
+              <ClosedNotice state={review.pr.state} />
               {controls.actionError && (
                 <Callout tone="error">Couldn&apos;t save: {controls.actionError}</Callout>
               )}
