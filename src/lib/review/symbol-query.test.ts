@@ -53,4 +53,20 @@ describe("fileLookupRoute", () => {
     expect((await GET(request, context("7"))).status).toBe(409);
     expect(lookup).not.toHaveBeenCalled();
   });
+
+  it("looks up only a file that is part of the loaded review", async () => {
+    const changedFile = { path: "src/a.ts" };
+    const review = { data: { files: [changedFile] } };
+    const loaded = (globalThis as { reviewQueuePrepared?: Map<string, Promise<unknown>> })
+      .reviewQueuePrepared;
+    loaded?.set("acme/app#7@loaded", Promise.resolve(review));
+    const lookup = vi.fn(async () => ({ found: true }));
+    const GET = fileLookupRoute(lookup);
+    const outside = new Request("http://test/api?sha=loaded&path=../secret");
+    expect((await GET(outside, context("7"))).status).toBe(400);
+    expect(lookup).not.toHaveBeenCalled();
+    const inside = new Request("http://test/api?sha=loaded&path=src/a.ts");
+    expect(await (await GET(inside, context("7"))).json()).toEqual({ found: true });
+    expect(lookup).toHaveBeenCalledWith(review, changedFile);
+  });
 });
