@@ -14,7 +14,7 @@ export function ReviewLoader({ pullRequest }: { pullRequest: PullRequestRef }) {
     return (
       <main
         id="main"
-        className="flex h-screen flex-col items-center justify-center gap-3 px-4 text-center sm:px-6"
+        className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center sm:px-6"
       >
         <Otter className="text-4xl" />
         <p className="text-lg font-bold">Getting the PR ready…</p>

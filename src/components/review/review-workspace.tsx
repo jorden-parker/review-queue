@@ -942,7 +942,7 @@ export function ReviewWorkspace({
   );
 
   return (
-    <div className="grid h-screen grid-cols-shell grid-rows-shell">
+    <div className="grid min-h-0 flex-1 grid-cols-shell grid-rows-shell">
       <TopBar review={review} session={session} workspace={workspace} />
       <div className="grid min-h-0 grid-cols-workspace">
         <WorkspacePanel

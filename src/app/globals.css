@@ -123,7 +123,7 @@
 }
 
 @utility max-w-panel-overlay {
-  max-width: calc(100vw - var(--container-panel-strip-compact));
+  max-width: calc(100vw - 2 * var(--container-panel-strip-compact));
 }
 
 @utility tab-2 {

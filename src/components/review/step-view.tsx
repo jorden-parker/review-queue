@@ -142,7 +142,7 @@ function FileHeader({
         )}
         <PathLabel path={file.path} truncate className="text-sm" />
       </span>
-      <span className="flex shrink-0 items-center gap-3 text-sm tabular-nums">
+      <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm tabular-nums">
         {wholeFileToggle && <WholeFileButton toggle={wholeFileToggle} />}
         {onAskFile && !file.binary && (
           <FileActionsButton onAsk={(action) => onAskFile(file.path, action)} />

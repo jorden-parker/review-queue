@@ -56,3 +56,25 @@ describe("PageHeader", () => {
     expect(classes.contains("text-5xl")).toBe(false);
   });
 });
+
+describe("PageShell scrolling", () => {
+  it("fills the available height and scrolls inside itself", () => {
+    render(
+      <PageShell>
+        <p>Body content</p>
+      </PageShell>,
+    );
+    const classes = screen.getByRole("main").classList;
+    expect(classes.contains("h-full")).toBe(true);
+    expect(classes.contains("overflow-y-auto")).toBe(true);
+  });
+
+  it("can take keyboard focus so keyboard users can scroll it", () => {
+    render(
+      <PageShell>
+        <p>Body content</p>
+      </PageShell>,
+    );
+    expect(screen.getByRole("main").getAttribute("tabindex")).toBe("0");
+  });
+});

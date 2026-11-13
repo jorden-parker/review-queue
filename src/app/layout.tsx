@@ -24,10 +24,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
-      <body className="min-h-screen">
+      <body className="flex h-dvh flex-col overflow-hidden">
         <SkipLink />
-        <RainbowRule />
-        <TooltipProvider>{children}</TooltipProvider>
+        <RainbowRule className="shrink-0" />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <TooltipProvider>{children}</TooltipProvider>
+        </div>
       </body>
     </html>
   );

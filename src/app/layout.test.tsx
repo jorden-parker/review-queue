@@ -26,3 +26,16 @@ describe("RootLayout fonts", () => {
     expect(htmlClassNames().some((name) => name.startsWith("atkinson"))).toBe(false);
   });
 });
+
+describe("RootLayout body", () => {
+  function bodyElement() {
+    const htmlElement = RootLayout({ children: null });
+    return htmlElement.props.children as { props: { className: string } };
+  }
+
+  it("fills exactly the viewport height and never scrolls itself", () => {
+    const classNames = bodyElement().props.className.split(" ");
+    expect(classNames).toContain("h-dvh");
+    expect(classNames).toContain("overflow-hidden");
+  });
+});
