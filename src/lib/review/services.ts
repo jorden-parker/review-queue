@@ -70,7 +70,7 @@ export function conversation(ref: PullRequestRef): Promise<Conversation> {
 
 export function linkedIssues(ref: PullRequestRef): Promise<LinkedIssue[]> {
   return githubCache().get(`linked-issues:${prKey(ref)}`, LINKED_ISSUES_TTL_MS, () =>
-    listLinkedIssues(ref, sessionStore()),
+    listLinkedIssues(ref),
   );
 }
 

@@ -365,64 +365,38 @@ describe("listOpenPullRequests", () => {
 });
 
 describe("listLinkedIssues", () => {
-  const closing = (owner: string, repo: string, number: number) => ({
-    number,
-    url: `https://github.com/${owner}/${repo}/issues/${number}`,
-    repository: { name: repo, owner: { login: owner } },
-  });
-
-  const issueResponse = (
+  const closingIssue = (
     owner: string,
     repo: string,
     number: number,
     title: string,
-    state: "open" | "closed",
-    bodyHtml: string | null,
+    state: "OPEN" | "CLOSED",
+    bodyHTML: string,
   ) => ({
+    number,
     title,
     state,
-    html_url: `https://github.com/${owner}/${repo}/issues/${number}`,
-    body_html: bodyHtml,
+    url: `https://github.com/${owner}/${repo}/issues/${number}`,
+    bodyHTML,
+    repository: { name: repo, owner: { login: owner } },
   });
 
-  function linkedIssueRunner(references: unknown[], issues: Record<string, object | Error>) {
-    const calls: Call[] = [];
-    const run = async (command: string, args: string[], options?: RunOptions) => {
-      calls.push({ command, args, options });
-      if (args[0] === "pr") return JSON.stringify({ closingIssuesReferences: references });
-      const issue = issues[args[2]];
-      if (issue instanceof Error) throw issue;
-      if (!issue) throw new Error("HTTP 404: Not Found");
-      return `HTTP/2.0 200 OK\r\nEtag: "i"\r\n\r\n${JSON.stringify(issue)}`;
-    };
-    return { run, calls };
-  }
+  const closingResponse = (nodes: unknown[]) =>
+    JSON.stringify({
+      data: { repository: { pullRequest: { closingIssuesReferences: { nodes } } } },
+    });
 
-  it("lists the issues a PR closes with their rendered bodies", async () => {
-    const { run, calls } = linkedIssueRunner(
-      [closing("acme", "app", 12), closing("other", "lib", 30)],
-      {
-        "repos/acme/app/issues/12": issueResponse(
-          "acme",
-          "app",
-          12,
-          "Crash on save",
-          "open",
-          "<p>It crashes</p>",
-        ),
-        "repos/other/lib/issues/30": issueResponse("other", "lib", 30, "Lib", "closed", null),
-      },
+  it("lists the issues a PR closes with their rendered bodies in one GitHub call", async () => {
+    const { run, calls } = fakeRunner(
+      closingResponse([
+        closingIssue("acme", "app", 12, "Crash on save", "OPEN", "<p>It crashes</p>"),
+        closingIssue("other", "lib", 30, "Lib", "CLOSED", ""),
+      ]),
     );
-    const issues = await listLinkedIssues(REF, noCache, run);
-    expect(calls[0].args).toEqual([
-      "pr",
-      "view",
-      "7",
-      "--repo",
-      "acme/app",
-      "--json",
-      "closingIssuesReferences",
-    ]);
+    const issues = await listLinkedIssues(REF, run);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].args.slice(0, 2)).toEqual(["api", "graphql"]);
+    expect(calls[0].args).toEqual(expect.arrayContaining(["owner=acme", "repo=app", "number=7"]));
     expect(issues).toEqual([
       {
         owner: "acme",
@@ -445,31 +419,22 @@ describe("listLinkedIssues", () => {
     ]);
   });
 
-  it("skips a reference whose owner is not a safe name, without fetching it", async () => {
-    const { run, calls } = linkedIssueRunner([closing("..", "app", 5)], {});
-    expect(await listLinkedIssues(REF, noCache, run)).toEqual([]);
-    expect(calls.filter((call) => call.args[0] === "api")).toEqual([]);
+  it("skips a reference whose owner is not a safe name", async () => {
+    const { run } = fakeRunner(closingResponse([closingIssue("..", "app", 5, "T", "OPEN", "")]));
+    expect(await listLinkedIssues(REF, run)).toEqual([]);
   });
 
   it("drops an issue that cannot be read without failing the others", async () => {
-    const { run } = linkedIssueRunner([closing("acme", "app", 12), closing("acme", "app", 13)], {
-      "repos/acme/app/issues/12": issueResponse("acme", "app", 12, "Crash", "open", "<p>x</p>"),
-      "repos/acme/app/issues/13": new Error("HTTP 404: Not Found"),
-    });
-    const issues = await listLinkedIssues(REF, noCache, run);
+    const { run } = fakeRunner(
+      closingResponse([closingIssue("acme", "app", 12, "Crash", "OPEN", "<p>x</p>"), null]),
+    );
+    const issues = await listLinkedIssues(REF, run);
     expect(issues.map((issue) => issue.number)).toEqual([12]);
   });
 
-  it("fetches at most three issues", async () => {
-    const references = [1, 2, 3, 4].map((number) => closing("acme", "app", number));
-    const issues = Object.fromEntries(
-      [1, 2, 3, 4].map((number) => [
-        `repos/acme/app/issues/${number}`,
-        issueResponse("acme", "app", number, "T", "open", null),
-      ]),
-    );
-    const { run, calls } = linkedIssueRunner(references, issues);
-    expect(await listLinkedIssues(REF, noCache, run)).toHaveLength(3);
-    expect(calls.filter((call) => call.args[0] === "api")).toHaveLength(3);
+  it("asks for at most three issues", async () => {
+    const { run, calls } = fakeRunner(closingResponse([]));
+    await listLinkedIssues(REF, run);
+    expect(calls[0].args.join(" ")).toContain("closingIssuesReferences(first: 3)");
   });
 });

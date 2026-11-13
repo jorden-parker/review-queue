@@ -148,71 +148,71 @@ export type LinkedIssue = {
   bodyHtml: string;
 };
 
-type ClosingReference = {
+type ClosingIssue = {
   number: number;
-  repository: { name: string; owner: { login: string } };
-};
-
-type IssueResponse = {
   title: string;
-  state: "open" | "closed";
-  html_url: string;
-  body_html?: string | null;
+  state: "OPEN" | "CLOSED";
+  url: string;
+  bodyHTML: string;
+  repository: { name: string; owner: { login: string } };
 };
 
 const LINKED_ISSUE_LIMIT = 3;
 
-function closingReferenceRef(reference: ClosingReference): PullRequestRef | null {
-  return parsePullRequestRef(
-    `${reference.repository.owner.login}/${reference.repository.name}#${reference.number}`,
-  );
-}
+const CLOSING_ISSUES_QUERY = `query($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) {
+      closingIssuesReferences(first: ${LINKED_ISSUE_LIMIT}) {
+        nodes { number title state url bodyHTML repository { name owner { login } } }
+      }
+    }
+  }
+}`;
 
-async function loadLinkedIssue(
-  ref: PullRequestRef,
-  cache: EtagCache,
-  run: Runner,
-): Promise<LinkedIssue> {
-  const path = `repos/${ref.owner}/${ref.repo}/issues/${ref.number}`;
-  const issue = JSON.parse(
-    await conditionalGet(path, cache, run, [RENDERED_BODY]),
-  ) as IssueResponse;
-  return {
-    owner: ref.owner,
-    repo: ref.repo,
-    number: ref.number,
-    title: issue.title,
-    state: issue.state,
-    url: issue.html_url,
-    bodyHtml: issue.body_html ?? "",
-  };
+function linkedIssueFromClosing(issue: ClosingIssue): LinkedIssue[] {
+  const issueRef = parsePullRequestRef(
+    `${issue.repository.owner.login}/${issue.repository.name}#${issue.number}`,
+  );
+  if (!issueRef) return [];
+  return [
+    {
+      owner: issueRef.owner,
+      repo: issueRef.repo,
+      number: issueRef.number,
+      title: issue.title,
+      state: issue.state === "OPEN" ? "open" : "closed",
+      url: issue.url,
+      bodyHtml: issue.bodyHTML,
+    },
+  ];
 }
 
 export async function listLinkedIssues(
   ref: PullRequestRef,
-  cache: EtagCache,
   run: Runner = githubRun,
 ): Promise<LinkedIssue[]> {
   const output = await run("gh", [
-    "pr",
-    "view",
-    String(ref.number),
-    "--repo",
-    `${ref.owner}/${ref.repo}`,
-    "--json",
-    "closingIssuesReferences",
+    "api",
+    "graphql",
+    "-f",
+    `query=${CLOSING_ISSUES_QUERY}`,
+    "-F",
+    `owner=${ref.owner}`,
+    "-F",
+    `repo=${ref.repo}`,
+    "-F",
+    `number=${ref.number}`,
   ]);
-  const { closingIssuesReferences } = JSON.parse(output) as {
-    closingIssuesReferences: ClosingReference[];
-  };
-  const issueRefs = closingIssuesReferences
-    .map(closingReferenceRef)
-    .filter((issueRef): issueRef is PullRequestRef => issueRef !== null)
-    .slice(0, LINKED_ISSUE_LIMIT);
-  const settled = await Promise.allSettled(
-    issueRefs.map((issueRef) => loadLinkedIssue(issueRef, cache, run)),
-  );
-  return settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
+  const { nodes } = (
+    JSON.parse(output) as {
+      data: {
+        repository: {
+          pullRequest: { closingIssuesReferences: { nodes: (ClosingIssue | null)[] } };
+        };
+      };
+    }
+  ).data.repository.pullRequest.closingIssuesReferences;
+  return nodes.flatMap((issue) => (issue ? linkedIssueFromClosing(issue) : []));
 }
 
 export async function viewerLogin(run: Runner = githubRun): Promise<string> {
