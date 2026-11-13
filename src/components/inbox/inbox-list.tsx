@@ -53,7 +53,7 @@ function InboxRow({ entry }: { entry: QueueEntry }) {
     <li className="flex items-center">
       <Link
         href={prPath(request.ref)}
-        className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4 transition-colors duration-calm hover:border-foreground/20 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+        className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4 transition-colors duration-calm hover:border-foreground/20 hover:bg-accent focus-visible:bg-accent"
       >
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="font-semibold">
@@ -95,7 +95,7 @@ function QueueRows({ entries }: { entries: QueueEntry[] }) {
         <InboxRow key={prKey(entry.request.ref)} entry={entry} />
       ))}
       {started.length > 0 && notStarted.length > 0 && (
-        <li className="px-5 py-2 text-xs font-medium text-muted-foreground">Not started</li>
+        <li className="px-5 py-2 text-sm font-medium text-muted-foreground">Not started</li>
       )}
       {notStarted.map((entry) => (
         <InboxRow key={prKey(entry.request.ref)} entry={entry} />
@@ -165,7 +165,7 @@ function QueueSection({
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-bold">
-          {title} <span className="text-muted-foreground">({count})</span>
+          {title} <span className="tabular-nums text-muted-foreground">({count})</span>
         </h2>
         {action}
       </div>
@@ -197,7 +197,7 @@ export function RequestQueue({
             🔌 Couldn&apos;t reach GitHub through <code className="font-mono">gh</code>. Is it
             installed and logged in?
           </p>
-          <p className="font-mono text-xs text-muted-foreground">{error}</p>
+          <p className="font-mono text-sm text-muted-foreground">{error}</p>
         </Card>
       </QueueSection>
     );

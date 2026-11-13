@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SkipLink } from "@/components/common/skip-link";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -11,10 +12,19 @@ export const metadata: Metadata = {
   description: "Calm, structured pull request reviews.",
 };
 
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+};
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body className="min-h-screen">
+        <SkipLink />
         <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>

@@ -39,7 +39,7 @@ function AiSummary({ orientation }: { orientation: OrientationState }) {
   const { summary, intent, risk } = orientation.orientation;
   return (
     <div className="flex flex-col gap-1.5 rounded-lg bg-muted/60 p-3 text-sm">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         The model&apos;s guess, unverified. The PR author can sway it.
       </p>
       <div className="flex items-start gap-1.5 font-medium">

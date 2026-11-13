@@ -75,11 +75,11 @@ export function ResumeCard({
       <dl className="flex flex-col gap-3 text-sm">
         {session.pause && (
           <Callout tone="muted">
-            <dt className="text-xs font-medium">You said you were about to</dt>
+            <dt className="text-sm font-medium">You said you were about to</dt>
             <dd className="text-base">
               <InlineMarkdown text={session.pause.note || "(no note)"} />
             </dd>
-            <dd className="text-xs opacity-75">paused {sinceText(session.pause.at)}</dd>
+            <dd className="text-sm opacity-75">paused {sinceText(session.pause.at)}</dd>
           </Callout>
         )}
         {current && (

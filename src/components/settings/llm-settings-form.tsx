@@ -92,7 +92,7 @@ function ClaudeModelField({ settings, onChange }: { settings: LlmSettings; onCha
           </option>
         ))}
       </select>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Runs your logged-in <code>claude</code> command, so PR code is sent to Anthropic. Ask
         answers without looking up other files.
       </p>
@@ -125,7 +125,7 @@ function CheckField({
         <label htmlFor={id} className="text-sm font-bold">
           {label}
         </label>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className="text-sm text-muted-foreground">{hint}</p>
       </div>
     </div>
   );
@@ -152,7 +152,7 @@ function TimeoutField({
         onChange={(event) => onChange(event.target.value)}
         className="w-32"
       />
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         How long to wait for the model to start answering, up to 3600. Raise it on a slow machine or
         when reviewing whole files; once the answer starts it is never cut off.
       </p>
@@ -180,7 +180,9 @@ function CacheSection() {
         <Button type="button" variant="outline" onClick={clear}>
           Clear cache
         </Button>
-        {status && <p className="text-sm text-muted-foreground">{status}</p>}
+        <p aria-live="polite" className="empty:hidden text-sm text-muted-foreground">
+          {status}
+        </p>
       </div>
     </section>
   );
@@ -232,7 +234,9 @@ export function LlmSettingsForm({ initial }: { initial: SettingsView }) {
         <TimeoutField seconds={seconds} onChange={setSeconds} />
         <div className="flex items-center gap-3">
           <Button type="submit">Save</Button>
-          {status && <p className="text-sm text-muted-foreground">{status}</p>}
+          <p aria-live="polite" className="empty:hidden text-sm text-muted-foreground">
+            {status}
+          </p>
         </div>
       </form>
       <CacheSection />

@@ -222,7 +222,7 @@ function FlatResults({
         ))}
       </ul>
       {hidden > 0 && (
-        <p className="pt-2 text-xs text-muted-foreground">
+        <p className="pt-2 text-sm text-muted-foreground">
           {hidden} more match. Narrow the filter.
         </p>
       )}
@@ -310,7 +310,7 @@ function TextResults({
     <>
       <MatchGroups results={search.results} onOpen={onOpen} />
       {search.results.length >= SEARCH_RESULT_LIMIT && (
-        <p className="pt-2 text-xs text-muted-foreground">
+        <p className="pt-2 text-sm text-muted-foreground">
           Showing the first {SEARCH_RESULT_LIMIT}.
         </p>
       )}

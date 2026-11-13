@@ -4,7 +4,11 @@ const PLACEHOLDER_ROW_COUNT = 3;
 
 export function InboxSkeleton() {
   return (
-    <div className="flex flex-col gap-3" aria-label="Asking GitHub what needs your review">
+    <div
+      role="status"
+      className="flex flex-col gap-3"
+      aria-label="Asking GitHub what needs your review"
+    >
       <Skeleton className="h-7 w-44" />
       <ul className="divide-y overflow-hidden rounded-xl bg-card border">
         {Array.from({ length: PLACEHOLDER_ROW_COUNT }, (_, index) => (

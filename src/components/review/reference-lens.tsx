@@ -21,7 +21,7 @@ export function ReferenceLens({
   onShow: (reference: ReferenceCount) => void;
 }) {
   return (
-    <div className="flex font-sans text-xs leading-5 text-muted-foreground select-none">
+    <div className="flex font-sans text-sm leading-5 text-muted-foreground select-none">
       <span className="w-12 shrink-0" />
       <span className="w-12 shrink-0" />
       <span className="w-6 shrink-0" />
@@ -32,7 +32,7 @@ export function ReferenceLens({
           type="button"
           aria-label={`${countLabel(reference)} to ${reference.name}`}
           onClick={() => onShow(reference)}
-          className="font-sans text-xs transition-colors duration-calm hover:text-foreground hover:underline focus-visible:text-foreground"
+          className="font-sans text-sm transition-colors duration-calm hover:text-foreground hover:underline focus-visible:text-foreground"
         >
           {countLabel(reference)}
         </button>

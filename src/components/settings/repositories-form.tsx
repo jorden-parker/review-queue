@@ -41,13 +41,15 @@ export function RepositoriesForm({ initial }: { initial: string[] }) {
           placeholder="owner/repo"
           className="font-mono text-sm"
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           One owner/repo per line, up to 20. Their open pull requests show on the home page.
         </p>
       </div>
       <div className="flex items-center gap-3">
         <Button type="submit">Save</Button>
-        {status && <p className="text-sm text-muted-foreground">{status}</p>}
+        <p aria-live="polite" className="empty:hidden text-sm text-muted-foreground">
+          {status}
+        </p>
       </div>
     </form>
   );

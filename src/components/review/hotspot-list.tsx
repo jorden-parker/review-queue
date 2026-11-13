@@ -31,9 +31,13 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">
-        {remaining === 0
-          ? "✨ All checked. Lovely."
-          : `${remaining} still to look at. Tick them off as you check.`}
+        {remaining === 0 ? (
+          <>
+            <span aria-hidden>✨</span> All checked. Lovely.
+          </>
+        ) : (
+          `${remaining} still to look at. Tick them off as you check.`
+        )}
       </p>
       <ul className="flex flex-col gap-0.5">
         {hotspots.map((hotspot) => {
@@ -64,7 +68,7 @@ export function HotspotList({ hotspots, checked, onOpen, onToggleChecked }: Hots
                   )}
                 </span>
                 <PathLabel path={hotspot.path} line={hotspot.line} />
-                <span className="text-xs text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   <InlineMarkdown text={hotspot.note ?? hotspot.why} />
                 </span>
               </button>

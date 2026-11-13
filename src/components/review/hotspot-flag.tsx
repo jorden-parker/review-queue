@@ -83,7 +83,11 @@ function FlagDetails({
           <InlineMarkdown text={hotspot.title} />
           {hotspot.suggested && (
             <span className="flex h-5 shrink-0 items-center">
-              <Sparkles className="size-3.5 text-primary" />
+              <Sparkles
+                role="img"
+                aria-label="Suggested by the model"
+                className="size-3.5 text-primary"
+              />
             </span>
           )}
         </span>
@@ -91,7 +95,7 @@ function FlagDetails({
           <InlineMarkdown text={hotspot.note ?? hotspot.why} />
         </p>
         {checks.length > 0 && (
-          <ul className="flex flex-col gap-1 text-xs">
+          <ul className="flex flex-col gap-1 text-sm">
             {checks.map((check) => (
               <li key={check} className="flex gap-2">
                 <span className="text-muted-foreground select-none">→</span>
@@ -140,7 +144,7 @@ function FlagTrigger({
       aria-label={label}
       className={cn(
         className,
-        "group/flag flex max-w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-sm text-left font-mono text-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        "group/flag flex max-w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-sm text-left font-mono text-code focus-visible:ring-3 focus-visible:ring-ring/50",
       )}
     >
       {ordered.map((hotspot) => (

@@ -22,7 +22,7 @@ export function PathLabel({ path, line, startLine, truncate = false, className }
   return (
     <span
       className={cn(
-        "min-w-0 font-mono text-xs",
+        "min-w-0 font-mono text-sm",
         truncate ? "truncate" : "wrap-anywhere",
         className,
       )}

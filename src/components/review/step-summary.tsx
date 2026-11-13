@@ -31,7 +31,7 @@ function CurrentStep({
   return (
     <section aria-label="Current step" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+        <p className="flex flex-wrap gap-x-2 text-sm text-muted-foreground">
           <span>
             Step {workspace.currentIndex + 1} of {review.steps.length}
           </span>
@@ -43,7 +43,7 @@ function CurrentStep({
       </div>
       <p className="text-sm text-muted-foreground">{step.reason}</p>
       {done && (
-        <Badge className="animate-pop bg-add text-add-foreground">
+        <Badge className="bg-add text-add-foreground">
           <Check /> Done
         </Badge>
       )}

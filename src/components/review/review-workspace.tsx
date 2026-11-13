@@ -130,7 +130,7 @@ function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Works
         <span className="truncate text-base/tight font-bold">
           <InlineMarkdown text={review.pr.title} />
         </span>
-        <span className="flex min-w-0 gap-2 truncate text-xs text-muted-foreground">
+        <span className="flex min-w-0 gap-2 truncate text-sm text-muted-foreground">
           <span>{prKey(review.pr.ref)}</span>
           <span>by {review.pr.author}</span>
           <span className="font-mono max-sm:hidden">{review.headSha.slice(0, 7)}</span>
@@ -308,7 +308,7 @@ function partsByNode(
 function PartsStatus({ state, enabled }: { state: ChangePartsState; enabled: boolean }) {
   if (state.status === "ready") {
     return (
-      <span className="block text-xs text-muted-foreground">
+      <span className="block text-sm text-muted-foreground">
         The model&apos;s guess, unverified. The PR author can sway it.
       </span>
     );
@@ -560,7 +560,7 @@ function StepBar({
 
 function PushNotice({ headSha, onDismiss }: { headSha: string; onDismiss: () => void }) {
   return (
-    <Callout className="flex flex-wrap items-center justify-between gap-2">
+    <Callout role="status" className="flex flex-wrap items-center justify-between gap-2">
       <span>New commits were pushed ({headSha.slice(0, 7)}). Reload to re-check what changed.</span>
       <span className="flex gap-2">
         <Button size="sm" onClick={() => location.reload()}>
@@ -587,7 +587,10 @@ function ClosedNotice({ state }: { state: ReviewPayload["pr"]["state"] }) {
 function BreakBanner({ workspace }: { workspace: Workspace }) {
   if (!workspace.breakDue) return null;
   return (
-    <Callout className="animate-step-enter flex flex-wrap items-center justify-between gap-3">
+    <Callout
+      role="status"
+      className="animate-step-enter flex flex-wrap items-center justify-between gap-3"
+    >
       <span className="flex items-center gap-2">
         <Coffee className="size-4 shrink-0" />
         25 minutes of focus. Nice. Take five? Leave yourself a note first.
@@ -924,7 +927,9 @@ export function ReviewWorkspace({
               <StepBar review={review} session={session} workspace={workspace} />
               <ClosedNotice state={review.pr.state} />
               {controls.actionError && (
-                <Callout tone="error">Couldn&apos;t save: {controls.actionError}</Callout>
+                <Callout tone="error" role="alert">
+                  Couldn&apos;t save: {controls.actionError}
+                </Callout>
               )}
               {workspace.newHead && (
                 <PushNotice
@@ -935,7 +940,7 @@ export function ReviewWorkspace({
               <BreakBanner workspace={workspace} />
             </div>
           </div>
-          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-24 sm:px-10">
+          <main id="main" className="min-h-0 flex-1 overflow-y-auto px-3 pb-24 sm:px-10">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-6 pt-6">
               <CentreBody
                 workspace={workspace}

@@ -72,7 +72,7 @@ function SymbolRow({
         <span className={cn("wrap-anywhere font-mono", row.changed && "font-medium text-primary")}>
           {row.symbol.name}
         </span>
-        <span className="text-xs text-muted-foreground">{row.symbol.kind}</span>
+        <span className="text-sm text-muted-foreground">{row.symbol.kind}</span>
       </button>
     </PaneRow>
   );
@@ -84,8 +84,8 @@ function FileOutline({ file, onOpen }: { file: OutlineFile; onOpen: OpenSymbol }
   return (
     <section className="flex flex-col gap-2">
       <PathLabel path={file.path} className="text-muted-foreground" />
-      {file.symbols === undefined && <p className="text-xs text-muted-foreground">Loading…</p>}
-      {file.symbols?.length === 0 && <p className="text-xs text-muted-foreground">No symbols</p>}
+      {file.symbols === undefined && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {file.symbols?.length === 0 && <p className="text-sm text-muted-foreground">No symbols</p>}
       {rows.length > 0 && (
         <ul role="tree" aria-label={`Outline of ${file.path}`} className="flex flex-col gap-0.5">
           {rows.map((row) => (

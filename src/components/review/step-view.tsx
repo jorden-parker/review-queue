@@ -115,7 +115,7 @@ type WholeFileToggle = { wholeFile: boolean; onToggle: () => void } | null;
 
 function WholeFileButton({ toggle }: { toggle: NonNullable<WholeFileToggle> }) {
   return (
-    <Button variant="ghost" size="xs" onClick={toggle.onToggle} aria-pressed={toggle.wholeFile}>
+    <Button variant="ghost" size="xs" onClick={toggle.onToggle}>
       {toggle.wholeFile ? <FoldVertical /> : <UnfoldVertical />}
       {toggle.wholeFile ? "Show changes only" : "Show whole file"}
     </Button>

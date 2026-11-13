@@ -76,7 +76,11 @@ export function ConversationPanel({
 
   return (
     <div className="flex flex-col gap-5 text-sm">
-      {error && <p className="text-destructive">Could not load the conversation: {error}</p>}
+      {error && (
+        <p role="alert" className="text-destructive">
+          Could not load the conversation: {error}
+        </p>
+      )}
       <ConversationEmpty
         conversation={conversation}
         threads={threads}
@@ -87,7 +91,7 @@ export function ConversationPanel({
       <ReviewsSection reviews={conversation.reviews} />
       <ThreadsSection threads={threads} onOpen={onOpen} reply={reply} />
       {conversation.truncated && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Showing part of the conversation. The rest is on GitHub.
         </p>
       )}
@@ -135,7 +139,7 @@ function YourThreadRow({
   const latest = latestComment(thread);
   const { label, variant } = THREAD_STATE_BADGES[state];
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-xs text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm text-muted-foreground">
       <Button
         variant="outline"
         size="sm"
@@ -240,7 +244,7 @@ function ReceiptsSection({
 function ReviewRow({ review }: { review: PostedReview }) {
   return (
     <article className="flex flex-col gap-1.5 rounded-md border p-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{review.author}</span>
         <Badge variant="outline" className="h-auto whitespace-normal wrap-anywhere">
           {REVIEW_STATE_LABELS[review.state]}
@@ -268,7 +272,7 @@ function ThreadRow({
   const { path, line, side } = root;
   return (
     <article className="flex flex-col gap-1.5 rounded-md border p-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span className="font-mono">{path}</span>
         <span className="font-medium text-foreground">{root.author}</span>
         <span>{relativeTime(root.createdAt)}</span>
@@ -283,7 +287,7 @@ function ThreadRow({
           onArrived={reply.clearArrived}
         />
       ))}
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
         <span>{replies.length > 0 && replyCount(replies.length)}</span>
         <div className="flex items-center gap-2">
           <Button
@@ -336,7 +340,7 @@ function ReplyItem({
 
   return (
     <div ref={itemRef} id={`comment-${reply.id}`} className="flex flex-col gap-1 border-l-2 pl-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{reply.author}</span>
         <span>{relativeTime(reply.createdAt)}</span>
       </div>
@@ -355,7 +359,7 @@ function replyLabel(path: string, line: number | null): string {
 
 function ReceiptRow({ label, postedAt, url }: { label: string; postedAt: string; url: string }) {
   return (
-    <article className="flex flex-wrap items-center gap-2 rounded-md border p-3 text-xs text-muted-foreground">
+    <article className="flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm text-muted-foreground">
       <span className="font-medium text-foreground">{label}</span>
       <span>{relativeTime(postedAt)}</span>
       <a href={url} target="_blank" rel="noreferrer" className="underline">

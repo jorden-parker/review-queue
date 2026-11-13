@@ -29,12 +29,8 @@ export function MarkdownField({ onKeyDown, autoFocus, ...textareaProps }: Markdo
         onValueChange={chooseMode}
         className="self-start"
       >
-        <ToggleGroupItem value="write" className="text-xs">
-          Write
-        </ToggleGroupItem>
-        <ToggleGroupItem value="preview" className="text-xs">
-          Preview
-        </ToggleGroupItem>
+        <ToggleGroupItem value="write">Write</ToggleGroupItem>
+        <ToggleGroupItem value="preview">Preview</ToggleGroupItem>
       </ToggleGroup>
       {mode === "write" ? (
         <Textarea autoFocus={autoFocus || returnedToWrite} {...textareaProps} />

@@ -18,7 +18,7 @@ export function ArchivedList({
   return (
     <details>
       <summary ref={summaryRef} className="cursor-pointer text-lg font-bold">
-        Archived <span className="text-muted-foreground">({sessions.length})</span>
+        Archived <span className="tabular-nums text-muted-foreground">({sessions.length})</span>
       </summary>
       <div className="flex flex-col gap-3 pt-3">
         <p className="text-sm text-muted-foreground">

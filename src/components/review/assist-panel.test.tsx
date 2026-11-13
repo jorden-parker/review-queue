@@ -284,3 +284,17 @@ describe("AssistPanel retry", () => {
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   });
 });
+
+describe("AssistPanel live status", () => {
+  it("announces once that the answer is being written, not each token", () => {
+    const { thread, assist } = chat([{ role: "model", text: "Partial" }], true);
+    render(panel({ thread, assist }));
+    expect(screen.getByRole("status").textContent).toBe("Writing the answer");
+  });
+
+  it("clears the status once the answer has finished", () => {
+    const { thread, assist } = chat([{ role: "model", text: "Done" }]);
+    render(panel({ thread, assist }));
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+});

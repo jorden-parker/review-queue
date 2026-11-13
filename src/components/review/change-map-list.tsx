@@ -142,7 +142,7 @@ function MapToolbar({
       className="flex-wrap"
     >
       {offered.map((key) => (
-        <ToggleGroupItem key={key} value={key} className="text-xs">
+        <ToggleGroupItem key={key} value={key} className="text-sm">
           {FILTER_LABELS[key]}
         </ToggleGroupItem>
       ))}
@@ -213,7 +213,7 @@ function ThreadHeader({
           <span className="wrap-anywhere">{section.title}</span>
         </button>
       </h3>
-      <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
+      <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground tabular-nums">
         {finished ? <Check aria-hidden className="size-3.5 text-primary" /> : null}
         {section.readCount} of {section.total} read
       </span>
@@ -233,7 +233,7 @@ function ThreadStops({
   stop: StopContext;
 }) {
   if (rows.length === 0) {
-    return <p className="pl-5 text-xs text-muted-foreground">All stops hidden by filters.</p>;
+    return <p className="pl-5 text-sm text-muted-foreground">All stops hidden by filters.</p>;
   }
   return (
     <ol>
@@ -326,7 +326,7 @@ function StopButton({
     >
       <StopHeading row={row} />
       {part ? (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           <InlineMarkdown text={part.part} />
         </span>
       ) : null}
@@ -398,7 +398,7 @@ function StopHeading({ row }: { row: MapRow }) {
   return (
     <span className="flex max-w-full flex-wrap items-center gap-2">
       {row.kind === "test" ? (
-        <span className="text-xs text-muted-foreground">tested by</span>
+        <span className="text-sm text-muted-foreground">tested by</span>
       ) : null}
       <span className="wrap-anywhere font-mono text-sm">{row.node.name ?? "file changes"}</span>
       {row.showRole ? (

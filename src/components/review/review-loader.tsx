@@ -11,7 +11,10 @@ export function ReviewLoader({ pullRequest }: { pullRequest: PullRequestRef }) {
   const { load, session, orientation } = controls;
   if (load.status === "loading") {
     return (
-      <main className="flex h-screen flex-col items-center justify-center gap-3 px-4 text-center sm:px-6">
+      <main
+        id="main"
+        className="flex h-screen flex-col items-center justify-center gap-3 px-4 text-center sm:px-6"
+      >
         <span aria-hidden className="animate-float text-4xl">
           🦦
         </span>

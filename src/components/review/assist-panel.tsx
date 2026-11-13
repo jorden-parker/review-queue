@@ -45,7 +45,7 @@ type TurnProps = {
 function LookupList({ lookups = [] }: { lookups?: AssistLookup[] }) {
   if (lookups.length === 0) return null;
   return (
-    <ul aria-label="Lookups" className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+    <ul aria-label="Lookups" className="flex flex-col gap-0.5 text-sm text-muted-foreground">
       {lookups.map((lookup, index) => (
         <li key={index} className="flex items-start gap-1.5">
           <Search className="mt-0.5 size-3 shrink-0" aria-hidden />
@@ -106,7 +106,7 @@ function ModelTurn({ turn, streaming, isLast, citationsOf, onShowCitation }: Tur
             : "The answer was cut off."}
         </p>
       )}
-      {streaming && <span className="h-4 w-1.5 animate-pulse bg-primary" aria-label="Writing" />}
+      {streaming && <span aria-hidden className="h-4 w-1.5 animate-pulse bg-primary" />}
       {isLast && !streaming && (
         <CitationWalk citations={citations} activeIndex={activeIndex} onStep={showCitation} />
       )}
@@ -200,7 +200,7 @@ function Composer({
   const asking = awaitsQuestion(thread);
   if (readOnly) {
     return (
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Asked on an older commit, so it can&apos;t be continued. Ask again to start fresh.
       </p>
     );
@@ -214,7 +214,7 @@ function Composer({
       );
     }
     return (
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         That&apos;s a long thread. Ask again to start fresh.
       </p>
     );
@@ -271,12 +271,12 @@ export function AssistPanel({
       onKeyDown={(event) => event.stopPropagation()}
     >
       <header className="flex items-center gap-2 border-b px-3 py-2.5">
-        <Sparkles className="size-3.5 shrink-0 text-primary" />
+        <Sparkles aria-hidden className="size-3.5 shrink-0 text-primary" />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="font-medium">{actionLabel(thread.action, thread.target)}</span>
           <button
             onClick={onShowLines}
-            className="text-left font-mono text-xs wrap-anywhere text-muted-foreground hover:text-foreground"
+            className="text-left font-mono text-sm wrap-anywhere text-muted-foreground hover:text-foreground"
           >
             {label}
           </button>
@@ -291,7 +291,10 @@ export function AssistPanel({
         data-testid="chat-messages"
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 *:shrink-0"
       >
-        <p className="text-xs text-muted-foreground">
+        <p role="status" className="sr-only">
+          {assist.streaming ? "Writing the answer" : ""}
+        </p>
+        <p className="text-sm text-muted-foreground">
           The model&apos;s guess, unverified. The PR author can sway it.
         </p>
         <ChatTurns
@@ -303,7 +306,11 @@ export function AssistPanel({
         {assist.streaming && last?.role === "reviewer" && (
           <p className="text-muted-foreground">Local model is reading…</p>
         )}
-        {assist.error && <Callout tone="error">Local model unavailable ({assist.error}).</Callout>}
+        {assist.error && (
+          <Callout tone="error" role="alert">
+            Local model unavailable ({assist.error}).
+          </Callout>
+        )}
         {draftReady && (
           <CommentDraft
             key={last.text}

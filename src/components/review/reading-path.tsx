@@ -41,10 +41,16 @@ function ProgressSummary({ doneCount, total }: { doneCount: number; total: numbe
           {doneCount} of {total} steps
         </span>
         <span className="text-xs text-muted-foreground tabular-nums">
-          {finished ? "🎉 all read" : `${percent}%`}
+          {finished ? (
+            <>
+              <span aria-hidden>🎉</span> all read
+            </>
+          ) : (
+            `${percent}%`
+          )}
         </span>
       </div>
-      <Progress value={percent} indicatorClassName="animate-shimmer bg-whimsy" />
+      <Progress aria-label="Steps read" value={percent} indicatorClassName="bg-whimsy" />
       {finished && <Celebration />}
     </div>
   );
@@ -74,17 +80,17 @@ function StepNotes({ reason, start, reopened }: StepNotesProps) {
   return (
     <>
       {reason && (
-        <span data-testid="step-reason" className="text-xs text-muted-foreground">
+        <span data-testid="step-reason" className="text-sm text-muted-foreground">
           <InlineMarkdown text={reason} />
         </span>
       )}
       {start && (
-        <Badge className="mt-1 bg-callout text-callout-foreground">
+        <Badge variant="outline" className="mt-1">
           <Play /> Start here
         </Badge>
       )}
       {reopened && (
-        <span className="mt-1 text-xs text-severity-medium">Changed since you reviewed it</span>
+        <span className="mt-1 text-sm text-severity-medium">Changed since you reviewed it</span>
       )}
     </>
   );
@@ -109,6 +115,7 @@ function StepItem({ step, index, path }: StepItemProps) {
         <DoneToggle done={done} reopened={reopened} onToggle={() => path.onToggleDone(step.id)} />
       </span>
       <button
+        aria-current={current ? "step" : undefined}
         onClick={() => path.onSelect(step.id)}
         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
       >
@@ -121,7 +128,7 @@ function StepItem({ step, index, path }: StepItemProps) {
         >
           {index + 1}. {step.title}
         </span>
-        <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+        <span className="flex flex-wrap gap-x-2 text-sm text-muted-foreground">
           <span>{step.role}</span>
           <span>{plural(step.changedLines, "line")}</span>
         </span>
@@ -144,7 +151,7 @@ export function ReadingPath(props: ReadingPathProps) {
     <div className="flex flex-col gap-4">
       <ProgressSummary doneCount={doneCount} total={props.steps.length} />
       {props.fallback && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Built-in order. The local model couldn&apos;t order these.
         </p>
       )}

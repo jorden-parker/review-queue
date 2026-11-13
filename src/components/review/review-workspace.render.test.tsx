@@ -132,6 +132,11 @@ describe("review workspace renders", () => {
     expect(topBar?.classList.contains("backdrop-blur")).toBe(true);
   });
 
+  it("makes the main column the skip link target", async () => {
+    await renderWorkspace();
+    expect(document.getElementById("main")?.tagName).toBe("MAIN");
+  });
+
   it("links the top bar to the pull request on GitHub", async () => {
     await renderWorkspace();
     const link = screen.getByRole("link", { name: "Open acme/app#7 on GitHub" });

@@ -93,7 +93,7 @@ function FilterBar({
         className="flex-wrap"
       >
         {ALL_KIND_GROUPS.map((group) => (
-          <ToggleGroupItem key={group} value={group} className="text-xs">
+          <ToggleGroupItem key={group} value={group} className="text-sm">
             {group === "library" && <BookOpen />}
             {KIND_GROUP_LABELS[group]}
           </ToggleGroupItem>
@@ -120,11 +120,11 @@ function SymbolRow({
         <span className="flex flex-wrap items-center gap-1.5 text-sm">
           <Icon className="size-3.5 shrink-0 text-primary" aria-hidden />
           <span className="wrap-anywhere font-mono font-medium">{symbol.name}</span>
-          <span className="text-xs text-muted-foreground">{symbol.kind}</span>
+          <span className="text-sm text-muted-foreground">{symbol.kind}</span>
         </span>
         <PathLabel path={symbol.path} line={symbol.scope === "external" ? null : symbol.line} />
         {symbol.signature && (
-          <code className="wrap-anywhere font-mono text-xs text-muted-foreground">
+          <code className="wrap-anywhere font-mono text-sm text-muted-foreground">
             {symbol.signature}
           </code>
         )}

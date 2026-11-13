@@ -36,7 +36,7 @@ export function NoteTagPicker({
           </Button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">{NOTE_KIND_HINTS[tag.kind]}</p>
+      <p className="text-sm text-muted-foreground">{NOTE_KIND_HINTS[tag.kind]}</p>
       <ToggleGroup
         type="multiple"
         size="sm"
@@ -50,7 +50,7 @@ export function NoteTagPicker({
         className="flex-wrap"
       >
         {NOTE_DECORATIONS.map((decoration) => (
-          <ToggleGroupItem key={decoration} value={decoration} className="text-xs">
+          <ToggleGroupItem key={decoration} value={decoration} className="text-sm">
             {decoration}
           </ToggleGroupItem>
         ))}

@@ -12,7 +12,7 @@ export function JumpTrail({ jumps, onBack, onClear }: JumpTrailProps) {
   return (
     <div
       role="status"
-      className="pointer-events-auto flex animate-step-enter items-center gap-1 rounded-full border bg-popover px-1 py-1 text-xs text-popover-foreground shadow-md"
+      className="pointer-events-auto flex animate-step-enter items-center gap-1 rounded-full border bg-popover px-1 py-1 text-sm text-popover-foreground shadow-md"
     >
       <HintButton
         variant="ghost"

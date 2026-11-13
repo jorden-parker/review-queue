@@ -44,7 +44,7 @@ export function InProgressRow({
       {ref ? (
         <Link
           href={prPath(ref)}
-          className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4 transition-colors duration-calm hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none"
+          className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4 transition-colors duration-calm hover:bg-accent/60 focus-visible:bg-accent/60"
         >
           {body}
         </Link>
@@ -86,7 +86,8 @@ export function InProgressList({
   return (
     <section className="flex flex-col gap-3">
       <h2 ref={headingRef} tabIndex={-1} className="text-lg font-bold">
-        Also in progress <span className="text-muted-foreground">({sessions.length})</span>
+        Also in progress{" "}
+        <span className="tabular-nums text-muted-foreground">({sessions.length})</span>
       </h2>
       <ul className="divide-y overflow-hidden rounded-xl bg-card border">
         {sessions.map((session) => (

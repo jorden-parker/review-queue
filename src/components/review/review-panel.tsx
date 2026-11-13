@@ -140,7 +140,10 @@ function PaneButton({
       <span className="relative flex">
         <Icon />
         {pane.count ? (
-          <span aria-hidden className="absolute -top-1 -right-1 size-2 rounded-full bg-marker ring-2 ring-rail" />
+          <span
+            aria-hidden
+            className="absolute -top-1 -right-1 size-2 rounded-full bg-marker ring-2 ring-rail"
+          />
         ) : null}
       </span>
       <span className="sr-only">{pane.label}</span>
@@ -177,10 +180,13 @@ function PaneFrame({
       <header
         draggable
         onDragStart={(event) => startPaneDrag(event, pane.id, side)}
-        className="group/pane-header flex min-h-11 shrink-0 cursor-grab items-center gap-2 px-5 pt-3 text-xs font-medium text-muted-foreground active:cursor-grabbing"
+        className="group/pane-header flex min-h-11 shrink-0 cursor-grab items-center gap-2 px-5 pt-3 text-sm font-medium text-muted-foreground active:cursor-grabbing"
       >
         <span className="flex-1 wrap-anywhere">{pane.label}</span>
-        <GripVertical className="size-3.5 opacity-0 transition-opacity duration-calm group-hover/pane-header:opacity-60" />
+        <GripVertical
+          aria-hidden
+          className="size-3.5 opacity-0 transition-opacity duration-calm group-hover/pane-header:opacity-60"
+        />
         <Button
           variant="ghost"
           size="icon-sm"
@@ -211,7 +217,7 @@ function PanelResizeHandle({ sizing, handleSide }: { sizing: PanelSizing; handle
       tabIndex={0}
       title="Drag to resize. Double-click to fit the content"
       data-dragging={dragging || undefined}
-      className={`group/resize absolute inset-y-0 ${handleSide} z-10 flex w-2 cursor-col-resize touch-none justify-center outline-none`}
+      className={`group/resize absolute inset-y-0 ${handleSide} z-10 flex w-2 cursor-col-resize touch-none justify-center`}
       {...handlers}
     >
       <span className="h-full w-px bg-transparent transition-colors duration-calm group-hover/resize:bg-primary/60 group-focus-visible/resize:bg-primary group-data-dragging/resize:bg-primary" />

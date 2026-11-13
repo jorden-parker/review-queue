@@ -22,8 +22,8 @@
   --accent-foreground: oklch(0.145 0 0);
   --destructive: oklch(0.55 0.22 25);
   --border: oklch(0.92 0 0);
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.6 0.2 255 / 50%);
+  --input: oklch(0.65 0 0);
+  --ring: oklch(0.6 0.2 255);
   --rail: oklch(0.985 0 0);
   --marker: oklch(0.8 0.15 75);
   --marker-foreground: oklch(0.4 0.1 70);
@@ -59,8 +59,8 @@
     --accent-foreground: oklch(0.98 0 0);
     --destructive: oklch(0.7 0.19 22);
     --border: oklch(1 0 0 / 12%);
-    --input: oklch(1 0 0 / 16%);
-    --ring: oklch(0.6 0.2 255 / 60%);
+    --input: oklch(0.48 0 0);
+    --ring: oklch(0.6 0.2 255);
     --rail: oklch(0.1 0 0);
     --marker: oklch(0.8 0.14 75);
     --marker-foreground: oklch(0.88 0.1 80);
@@ -244,22 +244,10 @@
   background-size: 200% 100%;
 }
 
-@utility bg-grid {
-  background-image: radial-gradient(var(--border) 1px, transparent 1px);
-  background-size: 1rem 1rem;
-  mask-image: linear-gradient(to bottom, black 30%, transparent);
-}
-
 @utility text-whimsy {
   background-image: linear-gradient(90deg, var(--whimsy-from), var(--whimsy-via), var(--whimsy-to));
   background-clip: text;
   color: transparent;
-}
-
-@utility glow-whimsy {
-  box-shadow:
-    0 0 1.5rem -0.25rem color-mix(in oklch, var(--whimsy-from) 40%, transparent),
-    0 0 2rem -0.5rem color-mix(in oklch, var(--whimsy-via) 40%, transparent);
 }
 
 .code-token {
@@ -284,14 +272,17 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
-    scrollbar-width: none;
+    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted-foreground) transparent;
   }
-  *::-webkit-scrollbar {
-    display: none;
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
   html {
     @apply font-sans;
+    color-scheme: light dark;
   }
   body {
     @apply bg-background text-foreground antialiased;
@@ -302,7 +293,7 @@
     @apply tracking-tight;
   }
   ::selection {
-    background-color: color-mix(in oklch, var(--whimsy-from) 30%, transparent);
+    background-color: color-mix(in oklch, var(--foreground) 15%, transparent);
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {

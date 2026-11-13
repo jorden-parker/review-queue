@@ -30,7 +30,7 @@ export function CitationChip({
       onClick={show}
       onKeyDown={show && ((event) => activateOnKey(event, show))}
       className={cn(
-        "cursor-pointer rounded-xs font-mono text-code wrap-anywhere underline decoration-dotted decoration-1 underline-offset-4 outline-none transition-colors duration-calm hover:decoration-primary focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:cursor-default aria-disabled:text-muted-foreground aria-disabled:no-underline",
+        "cursor-pointer rounded-xs font-mono text-code wrap-anywhere underline decoration-dotted decoration-1 underline-offset-4 transition-colors duration-calm hover:decoration-primary focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:cursor-default aria-disabled:text-muted-foreground aria-disabled:no-underline",
         active ? "text-primary decoration-primary" : "decoration-foreground/25",
       )}
     >
@@ -70,7 +70,7 @@ export function CitationWalk({
     if (index !== null) onStep(index);
   };
   return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
       <span>Walk through</span>
       <Button
         variant="ghost"

@@ -12,6 +12,15 @@ describe("PageShell", () => {
     const main = screen.getByRole("main");
     expect(main.contains(screen.getByText("Body content"))).toBe(true);
   });
+
+  it("gives the main landmark the id the skip link targets", () => {
+    render(
+      <PageShell>
+        <p>Body content</p>
+      </PageShell>,
+    );
+    expect(screen.getByRole("main").id).toBe("main");
+  });
 });
 
 describe("PageHeader", () => {
@@ -35,17 +44,15 @@ describe("PageHeader", () => {
     expect(screen.getByRole("link", { name: "Review queue" }).getAttribute("href")).toBe("/");
   });
 
-  it("draws a dot-grid backdrop behind the header, hidden from assistive tech", () => {
+  it("draws no decorative backdrop behind the header", () => {
     const { container } = render(<PageHeader title="Settings" />);
-    const backdrop = container.querySelector(".bg-grid");
-    expect(backdrop).not.toBeNull();
-    expect(backdrop?.getAttribute("aria-hidden")).toBe("true");
+    expect(container.querySelector(".bg-grid")).toBeNull();
   });
 
-  it("sets the title large with tight tracking", () => {
+  it("sets the title at a calm size", () => {
     render(<PageHeader title="Settings" />);
     const classes = screen.getByRole("heading", { level: 1 }).classList;
-    expect(classes.contains("text-5xl")).toBe(true);
-    expect(classes.contains("tracking-tighter")).toBe(true);
+    expect(classes.contains("text-4xl")).toBe(true);
+    expect(classes.contains("text-5xl")).toBe(false);
   });
 });

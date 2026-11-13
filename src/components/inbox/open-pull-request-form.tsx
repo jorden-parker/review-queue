@@ -23,7 +23,7 @@ export function OpenPullRequestForm() {
     <form onSubmit={open} className="flex flex-col gap-3">
       <h2 className="text-lg font-bold">Open any PR</h2>
       <div className="flex flex-col gap-2">
-        <label htmlFor="pr" className="sr-only">
+        <label htmlFor="pr" className="text-sm text-muted-foreground">
           PR link or owner/repo#number
         </label>
         <div className="flex gap-2">
@@ -32,15 +32,17 @@ export function OpenPullRequestForm() {
             value={text}
             onChange={(event) => setText(event.target.value)}
             placeholder="https://github.com/owner/repo/pull/123 or owner/repo#123"
+            aria-invalid={invalid}
+            aria-describedby="pr-error"
             className="flex-1 font-mono"
           />
           <Button type="submit">
             Open <ArrowRight />
           </Button>
         </div>
-        {invalid && (
-          <p className="text-sm text-destructive">That doesn&apos;t look like a PR link.</p>
-        )}
+        <p id="pr-error" aria-live="polite" className="empty:hidden text-sm text-destructive">
+          {invalid ? "That doesn't look like a PR link." : null}
+        </p>
       </div>
     </form>
   );

@@ -33,7 +33,7 @@ function DeleteNotesOption({
       />
       <span className="flex flex-col gap-0.5">
         Also delete my {plural(noteCount, "note")}
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           Notes you haven&apos;t posted are gone for good.
         </span>
       </span>

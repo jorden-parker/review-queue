@@ -38,7 +38,7 @@ export function ThreadReplyComposer({ target, onSend, onCancel }: ThreadReplyCom
         onKeyDown={handleKey}
         placeholder="Write a reply. Markdown works. ⌘↵ to continue, Esc to cancel"
       />
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         <span>{`${body.length}/${REPLY_MAX_LENGTH}`}</span> · Markdown works
       </p>
       <div className="flex justify-end gap-2">
@@ -94,7 +94,7 @@ function ReplyConfirmDialog({
   return (
     <AppDialog title="Post this reply to GitHub?" onClose={onNotYet}>
       <p className="text-sm text-muted-foreground">{targetLine(target)}</p>
-      <p className="text-xs font-medium text-muted-foreground">Preview</p>
+      <p className="text-sm font-medium text-muted-foreground">Preview</p>
       <Markdown text={body} className="wrap-anywhere" />
       {failure && <p className="text-sm text-destructive">{failure}</p>}
       <div className="flex justify-end gap-2">
