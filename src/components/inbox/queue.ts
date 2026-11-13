@@ -1,6 +1,16 @@
 import type { ReviewRequest } from "@/lib/github/gh";
-import { prKey } from "@/lib/pr-ref";
-import type { ProgressSummary } from "@/lib/session/store";
+import { parsePullRequestRef, prKey } from "@/lib/pr-ref";
+import type { InProgressSession, ProgressSummary } from "@/lib/session/store";
+
+export function pickNextUp(sessions: InProgressSession[]): InProgressSession | null {
+  return sessions
+    .filter((session) => parsePullRequestRef(session.key) !== null)
+    .reduce<InProgressSession | null>(
+      (latest, session) =>
+        latest && Date.parse(latest.updatedAt) >= Date.parse(session.updatedAt) ? latest : session,
+      null,
+    );
+}
 
 export type QueueEntry = {
   request: ReviewRequest;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { sendSessionAction } from "@/components/review/api";
 import { parsePullRequestRef } from "@/lib/pr-ref";
@@ -24,9 +24,11 @@ function withSessionAdded(
 export function HomeSessions({
   inProgress,
   archived,
+  children,
 }: {
   inProgress: InProgressSession[];
   archived: InProgressSession[];
+  children?: ReactNode;
 }) {
   const [active, setActive] = useState(inProgress);
   const [stored, setStored] = useState(archived);
@@ -34,6 +36,7 @@ export function HomeSessions({
   const [error, setError] = useState<string | null>(null);
   const archivedSummary = useRef<HTMLElement>(null);
   const activeHeading = useRef<HTMLHeadingElement>(null);
+  const fold = useRef<HTMLDetailsElement>(null);
 
   function applyMove(session: InProgressSession, change: Change) {
     if (change === "archive") {
@@ -53,6 +56,7 @@ export function HomeSessions({
     try {
       await sendSessionAction(ref, { type: change });
       flushSync(() => applyMove(session, change));
+      if (change === "archive" && fold.current) fold.current.open = true;
       (change === "archive" ? archivedSummary : activeHeading).current?.focus();
     } catch {
       setError(
@@ -76,12 +80,20 @@ export function HomeSessions({
         onArchive={(session) => runChange(session, "archive")}
         headingRef={activeHeading}
       />
-      <ArchivedList
-        sessions={stored}
-        busy={busy}
-        onRestore={(session) => runChange(session, "unarchive")}
-        summaryRef={archivedSummary}
-      />
+      <details ref={fold}>
+        <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-muted-foreground">
+          Open another PR, Dependabot, archive…
+        </summary>
+        <div className="flex flex-col gap-8 pt-6">
+          {children}
+          <ArchivedList
+            sessions={stored}
+            busy={busy}
+            onRestore={(session) => runChange(session, "unarchive")}
+            summaryRef={archivedSummary}
+          />
+        </div>
+      </details>
     </div>
   );
 }

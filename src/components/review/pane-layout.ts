@@ -53,6 +53,18 @@ export const PANE_SIDES: Record<PaneId, PanelSide> = {
   files: "right",
 };
 
+export const PRIMARY_PANES: readonly PaneId[] = ["path", "notes", "github"];
+
+export const PANE_SHORTCUTS: Partial<Record<PaneId, string>> = {
+  chat: "i",
+  context: "g c",
+  files: "g f",
+  github: "g g",
+  hotspots: "g h",
+  map: "g m",
+  outline: "g o",
+};
+
 export function onPaneSide(
   layouts: SideLayouts,
   id: PaneId,

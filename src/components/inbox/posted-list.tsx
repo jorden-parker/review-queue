@@ -43,7 +43,7 @@ function PostedRow({ review }: { review: RecentSubmission }) {
 export function PostedList({ reviews }: { reviews: RecentSubmission[] }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-bold">Posted</h2>
+      <h2 className="text-sm font-semibold text-muted-foreground">Posted</h2>
       {reviews.length === 0 ? (
         <div className="rounded-xl bg-card border">
           <EmptyState emoji="📭">Nothing posted yet</EmptyState>

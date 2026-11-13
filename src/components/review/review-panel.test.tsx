@@ -1,21 +1,26 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { Footprints, Sparkles } from "lucide-react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { PaneLayout, PanelSide } from "./pane-layout";
+import { PANE_SIDES, type PaneLayout, type PanelSide } from "./pane-layout";
 import { PANEL_WIDTH } from "./panel-width";
 import { type PaneEntry, ReviewPanel, type SideControls } from "./review-panel";
 import { usePanelWidth } from "./use-panel-width";
 
 const ENTRIES: PaneEntry[] = [
-  { id: "step", label: "Step", icon: Footprints, count: null },
-  { id: "chat", label: "Chat", icon: Sparkles, count: null },
+  { id: "path", label: "Path", count: null },
+  { id: "notes", label: "Notes", count: 2 },
+  { id: "github", label: "GitHub", count: null },
+  { id: "step", label: "Step", count: null },
+  { id: "hotspots", label: "Hotspots", count: 1 },
+  { id: "chat", label: "Chat", count: null },
 ];
 
 const CONTROLS: SideControls = {
   togglePanel: vi.fn(),
   pickPane: vi.fn(),
   splitPane: vi.fn(),
+  showPane: vi.fn(),
   closePane: vi.fn(),
   dropPane: vi.fn(),
 };
@@ -25,10 +30,11 @@ function SidePanel({ side, panes }: { side: PanelSide; panes: PaneLayout }) {
   return (
     <ReviewPanel
       side={side}
-      entries={ENTRIES}
+      entries={ENTRIES.filter((entry) => PANE_SIDES[entry.id] === side)}
       panes={panes}
       controls={CONTROLS}
       sizing={sizing}
+      more={side === "right" ? { entries: ENTRIES, open: panes } : undefined}
       renderPane={() => ({ body: <pre data-testid="code">const longLine = 1;</pre> })}
     />
   );
@@ -143,5 +149,116 @@ describe("ReviewPanel sides", () => {
       dataTransfer: { types: ["application/x-review-pane-right"] },
     });
     expect(accepted).toBe(true);
+  });
+});
+
+describe("ReviewPanel tabs and More panes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1600 });
+  });
+
+  it("shows Path, Notes and GitHub as labelled tabs with the note count", () => {
+    renderPanel("right", ["path"]);
+    const tablist = screen.getByRole("tablist");
+    expect(
+      within(tablist)
+        .getAllByRole("tab")
+        .map((tab) => tab.getAttribute("aria-label")),
+    ).toEqual(["Path", "Notes (2)", "GitHub"]);
+  });
+
+  it("selects the open primary tab and no other", () => {
+    renderPanel("right", ["notes"]);
+    expect(screen.getByRole("tab", { name: "Notes (2)" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Path" }).getAttribute("aria-selected")).toBe("false");
+  });
+
+  it("has no tabs on the discussion side", () => {
+    renderPanel("left", ["chat"]);
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  it("shows a tab's pane in place of the open pane on click", () => {
+    renderPanel("right", ["path"]);
+    fireEvent.click(screen.getByRole("tab", { name: "GitHub" }));
+    expect(CONTROLS.showPane).toHaveBeenCalledWith("github");
+  });
+
+  it("splits a tab's pane with shift-click", () => {
+    renderPanel("right", ["path"]);
+    fireEvent.click(screen.getByRole("tab", { name: "GitHub" }), { shiftKey: true });
+    expect(CONTROLS.splitPane).toHaveBeenCalledWith("github");
+  });
+
+  it("leaves an open tab alone when clicked, rather than closing it", () => {
+    renderPanel("right", ["path"]);
+    fireEvent.click(screen.getByRole("tab", { name: "Path" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Path" }), { shiftKey: true });
+    expect(CONTROLS.showPane).not.toHaveBeenCalled();
+    expect(CONTROLS.splitPane).not.toHaveBeenCalled();
+  });
+
+  it("moves between tabs with the arrow keys, wrapping at the ends", () => {
+    renderPanel("right", ["path"]);
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Path" }), { key: "ArrowRight" });
+    expect(CONTROLS.showPane).toHaveBeenLastCalledWith("notes");
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Path" }), { key: "ArrowLeft" });
+    expect(CONTROLS.showPane).toHaveBeenLastCalledWith("github");
+  });
+
+  it("gives the focused tab a roving tab stop", () => {
+    renderPanel("right", ["notes"]);
+    expect(screen.getByRole("tab", { name: "Notes (2)" }).tabIndex).toBe(0);
+    expect(screen.getByRole("tab", { name: "Path" }).tabIndex).toBe(-1);
+    expect(screen.getByRole("tab", { name: "GitHub" }).tabIndex).toBe(-1);
+  });
+
+  it("lists the other panes in More with their shortcut keys", async () => {
+    const user = userEvent.setup();
+    renderPanel("right", ["path"]);
+    await user.click(screen.getByRole("button", { name: "More panes" }));
+    const more = screen.getByRole("dialog", { name: "More panes" });
+    expect(within(more).queryByRole("button", { name: "Path" })).toBeNull();
+    expect(
+      within(within(more).getByRole("button", { name: "Hotspots (1)" })).getByText("g h"),
+    ).toBeTruthy();
+    expect(within(within(more).getByRole("button", { name: "Chat" })).getByText("i")).toBeTruthy();
+  });
+
+  it("lists the tabbed panes in More while the side is collapsed", async () => {
+    const user = userEvent.setup();
+    render(<SidePanel side="right" panes={[]} />, { wrapper: TooltipProvider });
+    await user.click(screen.getByRole("button", { name: "More panes" }));
+    const more = screen.getByRole("dialog", { name: "More panes" });
+    expect(within(more).getByRole("button", { name: "Notes (2)" })).toBeTruthy();
+    expect(within(more).getByRole("button", { name: "GitHub" })).toBeTruthy();
+  });
+
+  it("marks a More pane that is already open", async () => {
+    const user = userEvent.setup();
+    renderPanel("right", ["path", "hotspots"]);
+    await user.click(screen.getByRole("button", { name: "More panes" }));
+    const more = screen.getByRole("dialog", { name: "More panes" });
+    expect(
+      within(more).getByRole("button", { name: "Hotspots (1)" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("opens a pane from More and closes the list", async () => {
+    const user = userEvent.setup();
+    renderPanel("right", ["path"]);
+    await user.click(screen.getByRole("button", { name: "More panes" }));
+    await user.click(screen.getByRole("button", { name: "Hotspots (1)" }));
+    expect(CONTROLS.pickPane).toHaveBeenCalledWith("hotspots");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "More panes" })).toBeNull());
+  });
+
+  it("has no More button on the discussion side", () => {
+    renderPanel("left", ["chat"]);
+    expect(screen.queryByRole("button", { name: "More panes" })).toBeNull();
   });
 });

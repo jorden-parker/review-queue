@@ -21,7 +21,7 @@ export function OpenPullRequestForm() {
 
   return (
     <form onSubmit={open} className="flex flex-col gap-3">
-      <h2 className="text-lg font-bold">Open any PR</h2>
+      <h2 className="text-sm font-semibold text-muted-foreground">Open any PR</h2>
       <div className="flex flex-col gap-2">
         <label htmlFor="pr" className="text-sm text-muted-foreground">
           PR link or owner/repo#number

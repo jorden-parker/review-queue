@@ -2,12 +2,12 @@ import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
-import { InlineMarkdown } from "@/components/common/markdown-text";
 import { EmptyState } from "@/components/common/empty-state";
+import { HintButton } from "@/components/common/hint-button";
+import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { HintButton } from "@/components/common/hint-button";
 import { REVIEW_REQUEST_LIMIT, type ReviewRequest } from "@/lib/github/gh";
 import { prKey, prPath } from "@/lib/pr-ref";
 import { openPullRequests, reviewRequests, sessionStore } from "@/lib/review/services";
@@ -20,13 +20,15 @@ import type {
 } from "@/lib/session/store";
 import { HomeSessions } from "./home-sessions";
 import { relativeTime } from "./in-progress-list";
+import { NextUp } from "./next-up";
+import { OpenPullRequestForm } from "./open-pull-request-form";
 import { POSTED_REVIEW_LIMIT, PostedList } from "./posted-list";
-import { orderQueue, type QueueEntry } from "./queue";
+import { orderQueue, pickNextUp, type QueueEntry } from "./queue";
 
 function ProgressBadges({ entry }: { entry: QueueEntry }) {
   if (!entry.progress) return <Badge variant="outline">Not started</Badge>;
   return (
-    <span className="flex flex-wrap justify-end gap-2">
+    <span className="flex flex-wrap gap-2">
       <Badge className="bg-accent text-accent-foreground">
         Resume, {entry.progress.doneCount} steps done
       </Badge>
@@ -50,26 +52,30 @@ function PausedNote({ pause }: { pause: PauseState }) {
 function InboxRow({ entry }: { entry: QueueEntry }) {
   const { request, progress } = entry;
   return (
-    <li className="flex items-center">
+    <li className="relative flex min-h-11 items-center hover:bg-muted focus-within:bg-muted">
       <Link
         href={prPath(request.ref)}
-        className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4 transition-colors duration-calm hover:border-foreground/20 hover:bg-accent focus-visible:bg-accent"
+        className="flex min-w-0 flex-1 flex-col gap-1 px-5 py-3 transition-colors duration-calm after:absolute after:inset-0"
       >
-        <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="font-semibold">
+        <span className="flex items-baseline justify-between gap-4">
+          <span className="min-w-0 truncate font-semibold">
             <InlineMarkdown text={request.title} />
           </span>
-          <span className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
-            <span>{prKey(request.ref)}</span>
-            <span>by {request.author}</span>
-            <span>updated {relativeTime(request.updatedAt)}</span>
-            {request.isDraft && <span>draft</span>}
+          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+            {relativeTime(request.updatedAt)}
           </span>
+        </span>
+        <span className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span>
+            {request.ref.owner}/{request.ref.repo} · #{request.ref.number}
+          </span>
+          <span>by {request.author}</span>
+          {request.isDraft && <span>draft</span>}
+          <ProgressBadges entry={entry} />
           {progress?.pause && <PausedNote pause={progress.pause} />}
         </span>
-        <ProgressBadges entry={entry} />
       </Link>
-      <div className="pr-4">
+      <div className="relative z-10 pr-4">
         <HintButton
           variant="ghost"
           size="icon-sm"
@@ -111,6 +117,7 @@ type Inbox = {
   repositoryError: string | null;
   hasRepositories: boolean;
   progress: Record<string, ProgressSummary>;
+  nextUp: InProgressSession | null;
   inProgress: InProgressSession[];
   archived: InProgressSession[];
   posted: RecentSubmission[];
@@ -136,6 +143,8 @@ async function loadInbox(): Promise<Inbox> {
     ...waitingKeys,
     ...repositoryRequests.map((request) => prKey(request.ref)),
   ]);
+  const sessions = store.inProgress();
+  const nextUp = pickNextUp(sessions);
   return {
     requests,
     requestsError: waiting.status === "rejected" ? failureMessage(waiting.reason) : null,
@@ -144,7 +153,10 @@ async function loadInbox(): Promise<Inbox> {
       repositories.status === "rejected" ? failureMessage(repositories.reason) : null,
     hasRepositories: savedRepositories(store).length > 0,
     progress: store.progressSummaries([...listedKeys]),
-    inProgress: store.inProgress().filter((session) => !listedKeys.has(session.key)),
+    nextUp,
+    inProgress: sessions.filter(
+      (session) => !listedKeys.has(session.key) && session.key !== nextUp?.key,
+    ),
     archived: store.archived().filter((session) => !listedKeys.has(session.key)),
     posted: store.recentSubmissions(POSTED_REVIEW_LIMIT),
   };
@@ -164,9 +176,7 @@ function QueueSection({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-bold">
-          {title} <span className="tabular-nums text-muted-foreground">({count})</span>
-        </h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">{`${title} · ${count}`}</h2>
         {action}
       </div>
       {children}
@@ -228,6 +238,7 @@ export async function InboxList() {
   const inbox = await loadInbox();
   return (
     <div className="flex flex-col gap-8">
+      {inbox.nextUp && <NextUp session={inbox.nextUp} />}
       <RequestQueue
         title="Waiting for you"
         requests={inbox.requests}
@@ -235,30 +246,32 @@ export async function InboxList() {
         error={inbox.requestsError}
         emptyMessage="Nothing is waiting for your review. Enjoy it."
       />
-      {inbox.hasRepositories ? (
-        <RequestQueue
-          title="Open in your repositories"
-          action={
-            <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
-              <Link href="/dependabot">Dependabot PRs</Link>
-            </Button>
-          }
-          requests={inbox.repositoryRequests}
-          progress={inbox.progress}
-          error={inbox.repositoryError}
-          emptyMessage="No open pull requests in your repositories."
-        />
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Pick repositories in{" "}
-          <Link href="/settings" className="text-foreground underline underline-offset-4">
-            Settings
-          </Link>{" "}
-          to see their open PRs here
+      <HomeSessions inProgress={inbox.inProgress} archived={inbox.archived}>
+        <OpenPullRequestForm />
+        <p>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/dependabot">Dependabot PRs</Link>
+          </Button>
         </p>
-      )}
-      <HomeSessions inProgress={inbox.inProgress} archived={inbox.archived} />
-      <PostedList reviews={inbox.posted} />
+        {inbox.hasRepositories ? (
+          <RequestQueue
+            title="Open in your repositories"
+            requests={inbox.repositoryRequests}
+            progress={inbox.progress}
+            error={inbox.repositoryError}
+            emptyMessage="No open pull requests in your repositories."
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Pick repositories in{" "}
+            <Link href="/settings" className="text-foreground underline underline-offset-4">
+              Settings
+            </Link>{" "}
+            to see their open PRs here
+          </p>
+        )}
+        <PostedList reviews={inbox.posted} />
+      </HomeSessions>
     </div>
   );
 }

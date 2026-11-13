@@ -8,6 +8,7 @@ import { savedRepositories } from "@/lib/settings/repository-settings";
 import { InboxList } from "./inbox-list";
 
 vi.mock("next/server", () => ({ connection: vi.fn(async () => undefined) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/review/services", () => ({
   reviewRequests: vi.fn(),
   openPullRequests: vi.fn(),
@@ -41,11 +42,23 @@ beforeEach(() => {
 });
 
 describe("InboxList rows", () => {
-  it("gives each queued pull request a hairline hover border", async () => {
+  it("highlights the whole queued row on hover", async () => {
     await renderInbox();
-    const classes = screen.getByRole("link", { name: /Add retry/ }).classList;
-    expect(classes.contains("hover:border-foreground/20")).toBe(true);
-    expect(classes.contains("hover:bg-accent")).toBe(true);
+    const row = screen.getByRole("link", { name: /Add retry/ }).closest("li");
+    expect(row?.classList.contains("hover:bg-muted")).toBe(true);
+  });
+
+  it("makes the row title link cover the whole row", async () => {
+    await renderInbox();
+    const link = screen.getByRole("link", { name: /Add retry/ });
+    expect(link.classList.contains("after:inset-0")).toBe(true);
+    expect(link.getAttribute("href")).toBe("/pr/acme/app/7");
+  });
+
+  it("shows the repository, number and author on the row", async () => {
+    await renderInbox();
+    expect(screen.getByText("acme/app · #7")).toBeTruthy();
+    expect(screen.getByText("by sam")).toBeTruthy();
   });
 
   it("links each queued pull request to GitHub outside the row link", async () => {
@@ -67,6 +80,68 @@ describe("InboxList rows", () => {
     const list = screen.getByRole("link", { name: /Add retry/ }).closest("ul");
     expect(list?.classList.contains("border")).toBe(true);
     expect(list?.classList.contains("ring-1")).toBe(false);
+  });
+});
+
+describe("InboxList pick up", () => {
+  const RECENT = new Date(Date.now() - 40 * 60_000).toISOString();
+  const OLDER = "2026-10-20T09:00:00.000Z";
+
+  function withInProgress(sessions: unknown[]) {
+    vi.mocked(sessionStore).mockReturnValue({
+      inProgress: () => sessions,
+      archived: () => [],
+      recentSubmissions: () => [],
+      progressSummaries: () => ({}),
+    } as unknown as ReturnType<typeof sessionStore>);
+  }
+
+  it("shows the most recent in-progress review as the one card to resume", async () => {
+    withInProgress([
+      {
+        key: "acme/app#9",
+        title: "Retry webhooks",
+        doneCount: 3,
+        pauseNote: null,
+        updatedAt: RECENT,
+      },
+      { key: "acme/web#4", title: "Old work", doneCount: 1, pauseNote: null, updatedAt: OLDER },
+    ]);
+    await renderInbox();
+    expect(screen.getByRole("heading", { name: "Pick up where you left off" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Resume review/ }).getAttribute("href")).toBe(
+      "/pr/acme/app/9",
+    );
+    expect(screen.getByRole("heading", { name: /Also in progress/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Old work/ }).getAttribute("href")).toBe(
+      "/pr/acme/web/4",
+    );
+  });
+
+  it("leaves out the card when nothing is in progress", async () => {
+    await renderInbox();
+    expect(screen.queryByText("Pick up where you left off")).toBeNull();
+  });
+});
+
+describe("InboxList folded extras", () => {
+  it("folds the PR form, Dependabot link, posted reviews and archive into one disclosure", async () => {
+    await renderInbox();
+    const disclosure = screen.getByText("Open another PR, Dependabot, archive…").closest("details");
+    expect(disclosure?.open).toBe(false);
+    expect(
+      within(disclosure as HTMLElement).getByLabelText("PR link or owner/repo#number"),
+    ).toBeTruthy();
+    expect(
+      within(disclosure as HTMLElement).getByRole("link", { name: "Dependabot PRs" }),
+    ).toBeTruthy();
+    expect(within(disclosure as HTMLElement).getByRole("heading", { name: "Posted" })).toBeTruthy();
+  });
+
+  it("keeps the waiting list outside the disclosure", async () => {
+    await renderInbox();
+    const disclosure = screen.getByText("Open another PR, Dependabot, archive…").closest("details");
+    expect(disclosure?.contains(screen.getByRole("link", { name: /Add retry/ }))).toBe(false);
   });
 });
 
@@ -117,7 +192,7 @@ describe("InboxList repositories", () => {
     vi.mocked(openPullRequests).mockResolvedValue([REQUEST]);
     await renderInbox();
     expect(screen.getAllByRole("link", { name: /Add retry/ })).toHaveLength(1);
-    expect(screen.getByRole("heading", { name: /Open in your repositories \(0\)/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Open in your repositories · 0/ })).toBeTruthy();
   });
 
   it("links the repositories section to the Dependabot page", async () => {

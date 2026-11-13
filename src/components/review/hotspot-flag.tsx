@@ -1,24 +1,15 @@
 "use client";
 
-import {
-  CircleCheck,
-  CircleX,
-  Info,
-  type LucideIcon,
-  MessageSquarePlus,
-  Sparkles,
-  TriangleAlert,
-} from "lucide-react";
+import { CircleCheck, MessageSquarePlus, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { cn } from "cn";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { checksFor } from "@/lib/hotspots/checks";
 import { plural } from "@/lib/plural";
 import type { Severity } from "@/lib/types";
-import { type DisplayHotspot, SEVERITY_CHECKBOX } from "./hotspot-list";
+import { CheckedToggle, type DisplayHotspot, DIAGNOSTICS, describeSeverity } from "./hotspot-list";
 
 export type HotspotFlagProps = {
   hotspots: DisplayHotspot[];
@@ -30,21 +21,13 @@ export type HotspotFlagProps = {
 
 const SEVERITY_RANK: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
 
-type Diagnostic = { icon: LucideIcon; name: string; text: string };
-
-const DIAGNOSTICS: Record<Severity, Diagnostic> = {
-  high: { icon: CircleX, name: "error", text: "text-severity-high" },
-  medium: { icon: TriangleAlert, name: "warning", text: "text-severity-medium" },
-  low: { icon: Info, name: "info", text: "text-severity-low" },
-};
-
 const LINE_TINTS: Record<Severity, string> = {
   high: "bg-severity-high/10",
   medium: "bg-severity-medium/10",
   low: "bg-severity-low/10",
 };
 
-const CHECKED: Diagnostic = { icon: CircleCheck, name: "checked", text: "text-muted-foreground" };
+const CHECKED = { icon: CircleCheck, name: "checked", text: "text-muted-foreground" };
 
 function bySeverity(hotspots: DisplayHotspot[]): DisplayHotspot[] {
   return [...hotspots].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
@@ -65,20 +48,25 @@ function FlagDetails({
   onToggleChecked: (id: string) => void;
 }) {
   const checks = checksFor(hotspot.rule);
+  const diagnostic = DIAGNOSTICS[hotspot.severity];
   return (
     <section
-      className={cn("flex gap-2 transition-opacity duration-calm", isChecked && "opacity-50")}
+      className={cn(
+        "flex gap-2 border-l-4 pl-3 transition-opacity duration-calm",
+        diagnostic.border,
+        isChecked && "opacity-50",
+      )}
     >
-      <span className="flex h-5 shrink-0 items-center">
-        <Checkbox
-          checked={isChecked}
-          onCheckedChange={() => onToggleChecked(hotspot.id)}
-          className={SEVERITY_CHECKBOX[hotspot.severity]}
-          title="Checked"
-          aria-label={`Checked: ${hotspot.title}`}
-        />
-      </span>
+      <CheckedToggle
+        hotspot={hotspot}
+        checked={isChecked}
+        onToggle={() => onToggleChecked(hotspot.id)}
+      />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className={cn("flex items-center gap-1.5 text-sm font-medium", diagnostic.text)}>
+          <diagnostic.icon data-icon={diagnostic.name} className="size-3.5 shrink-0" />
+          {describeSeverity(hotspot)}
+        </span>
         <span className="flex items-start gap-2 font-medium wrap-anywhere">
           <InlineMarkdown text={hotspot.title} />
           {hotspot.suggested && (

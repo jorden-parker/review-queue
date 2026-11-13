@@ -5,34 +5,23 @@ import {
   ArrowRight,
   CircleHelp,
   Coffee,
-  Compass,
   Ellipsis,
   ExternalLink,
-  Flame,
-  GitPullRequest,
   Layers,
-  FolderTree,
-  ListTree,
-  type LucideIcon,
-  MapPin,
-  MessagesSquare,
-  Network,
   RotateCcw,
-  Route,
   Send,
-  Shapes,
-  Sparkles,
-  StickyNote,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Callout } from "@/components/common/callout";
+import { Otter } from "@/components/common/otter";
 import { EmptyState } from "@/components/common/empty-state";
 import { splitPath } from "@/components/common/path-label";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   type AssistTarget,
@@ -42,7 +31,7 @@ import {
   targetLabel,
   targetPath,
 } from "@/lib/assist-protocol";
-import { prKey } from "@/lib/pr-ref";
+import { plural } from "@/lib/plural";
 import { cn } from "cn";
 import type { ChangePartsResult } from "@/lib/review/change-parts-service";
 import type { PreparedFile, ReviewPayload } from "@/lib/review/prepare";
@@ -54,7 +43,7 @@ import { ChangesView } from "./changes-view";
 import { FileBrowserPane } from "./file-browser-pane";
 import { FileView } from "./file-view";
 import { FinishReview } from "./finish-review";
-import { FocusTimer } from "./focus-timer";
+import { FocusTimerButton, useFocusTimer } from "./focus-timer";
 import { fetchChangeParts } from "./api";
 import { ChangeMapList } from "./change-map-list";
 import { ContextList } from "./context-list";
@@ -97,95 +86,134 @@ type WorkspaceProps = {
   controls: ReturnType<typeof useReview>;
 };
 
-const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
-  { id: "about", label: "About", icon: Compass },
-  { id: "step", label: "Step", icon: MapPin },
-  { id: "path", label: "Path", icon: Route },
-  { id: "map", label: "Map", icon: Network },
-  { id: "hotspots", label: "Hotspots", icon: Flame },
-  { id: "notes", label: "Notes", icon: StickyNote },
-  { id: "github", label: "GitHub", icon: GitPullRequest },
-  { id: "chat", label: "Chat", icon: Sparkles },
-  { id: "chats", label: "Chats", icon: MessagesSquare },
-  { id: "context", label: "Context", icon: Shapes },
-  { id: "outline", label: "Outline", icon: ListTree },
-  { id: "files", label: "Files", icon: FolderTree },
+const PANES: { id: PaneId; label: string }[] = [
+  { id: "about", label: "About" },
+  { id: "step", label: "Step" },
+  { id: "path", label: "Path" },
+  { id: "map", label: "Map" },
+  { id: "hotspots", label: "Hotspots" },
+  { id: "notes", label: "Notes" },
+  { id: "github", label: "GitHub" },
+  { id: "chat", label: "Chat" },
+  { id: "chats", label: "Chats" },
+  { id: "context", label: "Context" },
+  { id: "outline", label: "Outline" },
+  { id: "files", label: "Files" },
 ];
 
-function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
+function TopBar({
+  review,
+  session,
+  workspace,
+}: {
+  review: ReviewPayload;
+  session: Session;
+  workspace: Workspace;
+}) {
+  const timer = useFocusTimer(() => workspace.setBreakDue(true));
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center gap-2 bg-background/80 pr-2 pl-1.5 backdrop-blur sm:gap-4 sm:pr-6 sm:pl-4.5">
-      <HintButton
-        variant="ghost"
-        size="icon"
-        hint="Back to inbox"
-        aria-label="Back to inbox"
-        asChild
-      >
-        <Link href="/">
-          <ArrowLeft />
-        </Link>
-      </HintButton>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-base/tight font-bold">
-          <InlineMarkdown text={review.pr.title} />
-        </span>
-        <span className="flex min-w-0 gap-2 truncate text-sm text-muted-foreground">
-          <span>{prKey(review.pr.ref)}</span>
-          <span>by {review.pr.author}</span>
-          <span className="font-mono max-sm:hidden">{review.headSha.slice(0, 7)}</span>
-        </span>
-      </div>
-      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-        <FocusTimer onFinished={() => workspace.setBreakDue(true)} />
+    <header className="sticky top-0 z-10 flex flex-col bg-background/80 backdrop-blur">
+      <div className="flex h-16 items-center gap-2 pr-2 pl-1.5 sm:gap-4 sm:pr-6 sm:pl-4.5">
         <HintButton
           variant="ghost"
           size="icon"
-          hint="Open on GitHub"
-          aria-label={`Open ${prKey(review.pr.ref)} on GitHub`}
+          hint="Back to inbox"
+          aria-label="Back to inbox"
           asChild
         >
-          <a href={review.pr.url} target="_blank" rel="noopener noreferrer">
-            <ExternalLink />
-          </a>
+          <Link href="/">
+            <ArrowLeft />
+          </Link>
         </HintButton>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="More actions">
-              <Ellipsis />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="flex w-52 flex-col gap-0.5 p-1">
-            <Button
-              variant="ghost"
-              className="justify-start"
-              onClick={() => workspace.setDialog("start-over")}
-            >
-              <RotateCcw /> Start over
-            </Button>
-            <Button
-              variant="ghost"
-              className="justify-start"
-              onClick={() => workspace.setDialog("help")}
-            >
-              <CircleHelp /> Keyboard shortcuts <Kbd className="ml-auto">?</Kbd>
-            </Button>
-          </PopoverContent>
-        </Popover>
-        <HintButton
-          variant="ghost"
-          hint="Pause with a note"
-          shortcut="."
-          className="text-muted-foreground"
-          onClick={() => workspace.setDialog("pause")}
-        >
-          <Coffee /> <span className="max-sm:sr-only">Pause</span>
-        </HintButton>
-        <Button onClick={() => workspace.setDialog("finish")}>
-          <Send /> <span className="max-sm:sr-only">Finish</span>
-        </Button>
+        <Otter className="text-lg" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-base/tight font-bold">
+            <InlineMarkdown text={review.pr.title} />
+          </span>
+          <span className="truncate text-sm text-muted-foreground">
+            {`${review.pr.ref.owner}/${review.pr.ref.repo} #${review.pr.ref.number} · by ${review.pr.author}`}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <HintButton
+            variant="outline"
+            hint="Pause with a note"
+            shortcut="."
+            onClick={() => workspace.setDialog("pause")}
+          >
+            <Coffee /> <span className="max-sm:sr-only">Pause</span>
+          </HintButton>
+          <Button onClick={() => workspace.setDialog("finish")}>
+            <Send /> <span className="max-sm:sr-only">Finish</span>
+          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="More actions: focus timer, GitHub page, start over, keyboard shortcuts"
+              >
+                <Ellipsis />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="flex w-56 flex-col gap-0.5 p-1">
+              <FocusTimerButton timer={timer} />
+              <Button variant="ghost" className="justify-start" asChild>
+                <a href={review.pr.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink /> Open on GitHub
+                </a>
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => workspace.setDialog("start-over")}
+              >
+                <RotateCcw /> Start over
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => workspace.setDialog("help")}
+              >
+                <CircleHelp /> Keyboard shortcuts <Kbd className="ml-auto">?</Kbd>
+              </Button>
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
+      <ProgressRow review={review} session={session} workspace={workspace} />
     </header>
+  );
+}
+
+function ProgressRow({
+  review,
+  session,
+  workspace,
+}: {
+  review: ReviewPayload;
+  session: Session;
+  workspace: Workspace;
+}) {
+  const total = review.steps.length;
+  if (total === 0) return null;
+  const doneCount = review.steps.filter((step) => session.doneSteps.includes(step.id)).length;
+  const hotspotsLeft = workspace.hotspots.filter(
+    (hotspot) => !session.checkedHotspots.includes(hotspot.id),
+  ).length;
+  return (
+    <div className="flex items-center gap-3 px-3 pb-2 text-sm tabular-nums sm:px-6">
+      <span className="shrink-0 font-medium">
+        Step {workspace.currentIndex + 1} of {total}
+      </span>
+      <Progress
+        aria-label="Steps read"
+        value={Math.round((doneCount / total) * 100)}
+        indicatorClassName="bg-whimsy"
+        className="flex-1"
+      />
+      <span className="shrink-0 text-muted-foreground">{plural(hotspotsLeft, "hotspot")} left</span>
+    </div>
   );
 }
 
@@ -197,7 +225,7 @@ type PaneProps = {
   fresh: boolean;
 };
 
-function paneEntries({ session, workspace }: PaneProps, side: PanelSide): PaneEntry[] {
+function allPaneEntries({ session, workspace }: PaneProps): PaneEntry[] {
   const openHotspots = workspace.hotspots.filter(
     (hotspot) => !session.checkedHotspots.includes(hotspot.id),
   ).length;
@@ -215,9 +243,10 @@ function paneEntries({ session, workspace }: PaneProps, side: PanelSide): PaneEn
     outline: null,
     files: null,
   };
-  return PANES.filter(
-    (pane) => PANE_SIDES[pane.id] === side && (workspace.aiEnabled || pane.id !== "chat"),
-  ).map((pane) => ({ ...pane, count: counts[pane.id] }));
+  return PANES.filter((pane) => workspace.aiEnabled || pane.id !== "chat").map((pane) => ({
+    ...pane,
+    count: counts[pane.id],
+  }));
 }
 
 function sideControls(workspace: Workspace, side: PanelSide): SideControls {
@@ -225,6 +254,7 @@ function sideControls(workspace: Workspace, side: PanelSide): SideControls {
     togglePanel: () => workspace.togglePanel(side),
     pickPane: workspace.pickPane,
     splitPane: workspace.splitPane,
+    showPane: workspace.showPane,
     closePane: workspace.closePane,
     dropPane: workspace.dropPane,
   };
@@ -235,13 +265,16 @@ function WorkspacePanel({
   sizing,
   ...props
 }: PaneProps & { side: PanelSide; sizing: ReturnType<typeof usePanelSizings>["left"] }) {
+  const entries = allPaneEntries(props);
+  const { panes } = props.workspace;
   return (
     <ReviewPanel
       side={side}
-      entries={paneEntries(props, side)}
-      panes={props.workspace.panes[side]}
+      entries={entries.filter((entry) => PANE_SIDES[entry.id] === side)}
+      panes={panes[side]}
       controls={sideControls(props.workspace, side)}
       sizing={sizing}
+      more={side === "right" ? { entries, open: [...panes.left, ...panes.right] } : undefined}
       renderPane={(id) => PANE_CONTENT[id](props)}
     />
   );
@@ -910,7 +943,7 @@ export function ReviewWorkspace({
 
   return (
     <div className="grid h-screen grid-cols-shell grid-rows-shell">
-      <TopBar review={review} workspace={workspace} />
+      <TopBar review={review} session={session} workspace={workspace} />
       <div className="grid min-h-0 grid-cols-workspace">
         <WorkspacePanel
           side="left"

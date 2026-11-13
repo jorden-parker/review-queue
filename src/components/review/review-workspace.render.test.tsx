@@ -7,7 +7,6 @@ import type { ChangeNode } from "@/lib/types";
 import { installFakeApi } from "@/test/fake-api";
 import { REF, reviewPayload } from "@/test/review-fixture";
 import { CodeLineComponent } from "./code-line";
-import type { PanelSide } from "./pane-layout";
 import { ReviewLoader } from "./review-loader";
 
 vi.mock("./code-line", async (importOriginal) => {
@@ -45,7 +44,7 @@ async function renderWorkspace(payload = reviewPayload()) {
   const api = installFakeApi(payload);
   vi.mocked(CodeLineComponent).mockClear();
   const onRender = mountReview();
-  await screen.findByText(/^Step \d of 3/);
+  await screen.findAllByText(/^Step \d of 3/);
   await settleRequests(api.calls);
   return { api, user: userEvent.setup(), onRender };
 }
@@ -68,20 +67,9 @@ function diffLineRenders() {
   return vi.mocked(CodeLineComponent).mock.calls.length;
 }
 
-function reviewPanel(side: PanelSide = "right"): HTMLElement {
-  const panel = screen
-    .getAllByRole("complementary")
-    .find((aside) => aside.getAttribute("data-side") === side);
-  if (!panel) throw new Error(`no ${side} review panel`);
-  return panel;
-}
-
-function paneButton(name: string | RegExp) {
-  const matches = (["left", "right"] as const).flatMap((side) =>
-    within(reviewPanel(side)).queryAllByRole("button", { name }),
-  );
-  if (matches.length !== 1) throw new Error(`expected one pane button named ${String(name)}`);
-  return matches[0];
+async function morePane(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(screen.getByRole("button", { name: "More panes" }));
+  return within(screen.getByRole("dialog", { name: "More panes" })).getByRole("button", { name });
 }
 
 function manyNavigableFilesPayload() {
@@ -137,11 +125,40 @@ describe("review workspace renders", () => {
     expect(document.getElementById("main")?.tagName).toBe("MAIN");
   });
 
-  it("links the top bar to the pull request on GitHub", async () => {
-    await renderWorkspace();
-    const link = screen.getByRole("link", { name: "Open acme/app#7 on GitHub" });
+  it("keeps the timer, GitHub link, start over and shortcuts in the More menu", async () => {
+    const { user } = await renderWorkspace();
+    expect(
+      screen.getByRole("button", {
+        name: "More actions: focus timer, GitHub page, start over, keyboard shortcuts",
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Open on GitHub" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^More actions/ }));
+    const link = screen.getByRole("link", { name: "Open on GitHub" });
     expect(link.getAttribute("href")).toBe("https://github.com/acme/app/pull/7");
-    expect(link.closest("header")).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Start over/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Keyboard shortcuts/ })).toBeTruthy();
+  });
+
+  it("keeps the focus timer running after the More menu closes", async () => {
+    const { user } = await renderWorkspace();
+    await user.click(screen.getByRole("button", { name: /^More actions/ }));
+    await user.click(screen.getByRole("button", { name: /Focus timer/ }));
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: /^More actions/ }));
+    expect(screen.getByRole("button", { name: /Focus timer/ }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+  });
+
+  it("shows the step, the steps read and the hotspots left under the top bar", async () => {
+    await renderWorkspace();
+    const bar = screen.getByRole("progressbar", { name: "Steps read" });
+    expect(bar.getAttribute("aria-valuenow")).toBe("0");
+    const header = bar.closest("header");
+    expect(header).not.toBeNull();
+    expect(within(header!).getByText(/^Step 1 of 3$/)).toBeTruthy();
+    expect(within(header!).getByText(/hotspots? left$/)).toBeTruthy();
   });
 
   it("a side-panel toggle renders no diff lines", async () => {
@@ -203,7 +220,7 @@ describe("review workspace renders", () => {
       });
     });
     mountReview();
-    await screen.findByText(/^Step \d of 3/);
+    await screen.findAllByText(/^Step \d of 3/);
     await waitFor(() => expect(countReferenceRequests(api.calls)).toHaveLength(10));
     await waitFor(() => expect(inFlight).toBe(0));
     expect(new Set(countReferenceRequests(api.calls).map((call) => call.url)).size).toBe(10);
@@ -219,7 +236,7 @@ describe("review workspace renders", () => {
       orphanIds: [],
     };
     const { user } = await renderWorkspace(payload);
-    await user.click(paneButton("Map"));
+    await user.click(await morePane(user, "Map"));
     expect((await screen.findAllByText(MAP_NODE.name!)).length).toBeGreaterThan(0);
   });
 

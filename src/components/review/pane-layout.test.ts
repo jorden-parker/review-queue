@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  PANE_SHORTCUTS,
   PANE_SIDES,
+  PRIMARY_PANES,
   type PaneId,
   type SideLayouts,
   closePane,
@@ -12,6 +14,7 @@ import {
   splitPane,
   withOnlySide,
 } from "./pane-layout";
+import { resolveShortcut } from "./shortcut-keys";
 
 describe("pickPane", () => {
   it("opens a closed pane on its own", () => {
@@ -135,5 +138,19 @@ describe("PANE_SIDES", () => {
     expect(PANE_SIDES.chats).toBe("left");
     expect(PANE_SIDES.context).toBe("left");
     expect(PANE_SIDES.path).toBe("right");
+  });
+});
+
+describe("pane tabs and shortcut labels", () => {
+  it("keeps Path, Notes and GitHub as the primary tabs", () => {
+    expect(PRIMARY_PANES).toEqual(["path", "notes", "github"]);
+  });
+
+  it("labels each chord-opened pane with the chord that opens it", () => {
+    for (const [pane, label] of Object.entries(PANE_SHORTCUTS)) {
+      const [prefix, key] = label.split(" ");
+      if (key === undefined) continue;
+      expect(resolveShortcut(prefix, key), pane).toBe(`open-${pane}`);
+    }
   });
 });

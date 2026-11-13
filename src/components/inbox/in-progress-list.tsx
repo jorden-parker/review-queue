@@ -85,7 +85,7 @@ export function InProgressList({
   if (sessions.length === 0) return null;
   return (
     <section className="flex flex-col gap-3">
-      <h2 ref={headingRef} tabIndex={-1} className="text-lg font-bold">
+      <h2 ref={headingRef} tabIndex={-1} className="text-sm font-semibold text-muted-foreground">
         Also in progress{" "}
         <span className="tabular-nums text-muted-foreground">({sessions.length})</span>
       </h2>

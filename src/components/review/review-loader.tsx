@@ -1,6 +1,7 @@
 "use client";
 
 import { Callout } from "@/components/common/callout";
+import { Otter } from "@/components/common/otter";
 import { PageHeader, PageShell } from "@/components/common/page-shell";
 import type { PullRequestRef } from "@/lib/types";
 import { ReviewWorkspace } from "./review-workspace";
@@ -15,9 +16,7 @@ export function ReviewLoader({ pullRequest }: { pullRequest: PullRequestRef }) {
         id="main"
         className="flex h-screen flex-col items-center justify-center gap-3 px-4 text-center sm:px-6"
       >
-        <span aria-hidden className="animate-float text-4xl">
-          🦦
-        </span>
+        <Otter className="text-4xl" />
         <p className="text-lg font-bold">Getting the PR ready…</p>
         <p className="max-w-md text-sm text-muted-foreground">
           Fetching, checking out the branch and indexing symbols. The first time for a repo can take

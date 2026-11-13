@@ -31,13 +31,8 @@ function CurrentStep({
   return (
     <section aria-label="Current step" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <p className="flex flex-wrap gap-x-2 text-sm text-muted-foreground">
-          <span>
-            Step {workspace.currentIndex + 1} of {review.steps.length}
-          </span>
-          <span>
-            {step.role}, {plural(step.changedLines, "line")}
-          </span>
+        <p className="text-sm text-muted-foreground">
+          {step.role}, {plural(step.changedLines, "line")}
         </p>
         <h2 className="text-lg font-bold">{step.title}</h2>
       </div>

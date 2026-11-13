@@ -3,9 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import InboxPage from "./page";
 
 vi.mock("@/components/inbox/inbox-list", () => ({ InboxList: () => null }));
-vi.mock("@/components/inbox/open-pull-request-form", () => ({
-  OpenPullRequestForm: () => null,
-}));
 
 describe("InboxPage", () => {
   it("highlights the word queue in the whimsy gradient", () => {

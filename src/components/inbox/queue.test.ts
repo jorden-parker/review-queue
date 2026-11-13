@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ReviewRequest } from "@/lib/github/gh";
-import type { ProgressSummary } from "@/lib/session/store";
-import { movedSinceVisit, orderQueue } from "./queue";
+import type { InProgressSession, ProgressSummary } from "@/lib/session/store";
+import { movedSinceVisit, orderQueue, pickNextUp } from "./queue";
 
 const SEEN_AT = "2026-10-26T09:00:00.000Z";
 const LATER = "2026-10-26T11:00:00.000Z";
@@ -63,5 +63,32 @@ describe("orderQueue", () => {
       { request: requests[0], progress: byKey["acme/app#1"], movedSinceVisit: true },
       { request: requests[1], progress: null, movedSinceVisit: false },
     ]);
+  });
+});
+
+describe("pickNextUp", () => {
+  function session(key: string, updatedAt: string): InProgressSession {
+    return { key, title: null, doneCount: 1, pauseNote: null, updatedAt };
+  }
+
+  it("picks the session the reviewer worked on most recently", () => {
+    const sessions = [
+      session("acme/app#1", "2026-10-26T09:00:00.000Z"),
+      session("acme/app#2", "2026-10-27T09:00:00.000Z"),
+      session("acme/app#3", "2026-10-25T09:00:00.000Z"),
+    ];
+    expect(pickNextUp(sessions)?.key).toBe("acme/app#2");
+  });
+
+  it("skips keys that do not name a pull request", () => {
+    const sessions = [
+      session("scratch", "2026-10-28T09:00:00.000Z"),
+      session("acme/app#2", "2026-10-27T09:00:00.000Z"),
+    ];
+    expect(pickNextUp(sessions)?.key).toBe("acme/app#2");
+  });
+
+  it("is null when nothing is in progress", () => {
+    expect(pickNextUp([])).toBeNull();
   });
 });

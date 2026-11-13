@@ -93,6 +93,26 @@ describe("HotspotFlag", () => {
     expect(onToggleChecked).toHaveBeenCalledWith(DEBUG.id);
   });
 
+  it("names each flag's severity in words, with a left border in its colour", async () => {
+    renderFlag();
+    await openFlag();
+    const label = screen.getByText("High · hardcoded secret");
+    expect(label.querySelector("[data-icon='error']")).not.toBeNull();
+    const section = label.closest("section");
+    expect(section?.classList.contains("border-l-4")).toBe(true);
+    expect(section?.classList.contains("border-severity-high")).toBe(true);
+    expect(screen.getByText("Low · debug output")).toBeTruthy();
+  });
+
+  it("ticks a flag off from its Checked label, which is a large hit target", async () => {
+    const { onToggleChecked } = renderFlag({ hotspots: [DEBUG] });
+    await userEvent.click(screen.getByRole("button", { name: /1 flag/ }));
+    const label = screen.getByText("Checked").closest("label");
+    expect(label?.className).toContain("min-h-10 min-w-10");
+    await userEvent.click(screen.getByText("Checked"));
+    expect(onToggleChecked).toHaveBeenCalledWith(DEBUG.id);
+  });
+
   it("says when every flag on the line is checked", () => {
     renderFlag({ checked: [DEBUG.id, SECRET.id] });
     expect(screen.getByRole("button", { name: /all checked/ })).toBeTruthy();

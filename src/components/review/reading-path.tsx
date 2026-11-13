@@ -8,7 +8,6 @@ import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { PaneRow } from "@/components/common/pane-row";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { plural } from "@/lib/plural";
 import type { Step } from "@/lib/types";
 
@@ -50,7 +49,6 @@ function ProgressSummary({ doneCount, total }: { doneCount: number; total: numbe
           )}
         </span>
       </div>
-      <Progress aria-label="Steps read" value={percent} indicatorClassName="bg-whimsy" />
       {finished && <Celebration />}
     </div>
   );

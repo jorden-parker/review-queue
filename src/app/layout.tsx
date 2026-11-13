@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { RainbowRule } from "@/components/common/otter";
 import { SkipLink } from "@/components/common/skip-link";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body className="min-h-screen">
         <SkipLink />
+        <RainbowRule />
         <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>

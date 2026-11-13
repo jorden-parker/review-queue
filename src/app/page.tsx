@@ -1,10 +1,10 @@
 import { Settings } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { Otter } from "@/components/common/otter";
 import { PageHeader, PageShell } from "@/components/common/page-shell";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
-import { OpenPullRequestForm } from "@/components/inbox/open-pull-request-form";
 import { Button } from "@/components/ui/button";
 
 export default function InboxPage() {
@@ -13,9 +13,7 @@ export default function InboxPage() {
       <PageHeader
         title={
           <>
-            <span aria-hidden className="animate-float hover:animate-wiggle">
-              🦦
-            </span>
+            <Otter />
             <span>
               Review <span className="text-whimsy">queue</span>
             </span>
@@ -33,7 +31,6 @@ export default function InboxPage() {
       <Suspense fallback={<InboxSkeleton />}>
         <InboxList />
       </Suspense>
-      <OpenPullRequestForm />
     </PageShell>
   );
 }
