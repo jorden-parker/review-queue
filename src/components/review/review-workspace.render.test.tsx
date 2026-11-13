@@ -132,6 +132,13 @@ describe("review workspace renders", () => {
     expect(topBar?.classList.contains("backdrop-blur")).toBe(true);
   });
 
+  it("links the top bar to the pull request on GitHub", async () => {
+    await renderWorkspace();
+    const link = screen.getByRole("link", { name: "Open acme/app#7 on GitHub" });
+    expect(link.getAttribute("href")).toBe("https://github.com/acme/app/pull/7");
+    expect(link.closest("header")).not.toBeNull();
+  });
+
   it("a side-panel toggle renders no diff lines", async () => {
     const { user } = await renderWorkspace();
     expect(diffLineRenders()).toBeGreaterThan(0);

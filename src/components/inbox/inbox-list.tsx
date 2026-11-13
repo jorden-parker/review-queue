@@ -1,3 +1,4 @@
+import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
@@ -6,6 +7,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { HintButton } from "@/components/common/hint-button";
 import { REVIEW_REQUEST_LIMIT, type ReviewRequest } from "@/lib/github/gh";
 import { prKey, prPath } from "@/lib/pr-ref";
 import { openPullRequests, reviewRequests, sessionStore } from "@/lib/review/services";
@@ -48,10 +50,10 @@ function PausedNote({ pause }: { pause: PauseState }) {
 function InboxRow({ entry }: { entry: QueueEntry }) {
   const { request, progress } = entry;
   return (
-    <li>
+    <li className="flex items-center">
       <Link
         href={prPath(request.ref)}
-        className="flex items-center gap-4 px-5 py-4 transition-colors duration-calm hover:border-foreground/20 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+        className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4 transition-colors duration-calm hover:border-foreground/20 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
       >
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="font-semibold">
@@ -67,6 +69,19 @@ function InboxRow({ entry }: { entry: QueueEntry }) {
         </span>
         <ProgressBadges entry={entry} />
       </Link>
+      <div className="pr-4">
+        <HintButton
+          variant="ghost"
+          size="icon-sm"
+          hint="Open on GitHub"
+          aria-label={`Open ${prKey(request.ref)} on GitHub`}
+          asChild
+        >
+          <a href={request.url} target="_blank" rel="noopener noreferrer">
+            <ExternalLink />
+          </a>
+        </HintButton>
+      </div>
     </li>
   );
 }

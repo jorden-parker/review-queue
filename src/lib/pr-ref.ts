@@ -30,3 +30,7 @@ export function prKey(ref: PullRequestRef): string {
 export function prPath(ref: PullRequestRef): string {
   return `/pr/${ref.owner}/${ref.repo}/${ref.number}`;
 }
+
+export function gitHubPullRequestUrl(ref: PullRequestRef): string {
+  return `https://github.com/${ref.owner}/${ref.repo}/pull/${ref.number}`;
+}

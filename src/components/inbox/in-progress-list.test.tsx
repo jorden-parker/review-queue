@@ -58,6 +58,15 @@ describe("InProgressList", () => {
     );
   });
 
+  it("links each row to its pull request on GitHub outside the row link", () => {
+    renderList([SESSION]);
+    const link = screen.getByRole("link", { name: "Open acme/app#7 on GitHub" });
+    expect(link.getAttribute("href")).toBe("https://github.com/acme/app/pull/7");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.closest('a[href^="/pr/"]')).toBeNull();
+  });
+
   it("draws the list on a hairline border rather than a ring", () => {
     const { container } = render(
       <InProgressList

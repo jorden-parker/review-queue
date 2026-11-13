@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePullRequestRef, prKey } from "./pr-ref";
+import { gitHubPullRequestUrl, parsePullRequestRef, prKey } from "./pr-ref";
 
 describe("parsePullRequestRef", () => {
   it.each([
@@ -18,5 +18,11 @@ describe("parsePullRequestRef", () => {
 
   it("builds a stable key", () => {
     expect(prKey({ owner: "acme", repo: "app", number: 1 })).toBe("acme/app#1");
+  });
+
+  it("builds the pull request's GitHub page URL", () => {
+    expect(gitHubPullRequestUrl({ owner: "acme", repo: "app", number: 7 })).toBe(
+      "https://github.com/acme/app/pull/7",
+    );
   });
 });

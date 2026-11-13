@@ -48,6 +48,15 @@ describe("InboxList rows", () => {
     expect(classes.contains("hover:bg-accent")).toBe(true);
   });
 
+  it("links each queued pull request to GitHub outside the row link", async () => {
+    await renderInbox();
+    const link = screen.getByRole("link", { name: "Open acme/app#7 on GitHub" });
+    expect(link.getAttribute("href")).toBe("https://github.com/acme/app/pull/7");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.closest('a[href^="/pr/"]')).toBeNull();
+  });
+
   it("sets the row title in semibold", async () => {
     await renderInbox();
     expect(screen.getByText("Add retry").closest(".font-semibold")).not.toBeNull();

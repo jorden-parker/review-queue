@@ -1,10 +1,10 @@
-import { Archive } from "lucide-react";
+import { Archive, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode, RefObject } from "react";
 import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Badge } from "@/components/ui/badge";
-import { parsePullRequestRef, prPath } from "@/lib/pr-ref";
+import { gitHubPullRequestUrl, parsePullRequestRef, prKey, prPath } from "@/lib/pr-ref";
 import type { InProgressSession } from "@/lib/session/store";
 
 export function relativeTime(iso: string): string {
@@ -50,6 +50,21 @@ export function InProgressRow({
         </Link>
       ) : (
         <div className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4">{body}</div>
+      )}
+      {ref && (
+        <div className="pr-4">
+          <HintButton
+            variant="ghost"
+            size="icon-sm"
+            hint="Open on GitHub"
+            aria-label={`Open ${prKey(ref)} on GitHub`}
+            asChild
+          >
+            <a href={gitHubPullRequestUrl(ref)} target="_blank" rel="noopener noreferrer">
+              <ExternalLink />
+            </a>
+          </HintButton>
+        </div>
       )}
       {control && <div className="pr-4">{control}</div>}
     </li>

@@ -7,6 +7,7 @@ import {
   Coffee,
   Compass,
   Ellipsis,
+  ExternalLink,
   Flame,
   GitPullRequest,
   Layers,
@@ -137,6 +138,17 @@ function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Works
       </div>
       <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
         <FocusTimer onFinished={() => workspace.setBreakDue(true)} />
+        <HintButton
+          variant="ghost"
+          size="icon"
+          hint="Open on GitHub"
+          aria-label={`Open ${prKey(review.pr.ref)} on GitHub`}
+          asChild
+        >
+          <a href={review.pr.url} target="_blank" rel="noopener noreferrer">
+            <ExternalLink />
+          </a>
+        </HintButton>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="More actions">
