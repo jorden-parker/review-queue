@@ -219,7 +219,11 @@ peek, jumps, shortcuts, return detection), and `api.ts` is the only place that
 fetches. Pure logic is kept in non-hook modules (`hunk-index.ts`, `locate.ts`,
 `display-hotspots.ts`, `unfinished.ts`, `shortcut-keys.ts`) and tested in node.
 The chords `g h` (Hotspots pane) and `g g` (GitHub pane) are rows of that table.
-`src/components/inbox/` is the home page's list of review requests.
+`src/components/inbox/` is the home page's list of review requests. It also
+lists open PRs from the repositories picked in Settings
+(`lib/settings/repository-settings.ts`), and `/dependabot` shows the Dependabot
+ones on their own. `openPullRequests` in `services.ts` makes one `gh search prs`
+call per view for all repositories, cached for 60 s.
 
 **UI** (`src/components/ui/`) holds shadcn/ui primitives (Radix base); add more
 with `bunx shadcn@latest add <name>` and delete exports nothing uses so Fallow

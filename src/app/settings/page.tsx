@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { PageHeader, PageShell } from "@/components/common/page-shell";
 import { LlmSettingsForm } from "@/components/settings/llm-settings-form";
+import { RepositoriesForm } from "@/components/settings/repositories-form";
 import { sessionStore } from "@/lib/review/services";
 import { settingsView } from "@/lib/settings/settings-service";
 
@@ -15,7 +16,10 @@ export default async function SettingsPage() {
         backHref="/"
         backLabel="Review queue"
       />
-      <LlmSettingsForm initial={view} />
+      <div className="flex flex-col gap-8">
+        <RepositoriesForm initial={view.repositories} />
+        <LlmSettingsForm initial={view} />
+      </div>
     </PageShell>
   );
 }

@@ -3,6 +3,7 @@ import type { RunOptions } from "@/lib/exec";
 import {
   getPullRequest,
   listReviewComments,
+  listOpenPullRequests,
   listReviewRequests,
   listLinkedIssues,
   listReviews,
@@ -309,6 +310,57 @@ describe("github", () => {
       },
     ]);
     expect(calls[0].args).toEqual(["api", "-i", "repos/acme/app/pulls/7/reviews?per_page=100"]);
+  });
+});
+
+describe("listOpenPullRequests", () => {
+  const SEARCH_RESULT = {
+    number: 7,
+    title: "Bump lodash",
+    url: "https://github.com/acme/app/pull/7",
+    repository: { nameWithOwner: "acme/app" },
+    author: { login: "dependabot[bot]" },
+    updatedAt: "2026-10-01T00:00:00Z",
+    isDraft: false,
+  };
+
+  it("searches every repository in one call and returns the open PRs", async () => {
+    const { run, calls } = fakeRunner(JSON.stringify([SEARCH_RESULT]));
+    const requests = await listOpenPullRequests(["acme/app", "acme/lib"], "dependabot", run);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].args).toEqual([
+      "search",
+      "prs",
+      "--state=open",
+      "--limit=100",
+      "--json=number,title,url,repository,author,updatedAt,isDraft",
+      "--repo=acme/app",
+      "--repo=acme/lib",
+      "--author=app/dependabot",
+    ]);
+    expect(requests).toEqual([
+      {
+        ref: REF,
+        title: "Bump lodash",
+        url: "https://github.com/acme/app/pull/7",
+        author: "dependabot[bot]",
+        updatedAt: "2026-10-01T00:00:00Z",
+        isDraft: false,
+      },
+    ]);
+  });
+
+  it("excludes dependabot after every flag for the others view", async () => {
+    const { run, calls } = fakeRunner("[]");
+    await listOpenPullRequests(["acme/app"], "others", run);
+    expect(calls[0].args.slice(-3)).toEqual(["--repo=acme/app", "--", "-author:app/dependabot"]);
+    expect(calls[0].args).not.toContain("--author=app/dependabot");
+  });
+
+  it("does not search at all when no repositories are selected", async () => {
+    const { run, calls } = fakeRunner("[]");
+    expect(await listOpenPullRequests([], "others", run)).toEqual([]);
+    expect(calls).toHaveLength(0);
   });
 });
 

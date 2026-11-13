@@ -68,6 +68,17 @@ function refFromSearch(result: SearchResult): PullRequestRef {
   return { owner, repo, number: result.number };
 }
 
+function reviewRequestFromSearch(result: SearchResult): ReviewRequest {
+  return {
+    ref: refFromSearch(result),
+    title: result.title,
+    url: result.url,
+    author: result.author.login,
+    updatedAt: result.updatedAt,
+    isDraft: result.isDraft,
+  };
+}
+
 export async function listReviewRequests(run: Runner = githubRun): Promise<ReviewRequest[]> {
   const output = await run("gh", [
     "search",
@@ -77,14 +88,29 @@ export async function listReviewRequests(run: Runner = githubRun): Promise<Revie
     `--limit=${REVIEW_REQUEST_LIMIT}`,
     `--json=${SEARCH_FIELDS}`,
   ]);
-  return (JSON.parse(output) as SearchResult[]).map((result) => ({
-    ref: refFromSearch(result),
-    title: result.title,
-    url: result.url,
-    author: result.author.login,
-    updatedAt: result.updatedAt,
-    isDraft: result.isDraft,
-  }));
+  return (JSON.parse(output) as SearchResult[]).map(reviewRequestFromSearch);
+}
+
+export type PullRequestAuthorship = "dependabot" | "others";
+
+export async function listOpenPullRequests(
+  repositories: string[],
+  authorship: PullRequestAuthorship,
+  run: Runner = githubRun,
+): Promise<ReviewRequest[]> {
+  if (repositories.length === 0) return [];
+  const authorArgs =
+    authorship === "dependabot" ? ["--author=app/dependabot"] : ["--", "-author:app/dependabot"];
+  const output = await run("gh", [
+    "search",
+    "prs",
+    "--state=open",
+    `--limit=${REVIEW_REQUEST_LIMIT}`,
+    `--json=${SEARCH_FIELDS}`,
+    ...repositories.map((repository) => `--repo=${repository}`),
+    ...authorArgs,
+  ]);
+  return (JSON.parse(output) as SearchResult[]).map(reviewRequestFromSearch);
 }
 
 export async function getPullRequest(

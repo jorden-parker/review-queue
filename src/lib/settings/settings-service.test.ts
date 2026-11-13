@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SessionStore } from "@/lib/session/store";
 import { savedLlmSettings } from "./llm-settings";
+import { savedRepositories } from "./repository-settings";
 import { clearCacheResponse, settingsView, updateSettings } from "./settings-service";
 
 const ENV = { PATH: "/nowhere", REVIEW_QUEUE_LLM_TIMEOUT_MS: "8000" };
@@ -35,6 +36,7 @@ describe("settingsView", () => {
       },
       models: ["a", "b"],
       autoModel: null,
+      repositories: [],
     });
   });
 
@@ -60,6 +62,27 @@ describe("updateSettings", () => {
     const response = await updateSettings(store, body, ENV, ollamaWith([]));
     expect(response.status).toBe(400);
     expect(savedLlmSettings(store)).toBeNull();
+  });
+
+  it("saves the repositories and answers with them", async () => {
+    const store = new SessionStore(":memory:");
+    const response = await updateSettings(
+      store,
+      { repositories: ["acme/app"] },
+      ENV,
+      ollamaWith([]),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ repositories: ["acme/app"] });
+    expect(savedRepositories(store)).toEqual(["acme/app"]);
+    expect(savedLlmSettings(store)).toBeNull();
+  });
+
+  it("rejects repository names that are not owner/name", async () => {
+    const store = new SessionStore(":memory:");
+    const response = await updateSettings(store, { repositories: ["acme"] }, ENV, ollamaWith([]));
+    expect(response.status).toBe(400);
+    expect(savedRepositories(store)).toEqual([]);
   });
 });
 

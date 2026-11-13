@@ -7,7 +7,9 @@ import {
   getPullRequest,
   type LinkedIssue,
   listLinkedIssues,
+  listOpenPullRequests,
   listReviewRequests,
+  type PullRequestAuthorship,
   type ReviewRequest,
   viewerLogin,
 } from "@/lib/github/gh";
@@ -18,6 +20,7 @@ import { prKey } from "@/lib/pr-ref";
 import type { PullRequestRef } from "@/lib/types";
 import { defaultDatabasePath, SessionStore } from "@/lib/session/store";
 import { savedLlmSettings } from "@/lib/settings/llm-settings";
+import { savedRepositories } from "@/lib/settings/repository-settings";
 import type { ReviewDeps } from "./prepare";
 
 const REVIEW_REQUESTS_TTL_MS = 60_000;
@@ -44,6 +47,15 @@ function githubCache(): TtlCache {
 
 export function reviewRequests(): Promise<ReviewRequest[]> {
   return githubCache().get("review-requests", REVIEW_REQUESTS_TTL_MS, () => listReviewRequests());
+}
+
+export function openPullRequests(authorship: PullRequestAuthorship): Promise<ReviewRequest[]> {
+  const repositories = savedRepositories(sessionStore());
+  return githubCache().get(
+    `open-pull-requests:${authorship}:${repositories.join(",")}`,
+    REVIEW_REQUESTS_TTL_MS,
+    () => listOpenPullRequests(repositories, authorship),
+  );
 }
 
 function conversationKey(ref: PullRequestRef): string {

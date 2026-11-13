@@ -15,6 +15,7 @@ const VIEW: SettingsView = {
   },
   models: ["qwen3-4b-cc", "granite4.2-3b-cc"],
   autoModel: "granite4.2-3b-cc",
+  repositories: [],
 };
 
 type Call = { url: string; method: string; body: unknown };

@@ -6,6 +6,10 @@ export function saveSettings(llm: LlmSettings): Promise<SettingsView> {
   return postJson<SettingsView>("/api/settings", { llm }, "PUT");
 }
 
+export function saveRepositories(repositories: string[]): Promise<SettingsView> {
+  return postJson<SettingsView>("/api/settings", { repositories }, "PUT");
+}
+
 export function clearCache(): Promise<{ cleared: number }> {
   return postJson<{ cleared: number }>("/api/settings/cache", {}, "DELETE");
 }

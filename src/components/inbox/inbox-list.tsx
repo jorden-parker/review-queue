@@ -4,10 +4,12 @@ import type { ReactNode } from "react";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { REVIEW_REQUEST_LIMIT, type ReviewRequest } from "@/lib/github/gh";
 import { prKey, prPath } from "@/lib/pr-ref";
-import { reviewRequests, sessionStore } from "@/lib/review/services";
+import { openPullRequests, reviewRequests, sessionStore } from "@/lib/review/services";
+import { savedRepositories } from "@/lib/settings/repository-settings";
 import type {
   InProgressSession,
   PauseState,
@@ -89,60 +91,92 @@ function QueueRows({ entries }: { entries: QueueEntry[] }) {
 
 type Inbox = {
   requests: ReviewRequest[];
+  requestsError: string | null;
+  repositoryRequests: ReviewRequest[];
+  repositoryError: string | null;
+  hasRepositories: boolean;
   progress: Record<string, ProgressSummary>;
   inProgress: InProgressSession[];
   archived: InProgressSession[];
   posted: RecentSubmission[];
-  error: string | null;
 };
+
+export function failureMessage(failure: unknown): string {
+  return failure instanceof Error ? failure.message : String(failure);
+}
 
 async function loadInbox(): Promise<Inbox> {
   const store = sessionStore();
-  const inProgress = store.inProgress();
-  const archived = store.archived();
-  const posted = store.recentSubmissions(POSTED_REVIEW_LIMIT);
-  try {
-    const requests = await reviewRequests();
-    const listedKeys = new Set(requests.map((request) => prKey(request.ref)));
-    return {
-      requests,
-      progress: store.progressSummaries([...listedKeys]),
-      inProgress: inProgress.filter((session) => !listedKeys.has(session.key)),
-      archived: archived.filter((session) => !listedKeys.has(session.key)),
-      posted,
-      error: null,
-    };
-  } catch (error) {
-    return {
-      requests: [],
-      progress: {},
-      inProgress,
-      archived,
-      posted,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
+  const [waiting, repositories] = await Promise.allSettled([
+    reviewRequests(),
+    openPullRequests("others"),
+  ]);
+  const requests = waiting.status === "fulfilled" ? waiting.value : [];
+  const waitingKeys = new Set(requests.map((request) => prKey(request.ref)));
+  const repositoryRequests =
+    repositories.status === "fulfilled"
+      ? repositories.value.filter((request) => !waitingKeys.has(prKey(request.ref)))
+      : [];
+  const listedKeys = new Set([
+    ...waitingKeys,
+    ...repositoryRequests.map((request) => prKey(request.ref)),
+  ]);
+  return {
+    requests,
+    requestsError: waiting.status === "rejected" ? failureMessage(waiting.reason) : null,
+    repositoryRequests,
+    repositoryError:
+      repositories.status === "rejected" ? failureMessage(repositories.reason) : null,
+    hasRepositories: savedRepositories(store).length > 0,
+    progress: store.progressSummaries([...listedKeys]),
+    inProgress: store.inProgress().filter((session) => !listedKeys.has(session.key)),
+    archived: store.archived().filter((session) => !listedKeys.has(session.key)),
+    posted: store.recentSubmissions(POSTED_REVIEW_LIMIT),
+  };
 }
 
-function QueueSection({ count, children }: { count: number; children: ReactNode }) {
+function QueueSection({
+  title,
+  count,
+  action,
+  children,
+}: {
+  title: string;
+  count: number;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-bold">
-        Waiting for you <span className="text-muted-foreground">({count})</span>
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">
+          {title} <span className="text-muted-foreground">({count})</span>
+        </h2>
+        {action}
+      </div>
       {children}
     </section>
   );
 }
 
-function RequestQueue({
+export function RequestQueue({
+  title,
+  action,
   requests,
   progress,
   error,
-}: Pick<Inbox, "requests" | "progress" | "error">) {
+  emptyMessage,
+}: {
+  title: string;
+  action?: ReactNode;
+  requests: ReviewRequest[];
+  progress: Record<string, ProgressSummary>;
+  error: string | null;
+  emptyMessage: ReactNode;
+}) {
   if (error) {
     return (
-      <QueueSection count={0}>
+      <QueueSection title={title} count={0} action={action}>
         <Card className="gap-2 px-5 text-sm border-destructive/40">
           <p>
             🔌 Couldn&apos;t reach GitHub through <code className="font-mono">gh</code>. Is it
@@ -155,15 +189,15 @@ function RequestQueue({
   }
   if (requests.length === 0) {
     return (
-      <QueueSection count={0}>
+      <QueueSection title={title} count={0} action={action}>
         <div className="rounded-xl bg-card border">
-          <EmptyState emoji="🌴">Nothing is waiting for your review. Enjoy it.</EmptyState>
+          <EmptyState emoji="🌴">{emptyMessage}</EmptyState>
         </div>
       </QueueSection>
     );
   }
   return (
-    <QueueSection count={requests.length}>
+    <QueueSection title={title} count={requests.length} action={action}>
       {requests.length === REVIEW_REQUEST_LIMIT && (
         <p className="text-sm text-muted-foreground">Showing the first {REVIEW_REQUEST_LIMIT}</p>
       )}
@@ -176,12 +210,40 @@ function RequestQueue({
 
 export async function InboxList() {
   await connection();
-  const { requests, progress, inProgress, archived, posted, error } = await loadInbox();
+  const inbox = await loadInbox();
   return (
     <div className="flex flex-col gap-8">
-      <RequestQueue requests={requests} progress={progress} error={error} />
-      <HomeSessions inProgress={inProgress} archived={archived} />
-      <PostedList reviews={posted} />
+      <RequestQueue
+        title="Waiting for you"
+        requests={inbox.requests}
+        progress={inbox.progress}
+        error={inbox.requestsError}
+        emptyMessage="Nothing is waiting for your review. Enjoy it."
+      />
+      {inbox.hasRepositories ? (
+        <RequestQueue
+          title="Open in your repositories"
+          action={
+            <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
+              <Link href="/dependabot">Dependabot PRs</Link>
+            </Button>
+          }
+          requests={inbox.repositoryRequests}
+          progress={inbox.progress}
+          error={inbox.repositoryError}
+          emptyMessage="No open pull requests in your repositories."
+        />
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Pick repositories in{" "}
+          <Link href="/settings" className="text-foreground underline underline-offset-4">
+            Settings
+          </Link>{" "}
+          to see their open PRs here
+        </p>
+      )}
+      <HomeSessions inProgress={inbox.inProgress} archived={inbox.archived} />
+      <PostedList reviews={inbox.posted} />
     </div>
   );
 }
