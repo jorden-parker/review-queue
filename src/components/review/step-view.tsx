@@ -1,10 +1,9 @@
 "use client";
 
-import { ChevronRight, FileCode2, FoldVertical, UnfoldVertical } from "lucide-react";
+import { ChevronRight, FoldVertical, UnfoldVertical } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import { cn } from "cn";
 import { PathLabel } from "@/components/common/path-label";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { AssistAction } from "@/lib/assist-protocol";
@@ -133,9 +132,8 @@ function FileHeader({
   wholeFileToggle: WholeFileToggle;
 }) {
   return (
-    <div className="sticky top-0 z-10 flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-4 py-2 font-sans">
+    <div className="sticky top-0 z-10 flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-card px-4 py-2 font-sans">
       <span className="flex min-w-0 items-center gap-2 max-sm:basis-full">
-        <FileCode2 className="size-4 shrink-0 text-muted-foreground" />
         {file.status === "renamed" && file.oldPath && (
           <>
             <PathLabel path={file.oldPath} truncate className="text-sm opacity-60" />
@@ -153,7 +151,7 @@ function FileHeader({
           <span className="text-add-foreground">+{file.additions}</span>
           <span className="text-del-foreground">−{file.deletions}</span>
         </span>
-        <Badge variant="outline">{file.status}</Badge>
+        <span className="text-muted-foreground">{file.status}</span>
       </span>
     </div>
   );

@@ -287,6 +287,7 @@ describe("ReviewLoader", () => {
     );
     const { api, user } = await renderReview(payload);
     await splitAboutPane(user);
+    await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("button", { name: "Start over" }));
     const dialog = screen.getByRole("dialog", { name: "Start this review over?" });
     expect(within(dialog).getByRole("checkbox", { name: /Also delete my 1 note/ })).toBeTruthy();
@@ -298,6 +299,7 @@ describe("ReviewLoader", () => {
 
   it("keeps progress when starting over is cancelled", async () => {
     const { api, user } = await renderReview();
+    await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("button", { name: "Start over" }));
     await user.click(screen.getByRole("button", { name: "Keep my progress" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -531,7 +533,6 @@ describe("ReviewLoader", () => {
     expect(screen.getByText("type Options = { retries: number }")).toBeTruthy();
     const contextTab = paneButton("Context (1)");
     expect(within(contextTab).getByText("Context")).toBeTruthy();
-    expect(within(contextTab).getByText("1")).toBeTruthy();
     expect(api.actions()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: "symbol-seen" }),

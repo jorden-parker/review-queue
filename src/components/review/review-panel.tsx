@@ -46,9 +46,9 @@ const SIDE_STYLES: Record<PanelSide, SideStyle> = {
     label: "Review panel",
     toggleName: "panel",
     shortcut: "]",
-    asideEdge: "border-l",
-    stripEdge: "border-r",
-    columnEdge: "max-lg:right-full max-lg:border-l",
+    asideEdge: "",
+    stripEdge: "",
+    columnEdge: "max-lg:right-full",
     handleSide: "-left-1",
     OpenIcon: PanelRightOpen,
     CloseIcon: PanelRightClose,
@@ -57,9 +57,9 @@ const SIDE_STYLES: Record<PanelSide, SideStyle> = {
     label: "Discuss panel",
     toggleName: "chat side",
     shortcut: "[",
-    asideEdge: "flex-row-reverse border-r",
-    stripEdge: "border-l",
-    columnEdge: "max-lg:left-full max-lg:border-r",
+    asideEdge: "flex-row-reverse",
+    stripEdge: "",
+    columnEdge: "max-lg:left-full",
     handleSide: "-right-1",
     OpenIcon: PanelLeftOpen,
     CloseIcon: PanelLeftClose,
@@ -125,26 +125,25 @@ function PaneButton({
   onClick: (event: MouseEvent) => void;
 }) {
   const Icon = pane.icon;
+  const paneName = pane.count ? `${pane.label} (${pane.count})` : pane.label;
   return (
     <HintButton
       variant="ghost"
-      hint="Shift-click or drag to split"
-      aria-label={pane.count ? `${pane.label} (${pane.count})` : pane.label}
+      hint={`${paneName} · shift-click or drag to split`}
+      aria-label={paneName}
       aria-pressed={open}
       draggable
       onDragStart={(event) => startPaneDrag(event, pane.id, side)}
       onClick={onClick}
-      className="relative mx-1 h-auto w-auto flex-col gap-1 rounded-lg px-1 py-2 text-xs font-medium text-muted-foreground transition-colors duration-calm ease-calm hover:bg-foreground/5 hover:text-foreground aria-pressed:bg-accent aria-pressed:text-accent-foreground"
+      className="relative mx-auto size-10 rounded-lg text-muted-foreground transition-colors duration-calm ease-calm hover:bg-foreground/5 hover:text-foreground aria-pressed:bg-accent aria-pressed:text-accent-foreground"
     >
       <span className="relative flex">
         <Icon />
         {pane.count ? (
-          <span className="absolute -top-1.5 left-3 min-w-4 rounded-full bg-marker px-1 text-center text-xs/4 font-bold text-foreground ring-2 ring-rail tabular-nums dark:text-background">
-            {pane.count}
-          </span>
+          <span aria-hidden className="absolute -top-1 -right-1 size-2 rounded-full bg-marker ring-2 ring-rail" />
         ) : null}
       </span>
-      <span className="max-sm:sr-only">{pane.label}</span>
+      <span className="sr-only">{pane.label}</span>
     </HintButton>
   );
 }
@@ -162,7 +161,6 @@ function PaneFrame({
   content: PaneContent;
   onClose: () => void;
 }) {
-  const PaneIcon = pane.icon;
   if (content.ownHeader) {
     return (
       <div data-pane-index={index} className="flex min-h-0 flex-1 basis-0 flex-col">
@@ -179,9 +177,8 @@ function PaneFrame({
       <header
         draggable
         onDragStart={(event) => startPaneDrag(event, pane.id, side)}
-        className="group/pane-header flex min-h-11 shrink-0 cursor-grab items-center gap-2 border-b px-4 py-2 text-sm font-bold active:cursor-grabbing"
+        className="group/pane-header flex min-h-11 shrink-0 cursor-grab items-center gap-2 px-5 pt-3 text-xs font-medium text-muted-foreground active:cursor-grabbing"
       >
-        <PaneIcon className="size-4 shrink-0 text-muted-foreground" />
         <span className="flex-1 wrap-anywhere">{pane.label}</span>
         <GripVertical className="size-3.5 opacity-0 transition-opacity duration-calm group-hover/pane-header:opacity-60" />
         <Button
@@ -194,7 +191,7 @@ function PaneFrame({
           <X />
         </Button>
       </header>
-      <div className="flex min-h-0 flex-1 animate-step-enter flex-col overflow-y-auto p-4 [scrollbar-gutter:stable]">
+      <div className="flex min-h-0 flex-1 animate-step-enter flex-col overflow-y-auto px-5 pt-2 pb-5 [scrollbar-gutter:stable]">
         {content.body}
       </div>
     </section>
@@ -268,7 +265,7 @@ export function ReviewPanel({
       onDrop={onDrop}
     >
       <div
-        className={`flex w-panel-strip shrink-0 flex-col max-sm:w-panel-strip-compact items-center gap-3 overflow-y-auto ${style.stripEdge} bg-rail py-3`}
+        className={`flex w-panel-strip-compact shrink-0 flex-col items-center gap-3 overflow-y-auto ${style.stripEdge} bg-rail py-3`}
       >
         <PanelToggle side={side} open={panes.length > 0} onToggle={controls.togglePanel} />
         <div className="flex w-full flex-col gap-1">

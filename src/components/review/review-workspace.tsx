@@ -6,6 +6,7 @@ import {
   CircleHelp,
   Coffee,
   Compass,
+  Ellipsis,
   Flame,
   GitPullRequest,
   Layers,
@@ -31,6 +32,7 @@ import { HintButton } from "@/components/common/hint-button";
 import { InlineMarkdown } from "@/components/common/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   type AssistTarget,
   type AssistTurn,
@@ -111,7 +113,7 @@ const PANES: { id: PaneId; label: string; icon: LucideIcon }[] = [
 
 function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Workspace }) {
   return (
-    <header className="flex h-14 items-center gap-2 sticky top-0 z-10 border-b bg-background/80 backdrop-blur pr-2 pl-1.5 sm:gap-4 sm:pr-4 sm:pl-4.5">
+    <header className="sticky top-0 z-10 flex h-16 items-center gap-2 bg-background/80 pr-2 pl-1.5 backdrop-blur sm:gap-4 sm:pr-6 sm:pl-4.5">
       <HintButton
         variant="ghost"
         size="icon"
@@ -135,32 +137,34 @@ function TopBar({ review, workspace }: { review: ReviewPayload; workspace: Works
       </div>
       <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
         <FocusTimer onFinished={() => workspace.setBreakDue(true)} />
-        <span aria-hidden className="mx-1 h-5 w-px bg-border max-sm:hidden" />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="More actions">
+              <Ellipsis />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="flex w-52 flex-col gap-0.5 p-1">
+            <Button
+              variant="ghost"
+              className="justify-start"
+              onClick={() => workspace.setDialog("start-over")}
+            >
+              <RotateCcw /> Start over
+            </Button>
+            <Button
+              variant="ghost"
+              className="justify-start"
+              onClick={() => workspace.setDialog("help")}
+            >
+              <CircleHelp /> Keyboard shortcuts <Kbd className="ml-auto">?</Kbd>
+            </Button>
+          </PopoverContent>
+        </Popover>
         <HintButton
           variant="ghost"
-          size="icon"
-          hint="Start over"
-          aria-label="Start over"
-          onClick={() => workspace.setDialog("start-over")}
-        >
-          <RotateCcw />
-        </HintButton>
-        <HintButton
-          variant="ghost"
-          size="icon"
-          hint="Keyboard shortcuts"
-          shortcut="?"
-          aria-label="Keyboard shortcuts"
-          className="max-sm:hidden"
-          onClick={() => workspace.setDialog("help")}
-        >
-          <CircleHelp />
-        </HintButton>
-        <HintButton
-          variant="outline"
           hint="Pause with a note"
           shortcut="."
-          className="ml-1"
+          className="text-muted-foreground"
           onClick={() => workspace.setDialog("pause")}
         >
           <Coffee /> <span className="max-sm:sr-only">Pause</span>
@@ -451,7 +455,7 @@ function StepTrack({ steps, currentIndex, doneSteps }: StepTrackProps) {
         <li
           key={step.id}
           className={cn(
-            "h-1.5 flex-1 rounded-full bg-border transition-colors duration-calm",
+            "h-1 flex-1 rounded-full bg-muted transition-colors duration-calm",
             doneSteps.includes(step.id) && "bg-primary",
             index === currentIndex && "bg-marker",
           )}
@@ -482,18 +486,18 @@ function StepBar({
   if (!step) return null;
   const isLast = workspace.currentIndex >= review.steps.length - 1;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-5">
       <StepTrack
         steps={review.steps}
         currentIndex={workspace.showAll ? -1 : workspace.currentIndex}
         doneSteps={session.doneSteps}
       />
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h2 className="flex min-w-48 flex-1 items-baseline gap-3 truncate">
-          <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <h2 className="flex min-w-48 flex-1 flex-col gap-1">
+          <span className="text-sm text-muted-foreground tabular-nums">
             {workspace.currentIndex + 1} of {review.steps.length}
           </span>
-          <span className="truncate text-lg font-bold">{stepBarTitle(workspace, step)}</span>
+          <span className="truncate text-2xl font-semibold">{stepBarTitle(workspace, step)}</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           {workspace.showChanges ? (
@@ -506,8 +510,10 @@ function StepBar({
               <span>Back to the path</span>
             </Button>
           ) : (
-            <Button
+            <HintButton
               variant="ghost"
+              hint={workspace.showAll ? "Back to one step at a time" : "Show whole PR"}
+              shortcut="a"
               onClick={() => workspace.setShowAll(!workspace.showAll)}
               className="text-muted-foreground"
             >
@@ -515,25 +521,23 @@ function StepBar({
               <span className="max-sm:sr-only">
                 {workspace.showAll ? "Back to one step at a time" : "Show whole PR"}
               </span>
-              <Kbd className="max-sm:hidden">a</Kbd>
-            </Button>
+            </HintButton>
           )}
           {!workspace.showAll && !workspace.showChanges && (
             <>
-              <Button
-                variant="outline"
+              <HintButton
+                variant="ghost"
+                hint="Previous step"
+                shortcut="p"
                 onClick={() => workspace.moveStep(-1)}
                 disabled={workspace.currentIndex <= 0}
+                className="text-muted-foreground"
               >
                 <ArrowLeft /> <span className="max-sm:sr-only">Previous</span>
-                <Kbd className="max-sm:hidden">p</Kbd>
-              </Button>
-              <Button onClick={workspace.doneAndNext}>
+              </HintButton>
+              <HintButton hint="Mark done and go on" shortcut="x" onClick={workspace.doneAndNext}>
                 {isLast ? "Done with this step" : "Done, next step"} <ArrowRight />
-                <Kbd className="bg-primary-foreground/20 text-primary-foreground max-sm:hidden">
-                  x
-                </Kbd>
-              </Button>
+              </HintButton>
             </>
           )}
         </div>
@@ -903,7 +907,7 @@ export function ReviewWorkspace({
           fresh={fresh}
         />
         <div className="relative flex min-h-0 min-w-0 flex-col">
-          <div className="shrink-0 border-b bg-background px-3 py-4 sm:px-8">
+          <div className="shrink-0 bg-background px-3 pt-4 pb-6 sm:px-10">
             <div className="mx-auto flex max-w-5xl flex-col gap-3">
               <StepBar review={review} session={session} workspace={workspace} />
               <ClosedNotice state={review.pr.state} />
@@ -919,7 +923,7 @@ export function ReviewWorkspace({
               <BreakBanner workspace={workspace} />
             </div>
           </div>
-          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-24 sm:px-8">
+          <main className="min-h-0 flex-1 overflow-y-auto px-3 pb-24 sm:px-10">
             <div id="step-top" className="mx-auto flex max-w-5xl flex-col gap-6 pt-6">
               <CentreBody
                 workspace={workspace}
